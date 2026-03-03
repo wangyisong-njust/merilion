@@ -12,14 +12,9 @@ ckpt
 
 *.ipynb
 *.bin
-log.txt
-*_log
-*.log
 
 flagged/
-script/
 wandb
-log/
 tiny_*
 lora-*
 results
@@ -28,7 +23,6 @@ results
 env
 lm_cache
 .idea
-*.log
 *.egg-info
 
 # Added for Merilion project
@@ -38,12 +32,11 @@ lm_cache
 *.csv
 *.xlsx
 *.pdf
-*.swp
 *.zip
 *.tar.gz
 *.out
-*.swp
 
+# Exclude large models but allow logs
 MERaLiON-2-*
 SmolVLM-500M-*
 meralion_checkpoints/
@@ -60,3 +53,8 @@ output/
 pruned_channels.txt
 zh_seed_tasks.json
 datasets/
+
+# Specifically ALLOWING these for remote review
+!*.sh
+!*.log
+!scripts/*.sh

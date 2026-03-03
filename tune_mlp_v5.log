@@ -1,0 +1,15 @@
+/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+⚙️  Running in WANDB offline mode
+Traceback (most recent call last):
+  File "/home/jinchao/runtao/LLM-Pruner/post_training_meralion.py", line 903, in <module>
+    main(args)
+  File "/home/jinchao/runtao/LLM-Pruner/post_training_meralion.py", line 213, in main
+    model = Model(args.base_model)
+  File "/home/jinchao/runtao/LLM-Pruner/audiobench/model.py", line 25, in __init__
+    self.load_model()
+  File "/home/jinchao/runtao/LLM-Pruner/audiobench/model.py", line 71, in load_model
+    from audiobench.model_src.meralion_2 import meralion_2_model_loader
+  File "/home/jinchao/runtao/LLM-Pruner/audiobench/model_src/meralion_2.py", line 1
+    audio_duration = len(audio_array) / sampling_rate
+IndentationError: unexpected indent

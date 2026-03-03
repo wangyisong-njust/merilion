@@ -1,0 +1,55 @@
+/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+02/12/2026 17:56:44 - INFO - audiobench.model_src.meralion_2 - Loading model from: /home/jinchao/runtao/LL_base_model/MERaLiON-2-3B
+2026-02-12 17:56:44 - INFO :       Loading model from: /home/jinchao/runtao/LL_base_model/MERaLiON-2-3B
+Traceback (most recent call last):
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/transformers/utils/hub.py", line 476, in cached_files
+    hf_hub_download(
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 106, in _inner_fn
+    validate_repo_id(arg_value)
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 154, in validate_repo_id
+    raise HFValidationError(
+huggingface_hub.errors.HFValidationError: Repo id must be in the form 'repo_name' or 'namespace/repo_name': '/home/jinchao/runtao/LL_base_model/MERaLiON-2-3B'. Use `repo_type` argument if needed.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/transformers/configuration_utils.py", line 708, in _get_config_dict
+    resolved_config_file = cached_file(
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/transformers/utils/hub.py", line 318, in cached_file
+    file = cached_files(path_or_repo_id=path_or_repo_id, filenames=[filename], **kwargs)
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/transformers/utils/hub.py", line 528, in cached_files
+    resolved_files = [
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/transformers/utils/hub.py", line 529, in <listcomp>
+    _get_cache_file_to_return(path_or_repo_id, filename, cache_dir, revision, repo_type)
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/transformers/utils/hub.py", line 144, in _get_cache_file_to_return
+    resolved_file = try_to_load_from_cache(
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 106, in _inner_fn
+    validate_repo_id(arg_value)
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 154, in validate_repo_id
+    raise HFValidationError(
+huggingface_hub.errors.HFValidationError: Repo id must be in the form 'repo_name' or 'namespace/repo_name': '/home/jinchao/runtao/LL_base_model/MERaLiON-2-3B'. Use `repo_type` argument if needed.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/jinchao/runtao/LLM-Pruner/meralion.py", line 593, in <module>
+    main(args)
+  File "/home/jinchao/runtao/LLM-Pruner/meralion.py", line 62, in main
+    model = Model(args.base_model)
+  File "/home/jinchao/runtao/LLM-Pruner/audiobench/model.py", line 25, in __init__
+    self.load_model()
+  File "/home/jinchao/runtao/LLM-Pruner/audiobench/model.py", line 72, in load_model
+    meralion_2_model_loader(self)
+  File "/home/jinchao/runtao/LLM-Pruner/audiobench/model_src/meralion_2.py", line 17, in meralion_2_model_loader
+    self.model = MERaLiON2ForConditionalGeneration.from_pretrained(
+  File "/home/jinchao/runtao/LLM-Pruner/meralion2_bl/modeling_meralion2.py", line 339, in from_pretrained
+    config = MERaLiON2Config.from_pretrained(pretrained_model_name_or_path)
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/transformers/configuration_utils.py", line 609, in from_pretrained
+    config_dict, kwargs = cls.get_config_dict(pretrained_model_name_or_path, **kwargs)
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/transformers/configuration_utils.py", line 649, in get_config_dict
+    config_dict, kwargs = cls._get_config_dict(pretrained_model_name_or_path, **kwargs)
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/transformers/configuration_utils.py", line 731, in _get_config_dict
+    raise OSError(
+OSError: Can't load the configuration of '/home/jinchao/runtao/LL_base_model/MERaLiON-2-3B'. If you were trying to load it from 'https://huggingface.co/models', make sure you don't have a local directory with the same name. Otherwise, make sure '/home/jinchao/runtao/LL_base_model/MERaLiON-2-3B' is the correct path to a directory containing a config.json file
+ERROR conda.cli.main_run:execute(142): `conda run bash -c python meralion.py --base_model /home/jinchao/runtao/LL_base_model/MERaLiON-2-3B --pruning_ratio 0.5 --pruner_type taylor --taylor param_mix --block_wise --whisper_block_layer_start 4 --whisper_block_layer_end 28 --save_model_path meralion_checkpoints/MERaLiON-2-3B-Whisper-50 --num_examples 3 --iterative_steps 1 && python post_training_meralion.py --base_model meralion_checkpoints/MERaLiON-2-3B-Whisper-50 --output_dir meralion_tune_log/MERaLiON-2-3B-Whisper-50-tune --lora_r 16 --lora_alpha 16 --learning_rate 5e-5 --num_epochs 3 --batch_size 8 --micro_batch_size 2` failed. (See above for error)

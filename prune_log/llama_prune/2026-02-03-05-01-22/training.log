@@ -1,0 +1,42 @@
+2026-02-03 05:01:25 - INFO :       We will use 90% of the memory on device 0 for storing the model, and 10% for the buffer to avoid OOM. You can set `max_memory` in to a higher value to use more memory (at your own risk).
+2026-02-03 05:01:28 - INFO :       Model loaded: ./meralion_checkpoints/MERaLiON-2-10B-ASR-0_5-5-40
+2026-02-03 05:01:28 - INFO :       Loaded model: MERaLiON-2-10B-ASR
+2026-02-03 05:01:28 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-03 05:01:28 - INFO :       Loading dataset: imda_part2_asr_test
+2026-02-03 05:01:33 - INFO :       Loaded 3000 samples for evaluation
+2026-02-03 05:01:33 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-03 05:01:33 - INFO :       Number of samples: 21
+2026-02-03 05:01:34 - INFO :       
+=  =  =  Dataset Sample  =  =  =
+2026-02-03 05:01:34 - INFO :       {'audio': {'path': None, 'array': array([-0.00015259, -0.00021362, -0.00012207, ..., -0.00015259,
+       -0.00015259, -0.00024414]), 'sampling_rate': 16000}, 'instruction': 'Transcribe the spoken conversation into written text.', 'reference': 'by using such names as Tan Keong Saik Zhu Hong and Loke Wan Tho we hope to capture some of the common names', 'task_type': 'ASR'}
+2026-02-03 05:01:34 - INFO :       =  =  =  =  =  =  =  =  =  =  =  =
+
+2026-02-03 05:01:34 - INFO :       Use taylor pruner...
+2026-02-03 05:01:34 - INFO :       Pruning Attention Layer = []
+2026-02-03 05:01:34 - INFO :       Pruning MLP Layer = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
+2026-02-03 05:01:35 - INFO :       Start Pruning
+2026-02-03 05:01:35 - INFO :       Start Backwarding in iterative steps = 0...
+2026-02-03 05:01:36 - INFO :       Loss = 22.277372360229492
+2026-02-03 05:01:42 - INFO :       Loss = 22.950119018554688
+2026-02-03 05:01:50 - INFO :       Loss = 21.617576599121094
+2026-02-03 05:01:57 - INFO :       Loss = 21.739219665527344
+2026-02-03 05:02:04 - INFO :       Loss = 23.95285987854004
+2026-02-03 05:02:12 - INFO :       Loss = 23.645469665527344
+2026-02-03 05:02:20 - INFO :       Loss = 22.80288314819336
+2026-02-03 05:02:27 - INFO :       Loss = 23.909053802490234
+2026-02-03 05:02:35 - INFO :       Loss = 21.154237747192383
+2026-02-03 05:02:43 - INFO :       Loss = 24.116687774658203
+2026-02-03 05:02:50 - INFO :       Loss = 22.5889892578125
+2026-02-03 05:02:57 - INFO :       Loss = 24.1402530670166
+2026-02-03 05:03:05 - INFO :       Loss = 22.596261978149414
+2026-02-03 05:03:13 - INFO :       Loss = 21.87684440612793
+2026-02-03 05:03:20 - INFO :       Loss = 21.35847282409668
+2026-02-03 05:03:28 - INFO :       Loss = 21.19225311279297
+2026-02-03 05:03:36 - INFO :       Loss = 22.74639129638672
+2026-02-03 05:03:43 - INFO :       Loss = 20.62900733947754
+2026-02-03 05:03:51 - INFO :       Loss = 21.19122314453125
+2026-02-03 05:03:59 - INFO :       Loss = 22.396085739135742
+2026-02-03 05:04:07 - INFO :       Loss = 22.337799072265625
+2026-02-03 05:04:15 - INFO :       After Iter 1/1, #parameters: 2427715584
+2026-02-03 05:04:15 - INFO :       #Param before: 3776446464, #Param after: 2427715584, Ratio = 64.2857%

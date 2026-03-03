@@ -1,0 +1,51 @@
+/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+⚙️  Running in WANDB offline mode
+Traceback (most recent call last):
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/trl/import_utils.py", line 166, in _get_module
+    return importlib.import_module("." + module_name, self.__name__)
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/trl/trainer/sft_trainer.py", line 56, in <module>
+    from .base_trainer import BaseTrainer
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/trl/trainer/base_trainer.py", line 23, in <module>
+    import wandb
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/wandb/__init__.py", line 22, in <module>
+    from wandb.sdk.lib import wb_logging as _wb_logging
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/wandb/sdk/__init__.py", line 25, in <module>
+    from .artifacts.artifact import Artifact
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/wandb/sdk/artifacts/artifact.py", line 39, in <module>
+    from wandb import data_types, env
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/wandb/data_types.py", line 16, in <module>
+    from .sdk.data_types.audio import Audio
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/wandb/sdk/data_types/audio.py", line 10, in <module>
+    from ._private import MEDIA_TMP
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/wandb/sdk/data_types/_private.py", line 6, in <module>
+    MEDIA_TMP = tempfile.TemporaryDirectory("wandb-media")
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/tempfile.py", line 835, in __init__
+    self.name = mkdtemp(suffix, prefix, dir)
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/tempfile.py", line 384, in mkdtemp
+    _os.mkdir(file, 0o700)
+OSError: [Errno 28] No space left on device: '/tmp/tmpc89kjuo3wandb-media'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/jinchao/runtao/LLM-Pruner/post_training_meralion.py", line 18, in <module>
+    from trl import SFTTrainer, SFTConfig
+  File "<frozen importlib._bootstrap>", line 1075, in _handle_fromlist
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/trl/import_utils.py", line 157, in __getattr__
+    value = getattr(module, name)
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/trl/import_utils.py", line 156, in __getattr__
+    module = self._get_module(self._class_to_module[name])
+  File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/trl/import_utils.py", line 168, in _get_module
+    raise RuntimeError(
+RuntimeError: Failed to import trl.trainer.sft_trainer because of the following error (look up to see its traceback):
+[Errno 28] No space left on device: '/tmp/tmpc89kjuo3wandb-media'
+ERROR conda.cli.main_run:execute(142): `conda run python post_training_meralion.py --base_model meralion_checkpoints/MERaLiON-2-3B-Attn-50 --output_dir meralion_tune_log/MERaLiON-2-3B-Attn-50-tune --lora_r 16 --lora_alpha 16 --learning_rate 5e-5 --num_epochs 3 --batch_size 8 --micro_batch_size 2 --resume_from_checkpoint True` failed. (See above for error)

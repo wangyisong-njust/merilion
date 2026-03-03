@@ -1,0 +1,1077 @@
+/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+02/12/2026 18:27:32 - INFO - audiobench.model_src.meralion_2 - Loading model from: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 18:27:32 - INFO :       Loading model from: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+02/12/2026 18:28:34 - INFO - audiobench.model_src.meralion_2 - Model loaded: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 18:28:34 - INFO :       Model loaded: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+02/12/2026 18:28:34 - INFO - audiobench.model - Loaded model: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 18:28:34 - INFO :       Loaded model: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+02/12/2026 18:28:34 - INFO - audiobench.model - = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-12 18:28:34 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+02/12/2026 18:28:34 - INFO - audiobench.dataset - Loading dataset: imda_part2_asr_test
+2026-02-12 18:28:34 - INFO :       Loading dataset: imda_part2_asr_test
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": -1,
+  "midblock_ratio": 1.0,
+  "midblock_start": -1,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": true,
+  "vocab_size": 256000
+}
+
+Loading state dict from /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B to detect pruned shapes...
+Loading weights into resized layers...
+Load state dict result: _IncompatibleKeys(missing_keys=['text_decoder.lm_head.weight'], unexpected_keys=[])
+Tying lm_head weights to embed_tokens...
+MERaLiON2ForConditionalGeneration(
+  (speech_encoder): WhisperEncoder(
+    (conv1): Conv1d(128, 1280, kernel_size=(3,), stride=(1,), padding=(1,))
+    (conv2): Conv1d(1280, 1280, kernel_size=(3,), stride=(2,), padding=(1,))
+    (embed_positions): Embedding(1500, 1280)
+    (layers): ModuleList(
+      (0-31): 32 x WhisperEncoderLayer(
+        (self_attn): WhisperSdpaAttention(
+          (k_proj): Linear(in_features=1280, out_features=1280, bias=False)
+          (v_proj): Linear(in_features=1280, out_features=1280, bias=True)
+          (q_proj): Linear(in_features=1280, out_features=1280, bias=True)
+          (out_proj): Linear(in_features=1280, out_features=1280, bias=True)
+        )
+        (self_attn_layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+        (activation_fn): GELUActivation()
+        (fc1): Linear(in_features=1280, out_features=5120, bias=True)
+        (fc2): Linear(in_features=5120, out_features=1280, bias=True)
+        (final_layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+    (layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+  )
+  (ln_speech): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+  (speech_audio_adapter): MERaLiON2SpeechAudioAdaperLarge(
+    (mlp_adapter): Sequential(
+      (0): Linear(in_features=19200, out_features=6400, bias=True)
+      (1): SiLU()
+      (2): Dropout(p=0.01, inplace=False)
+    )
+    (gate_proj): Linear(in_features=6400, out_features=6400, bias=True)
+    (pool_proj): Linear(in_features=6400, out_features=6400, bias=True)
+    (act_fn): SiLU()
+    (out_proj): Linear(in_features=6400, out_features=2304, bias=True)
+  )
+  (text_decoder): Gemma2ForCausalLM(
+    (model): Gemma2Model(
+      (embed_tokens): Embedding(256000, 2304, padding_idx=0)
+      (layers): ModuleList(
+        (0-25): 26 x Gemma2DecoderLayer(
+          (self_attn): Gemma2Attention(
+            (q_proj): Linear(in_features=2304, out_features=2048, bias=False)
+            (k_proj): Linear(in_features=2304, out_features=1024, bias=False)
+            (v_proj): Linear(in_features=2304, out_features=1024, bias=False)
+            (o_proj): Linear(in_features=2048, out_features=2304, bias=False)
+          )
+          (mlp): Gemma2MLP(
+            (gate_proj): Linear(in_features=2304, out_features=9216, bias=False)
+            (up_proj): Linear(in_features=2304, out_features=9216, bias=False)
+            (down_proj): Linear(in_features=9216, out_features=2304, bias=False)
+            (act_fn): PytorchGELUTanh()
+          )
+          (input_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (post_attention_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (pre_feedforward_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (post_feedforward_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+        )
+      )
+      (norm): Gemma2RMSNorm((2304,), eps=1e-06)
+      (rotary_emb): Gemma2RotaryEmbedding()
+    )
+    (lm_head): Linear(in_features=2304, out_features=256000, bias=False)
+  )
+)
+Map:   0%|          | 0/125326 [00:00<?, ? examples/s]Map:   0%|          | 1/125326 [00:00<31:16:22,  1.11 examples/s]Map:   0%|          | 72/125326 [00:01<21:17, 98.08 examples/s]  Map:   0%|          | 118/125326 [00:01<13:21, 156.14 examples/s]Map:   0%|          | 170/125326 [00:01<10:12, 204.39 examples/s]Map:   0%|          | 224/125326 [00:01<08:35, 242.63 examples/s]Map:   0%|          | 273/125326 [00:01<07:54, 263.31 examples/s]Map:   0%|          | 323/125326 [00:01<07:28, 278.60 examples/s]Map:   0%|          | 358/125326 [00:01<07:06, 292.95 examples/s]Map:   0%|          | 400/125326 [00:01<07:17, 285.27 examples/s]Map:   0%|          | 445/125326 [00:02<07:12, 288.68 examples/s]Map:   0%|          | 491/125326 [00:02<07:09, 290.82 examples/s]Map:   0%|          | 533/125326 [00:02<07:19, 284.12 examples/s]Map:   0%|          | 573/125326 [00:02<07:32, 275.76 examples/s]Map:   0%|          | 602/125326 [00:02<07:33, 275.14 examples/s]Map:   1%|          | 643/125326 [00:02<07:39, 271.34 examples/s]Map:   1%|          | 685/125326 [00:03<07:42, 269.67 examples/s]Map:   1%|          | 725/125326 [00:03<07:49, 265.46 examples/s]Map:   1%|          | 752/125326 [00:03<07:52, 263.61 examples/s]Map:   1%|          | 780/125326 [00:03<07:52, 263.53 examples/s]Map:   1%|          | 807/125326 [00:03<07:56, 261.20 examples/s]Map:   1%|          | 837/125326 [00:03<07:42, 269.14 examples/s]Map:   1%|          | 869/125326 [00:03<07:27, 278.00 examples/s]Map:   1%|          | 898/125326 [00:03<07:27, 277.98 examples/s]Map:   1%|          | 936/125326 [00:03<06:51, 302.13 examples/s]Map:   1%|          | 971/125326 [00:04<06:36, 313.31 examples/s]Map:   1%|          | 987/125326 [00:20<06:36, 313.31 examples/s]Map:   1%|          | 1000/125326 [05:27<104:19:09,  3.02s/ examples]Map:   1%|          | 1044/125326 [05:27<65:46:09,  1.91s/ examples] Map:   1%|          | 1088/125326 [05:27<43:03:18,  1.25s/ examples]Map:   1%|          | 1136/125326 [05:27<27:59:57,  1.23 examples/s]Map:   1%|          | 1178/125326 [05:28<19:29:47,  1.77 examples/s]Map:   1%|          | 1225/125326 [05:28<13:08:04,  2.62 examples/s]Map:   1%|          | 1268/125326 [05:28<9:13:14,  3.74 examples/s] Map:   1%|          | 1332/125326 [05:28<5:39:42,  6.08 examples/s]Map:   1%|          | 1386/125326 [05:28<3:53:02,  8.86 examples/s]Map:   1%|          | 1443/125326 [05:28<2:39:05, 12.98 examples/s]Map:   1%|          | 1482/125326 [05:28<2:02:01, 16.92 examples/s]Map:   1%|          | 1532/125326 [05:28<1:25:55, 24.01 examples/s]Map:   1%|▏         | 1596/125326 [05:29<56:50, 36.28 examples/s]  Map:   1%|▏         | 1648/125326 [05:29<41:19, 49.89 examples/s]Map:   1%|▏         | 1696/125326 [05:29<31:00, 66.45 examples/s]Map:   1%|▏         | 1763/125326 [05:29<21:00, 98.04 examples/s]Map:   1%|▏         | 1819/125326 [05:29<15:50, 129.90 examples/s]Map:   2%|▏         | 1880/125326 [05:29<11:53, 173.09 examples/s]Map:   2%|▏         | 1946/125326 [05:29<09:01, 227.82 examples/s]Map:   2%|▏         | 1979/125326 [05:44<09:01, 227.82 examples/s]Map:   2%|▏         | 2000/125326 [10:46<56:02:08,  1.64s/ examples]Map:   2%|▏         | 2068/125326 [10:46<37:21:04,  1.09s/ examples]Map:   2%|▏         | 2148/125326 [10:47<23:56:46,  1.43 examples/s]Map:   2%|▏         | 2230/125326 [10:47<15:42:21,  2.18 examples/s]Map:   2%|▏         | 2309/125326 [10:47<10:40:03,  3.20 examples/s]Map:   2%|▏         | 2389/125326 [10:47<7:17:43,  4.68 examples/s] Map:   2%|▏         | 2474/125326 [10:47<4:56:20,  6.91 examples/s]Map:   2%|▏         | 2532/125326 [10:47<3:45:45,  9.07 examples/s]Map:   2%|▏         | 2593/125326 [10:47<2:46:36, 12.28 examples/s]Map:   2%|▏         | 2665/125326 [10:48<1:56:22, 17.57 examples/s]Map:   2%|▏         | 2722/125326 [10:48<1:27:36, 23.32 examples/s]Map:   2%|▏         | 2796/125326 [10:48<1:00:29, 33.76 examples/s]Map:   2%|▏         | 2849/125326 [10:48<46:22, 44.02 examples/s]  Map:   2%|▏         | 2913/125326 [10:48<34:23, 59.32 examples/s]Map:   2%|▏         | 2965/125326 [10:48<26:30, 76.95 examples/s]Map:   2%|▏         | 2988/125326 [11:07<26:29, 76.95 examples/s]Map:   2%|▏         | 3000/125326 [16:23<65:02:20,  1.91s/ examples]Map:   2%|▏         | 3050/125326 [16:23<46:14:22,  1.36s/ examples]Map:   2%|▏         | 3102/125326 [16:23<32:21:12,  1.05 examples/s]Map:   3%|▎         | 3154/125326 [16:23<22:38:52,  1.50 examples/s]Map:   3%|▎         | 3204/125326 [16:23<16:02:51,  2.11 examples/s]Map:   3%|▎         | 3260/125326 [16:23<10:57:05,  3.10 examples/s]Map:   3%|▎         | 3318/125326 [16:23<7:27:34,  4.54 examples/s] Map:   3%|▎         | 3375/125326 [16:23<5:09:46,  6.56 examples/s]Map:   3%|▎         | 3456/125326 [16:24<3:11:26, 10.61 examples/s]Map:   3%|▎         | 3513/125326 [16:24<2:18:49, 14.62 examples/s]Map:   3%|▎         | 3577/125326 [16:24<1:37:17, 20.86 examples/s]Map:   3%|▎         | 3629/125326 [16:24<1:12:34, 27.95 examples/s]Map:   3%|▎         | 3702/125326 [16:24<49:21, 41.07 examples/s]  Map:   3%|▎         | 3751/125326 [16:24<38:05, 53.18 examples/s]Map:   3%|▎         | 3806/125326 [16:24<28:50, 70.21 examples/s]Map:   3%|▎         | 3867/125326 [16:25<21:27, 94.36 examples/s]Map:   3%|▎         | 3927/125326 [16:25<16:30, 122.55 examples/s]Map:   3%|▎         | 3979/125326 [16:25<13:36, 148.53 examples/s]Map:   3%|▎         | 3997/125326 [16:40<13:36, 148.53 examples/s]Map:   3%|▎         | 4000/125326 [22:00<73:30:56,  2.18s/ examples]Map:   3%|▎         | 4052/125326 [22:00<49:35:16,  1.47s/ examples]Map:   3%|▎         | 4106/125326 [22:00<33:26:48,  1.01 examples/s]Map:   3%|▎         | 4156/125326 [22:00<23:23:19,  1.44 examples/s]Map:   3%|▎         | 4211/125326 [22:00<15:53:59,  2.12 examples/s]Map:   3%|▎         | 4256/125326 [22:00<11:34:37,  2.90 examples/s]Map:   3%|▎         | 4301/125326 [22:00<8:20:51,  4.03 examples/s] Map:   3%|▎         | 4365/125326 [22:01<5:20:36,  6.29 examples/s]Map:   4%|▎         | 4430/125326 [22:01<3:31:30,  9.53 examples/s]Map:   4%|▎         | 4489/125326 [22:01<2:27:40, 13.64 examples/s]Map:   4%|▎         | 4545/125326 [22:01<1:45:40, 19.05 examples/s]Map:   4%|▎         | 4602/125326 [22:01<1:15:31, 26.64 examples/s]Map:   4%|▎         | 4651/125326 [22:01<57:30, 34.97 examples/s]  Map:   4%|▎         | 4694/125326 [22:02<45:27, 44.23 examples/s]Map:   4%|▍         | 4742/125326 [22:02<33:36, 59.79 examples/s]Map:   4%|▍         | 4802/125326 [22:02<24:30, 81.94 examples/s]Map:   4%|▍         | 4857/125326 [22:02<18:06, 110.88 examples/s]Map:   4%|▍         | 4912/125326 [22:02<13:43, 146.19 examples/s]Map:   4%|▍         | 4974/125326 [22:02<10:17, 194.91 examples/s]Map:   4%|▍         | 4974/125326 [22:21<10:17, 194.91 examples/s]Map:   4%|▍         | 5000/125326 [27:50<73:48:43,  2.21s/ examples]Map:   4%|▍         | 5040/125326 [27:50<54:11:09,  1.62s/ examples]Map:   4%|▍         | 5105/125326 [27:50<33:30:50,  1.00s/ examples]Map:   4%|▍         | 5177/125326 [27:50<20:54:29,  1.60 examples/s]Map:   4%|▍         | 5233/125326 [27:50<14:45:05,  2.26 examples/s]Map:   4%|▍         | 5290/125326 [27:50<10:20:11,  3.23 examples/s]Map:   4%|▍         | 5345/125326 [27:51<7:19:33,  4.55 examples/s] Map:   4%|▍         | 5413/125326 [27:51<4:51:07,  6.86 examples/s]Map:   4%|▍         | 5470/125326 [27:51<3:27:43,  9.62 examples/s]Map:   4%|▍         | 5524/125326 [27:51<2:30:12, 13.29 examples/s]Map:   4%|▍         | 5580/125326 [27:51<1:46:59, 18.65 examples/s]Map:   4%|▍         | 5634/125326 [27:51<1:17:10, 25.85 examples/s]Map:   5%|▍         | 5696/125326 [27:51<53:24, 37.34 examples/s]  Map:   5%|▍         | 5772/125326 [27:51<35:36, 55.95 examples/s]Map:   5%|▍         | 5837/125326 [27:52<26:08, 76.18 examples/s]Map:   5%|▍         | 5896/125326 [27:52<19:41, 101.06 examples/s]Map:   5%|▍         | 5950/125326 [27:52<15:22, 129.38 examples/s]Map:   5%|▍         | 5987/125326 [28:11<15:22, 129.38 examples/s]Map:   5%|▍         | 6000/125326 [33:06<55:08:09,  1.66s/ examples]Map:   5%|▍         | 6051/125326 [33:06<39:50:12,  1.20s/ examples]Map:   5%|▍         | 6107/125326 [33:06<27:45:37,  1.19 examples/s]Map:   5%|▍         | 6163/125326 [33:06<19:22:39,  1.71 examples/s]Map:   5%|▍         | 6219/125326 [33:07<13:32:42,  2.44 examples/s]Map:   5%|▌         | 6277/125326 [33:07<9:22:45,  3.53 examples/s] Map:   5%|▌         | 6350/125326 [33:07<6:02:43,  5.47 examples/s]Map:   5%|▌         | 6414/125326 [33:07<4:11:31,  7.88 examples/s]Map:   5%|▌         | 6475/125326 [33:07<2:57:56, 11.13 examples/s]Map:   5%|▌         | 6538/125326 [33:07<2:04:45, 15.87 examples/s]Map:   5%|▌         | 6602/125326 [33:07<1:27:28, 22.62 examples/s]Map:   5%|▌         | 6685/125326 [33:07<57:06, 34.62 examples/s]  Map:   5%|▌         | 6758/125326 [33:08<40:32, 48.75 examples/s]Map:   5%|▌         | 6818/125326 [33:08<30:59, 63.74 examples/s]Map:   5%|▌         | 6871/125326 [33:08<24:05, 81.92 examples/s]Map:   6%|▌         | 6927/125326 [33:08<18:26, 106.99 examples/s]Map:   6%|▌         | 6986/125326 [33:08<14:32, 135.71 examples/s]Map:   6%|▌         | 6986/125326 [33:27<14:32, 135.71 examples/s]Map:   6%|▌         | 7000/125326 [38:11<64:34:53,  1.96s/ examples]Map:   6%|▌         | 7057/125326 [38:11<42:17:55,  1.29s/ examples]Map:   6%|▌         | 7119/125326 [38:11<27:32:24,  1.19 examples/s]Map:   6%|▌         | 7183/125326 [38:11<18:11:24,  1.80 examples/s]Map:   6%|▌         | 7244/125326 [38:11<12:26:49,  2.64 examples/s]Map:   6%|▌         | 7307/125326 [38:11<8:29:55,  3.86 examples/s] Map:   6%|▌         | 7369/125326 [38:11<5:53:07,  5.57 examples/s]Map:   6%|▌         | 7448/125326 [38:11<3:47:11,  8.65 examples/s]Map:   6%|▌         | 7517/125326 [38:12<2:38:03, 12.42 examples/s]Map:   6%|▌         | 7581/125326 [38:12<1:53:21, 17.31 examples/s]Map:   6%|▌         | 7647/125326 [38:12<1:20:38, 24.32 examples/s]Map:   6%|▌         | 7706/125326 [38:12<59:41, 32.84 examples/s]  Map:   6%|▌         | 7770/125326 [38:12<42:39, 45.92 examples/s]Map:   6%|▌         | 7830/125326 [38:12<31:51, 61.48 examples/s]Map:   6%|▋         | 7888/125326 [38:12<24:16, 80.63 examples/s]Map:   6%|▋         | 7934/125326 [38:13<19:24, 100.81 examples/s]Map:   6%|▋         | 7992/125326 [38:13<14:32, 134.55 examples/s]Map:   6%|▋         | 7992/125326 [38:33<14:32, 134.55 examples/s]Map:   6%|▋         | 8000/125326 [43:25<72:16:34,  2.22s/ examples]Map:   6%|▋         | 8057/125326 [43:25<45:50:41,  1.41s/ examples]Map:   6%|▋         | 8123/125326 [43:25<28:34:06,  1.14 examples/s]Map:   7%|▋         | 8178/125326 [43:25<19:43:46,  1.65 examples/s]Map:   7%|▋         | 8265/125326 [43:25<11:37:15,  2.80 examples/s]Map:   7%|▋         | 8330/125326 [43:26<8:05:03,  4.02 examples/s] Map:   7%|▋         | 8394/125326 [43:26<5:40:05,  5.73 examples/s]Map:   7%|▋         | 8460/125326 [43:26<3:56:32,  8.23 examples/s]Map:   7%|▋         | 8544/125326 [43:26<2:32:59, 12.72 examples/s]Map:   7%|▋         | 8623/125326 [43:26<1:44:26, 18.62 examples/s]Map:   7%|▋         | 8692/125326 [43:26<1:15:30, 25.74 examples/s]Map:   7%|▋         | 8756/125326 [43:26<55:27, 35.03 examples/s]  Map:   7%|▋         | 8822/125326 [43:26<40:15, 48.23 examples/s]Map:   7%|▋         | 8890/125326 [43:27<29:32, 65.70 examples/s]Map:   7%|▋         | 8957/125326 [43:27<22:05, 87.79 examples/s]Map:   7%|▋         | 8981/125326 [43:41<22:05, 87.79 examples/s]Map:   7%|▋         | 9000/125326 [48:15<46:28:41,  1.44s/ examples]Map:   7%|▋         | 9058/125326 [48:15<32:55:56,  1.02s/ examples]Map:   7%|▋         | 9113/125326 [48:15<23:36:57,  1.37 examples/s]Map:   7%|▋         | 9171/125326 [48:15<16:33:52,  1.95 examples/s]Map:   7%|▋         | 9233/125326 [48:15<11:23:00,  2.83 examples/s]Map:   7%|▋         | 9296/125326 [48:15<7:50:08,  4.11 examples/s] Map:   7%|▋         | 9358/125326 [48:15<5:27:21,  5.90 examples/s]Map:   8%|▊         | 9417/125326 [48:15<3:52:10,  8.32 examples/s]Map:   8%|▊         | 9493/125326 [48:15<2:32:04, 12.69 examples/s]Map:   8%|▊         | 9567/125326 [48:16<1:43:28, 18.64 examples/s]Map:   8%|▊         | 9623/125326 [48:16<1:17:46, 24.79 examples/s]Map:   8%|▊         | 9672/125326 [48:16<1:00:04, 32.08 examples/s]Map:   8%|▊         | 9718/125326 [48:16<46:15, 41.66 examples/s]  Map:   8%|▊         | 9777/125326 [48:16<32:48, 58.70 examples/s]Map:   8%|▊         | 9845/125326 [48:16<23:07, 83.23 examples/s]Map:   8%|▊         | 9909/125326 [48:16<17:18, 111.12 examples/s]Map:   8%|▊         | 9959/125326 [48:17<15:27, 124.38 examples/s]Map:   8%|▊         | 9996/125326 [48:31<15:27, 124.38 examples/s]Map:   8%|▊         | 10000/125326 [53:06<52:55:00,  1.65s/ examples]Map:   8%|▊         | 10055/125326 [53:06<36:35:00,  1.14s/ examples]Map:   8%|▊         | 10108/125326 [53:07<25:40:49,  1.25 examples/s]Map:   8%|▊         | 10167/125326 [53:07<17:25:42,  1.84 examples/s]Map:   8%|▊         | 10227/125326 [53:07<11:53:19,  2.69 examples/s]Map:   8%|▊         | 10289/125326 [53:07<8:05:57,  3.95 examples/s] Map:   8%|▊         | 10352/125326 [53:07<5:32:40,  5.76 examples/s]Map:   8%|▊         | 10418/125326 [53:07<3:46:26,  8.46 examples/s]Map:   8%|▊         | 10479/125326 [53:07<2:39:46, 11.98 examples/s]Map:   8%|▊         | 10568/125326 [53:07<1:39:43, 19.18 examples/s]Map:   8%|▊         | 10644/125326 [53:07<1:09:12, 27.62 examples/s]Map:   9%|▊         | 10719/125326 [53:08<48:55, 39.04 examples/s]  Map:   9%|▊         | 10773/125326 [53:08<37:58, 50.28 examples/s]Map:   9%|▊         | 10834/125326 [53:08<28:39, 66.59 examples/s]Map:   9%|▊         | 10897/125326 [53:08<21:09, 90.13 examples/s]Map:   9%|▊         | 10951/125326 [53:08<16:31, 115.34 examples/s]Map:   9%|▉         | 10978/125326 [53:28<16:31, 115.34 examples/s]Map:   9%|▉         | 11000/125326 [58:06<49:23:39,  1.56s/ examples]Map:   9%|▉         | 11061/125326 [58:06<33:59:06,  1.07s/ examples]Map:   9%|▉         | 11121/125326 [58:06<23:37:57,  1.34 examples/s]Map:   9%|▉         | 11204/125326 [58:06<14:45:40,  2.15 examples/s]Map:   9%|▉         | 11283/125326 [58:06<9:46:57,  3.24 examples/s] Map:   9%|▉         | 11364/125326 [58:06<6:33:24,  4.83 examples/s]Map:   9%|▉         | 11441/125326 [58:07<4:32:19,  6.97 examples/s]Map:   9%|▉         | 11499/125326 [58:07<3:24:53,  9.26 examples/s]Map:   9%|▉         | 11568/125326 [58:07<2:24:54, 13.08 examples/s]Map:   9%|▉         | 11625/125326 [58:07<1:47:59, 17.55 examples/s]Map:   9%|▉         | 11684/125326 [58:07<1:18:49, 24.03 examples/s]Map:   9%|▉         | 11752/125326 [58:07<55:24, 34.16 examples/s]  Map:   9%|▉         | 11805/125326 [58:07<41:58, 45.08 examples/s]Map:   9%|▉         | 11884/125326 [58:07<28:19, 66.76 examples/s]Map:  10%|▉         | 11938/125326 [58:08<21:55, 86.22 examples/s]Map:  10%|▉         | 11999/125326 [58:08<16:24, 115.14 examples/s]Map:  10%|▉         | 11999/125326 [58:27<16:24, 115.14 examples/s]Map:  10%|▉         | 12000/125326 [1:03:18<66:57:17,  2.13s/ examples]Map:  10%|▉         | 12055/125326 [1:03:18<43:34:02,  1.38s/ examples]Map:  10%|▉         | 12116/125326 [1:03:18<28:02:59,  1.12 examples/s]Map:  10%|▉         | 12175/125326 [1:03:18<18:48:18,  1.67 examples/s]Map:  10%|▉         | 12235/125326 [1:03:18<12:43:23,  2.47 examples/s]Map:  10%|▉         | 12317/125326 [1:03:18<7:48:38,  4.02 examples/s] Map:  10%|▉         | 12384/125326 [1:03:18<5:23:23,  5.82 examples/s]Map:  10%|▉         | 12467/125326 [1:03:19<3:29:33,  8.98 examples/s]Map:  10%|█         | 12548/125326 [1:03:19<2:21:13, 13.31 examples/s]Map:  10%|█         | 12622/125326 [1:03:19<1:39:43, 18.84 examples/s]Map:  10%|█         | 12678/125326 [1:03:19<1:15:59, 24.71 examples/s]Map:  10%|█         | 12751/125326 [1:03:19<53:19, 35.18 examples/s]  Map:  10%|█         | 12804/125326 [1:03:19<41:31, 45.16 examples/s]Map:  10%|█         | 12875/125326 [1:03:19<29:31, 63.48 examples/s]Map:  10%|█         | 12926/125326 [1:03:20<23:08, 80.94 examples/s]Map:  10%|█         | 12984/125326 [1:03:20<17:26, 107.35 examples/s]Map:  10%|█         | 12984/125326 [1:03:34<17:26, 107.35 examples/s]Map:  10%|█         | 13000/125326 [1:08:59<67:21:55,  2.16s/ examples]Map:  10%|█         | 13056/125326 [1:08:59<44:41:29,  1.43s/ examples]Map:  10%|█         | 13112/125326 [1:08:59<30:11:04,  1.03 examples/s]Map:  11%|█         | 13166/125326 [1:08:59<20:51:52,  1.49 examples/s]Map:  11%|█         | 13224/125326 [1:08:59<14:09:49,  2.20 examples/s]Map:  11%|█         | 13281/125326 [1:08:59<9:46:10,  3.19 examples/s] Map:  11%|█         | 13342/125326 [1:08:59<6:38:00,  4.69 examples/s]Map:  11%|█         | 13403/125326 [1:09:00<4:33:22,  6.82 examples/s]Map:  11%|█         | 13486/125326 [1:09:00<2:50:40, 10.92 examples/s]Map:  11%|█         | 13554/125326 [1:09:00<1:59:21, 15.61 examples/s]Map:  11%|█         | 13608/125326 [1:09:00<1:29:20, 20.84 examples/s]Map:  11%|█         | 13675/125326 [1:09:00<1:02:33, 29.75 examples/s]Map:  11%|█         | 13733/125326 [1:09:00<45:55, 40.50 examples/s]  Map:  11%|█         | 13787/125326 [1:09:00<34:24, 54.03 examples/s]Map:  11%|█         | 13854/125326 [1:09:00<24:34, 75.60 examples/s]Map:  11%|█         | 13913/125326 [1:09:01<18:22, 101.08 examples/s]Map:  11%|█         | 13970/125326 [1:09:01<14:03, 131.99 examples/s]Map:  11%|█         | 13970/125326 [1:09:15<14:03, 131.99 examples/s]Map:  11%|█         | 14000/125326 [1:14:05<55:36:26,  1.80s/ examples]Map:  11%|█         | 14054/125326 [1:14:05<38:13:10,  1.24s/ examples]Map:  11%|█▏        | 14111/125326 [1:14:05<25:58:38,  1.19 examples/s]Map:  11%|█▏        | 14177/125326 [1:14:05<16:59:04,  1.82 examples/s]Map:  11%|█▏        | 14237/125326 [1:14:05<11:43:28,  2.63 examples/s]Map:  11%|█▏        | 14320/125326 [1:14:05<7:17:03,  4.23 examples/s] Map:  11%|█▏        | 14404/125326 [1:14:05<4:43:01,  6.53 examples/s]Map:  12%|█▏        | 14479/125326 [1:14:05<3:15:54,  9.43 examples/s]Map:  12%|█▏        | 14545/125326 [1:14:06<2:21:53, 13.01 examples/s]Map:  12%|█▏        | 14618/125326 [1:14:06<1:39:20, 18.57 examples/s]Map:  12%|█▏        | 14679/125326 [1:14:06<1:13:51, 24.97 examples/s]Map:  12%|█▏        | 14738/125326 [1:14:06<54:41, 33.70 examples/s]  Map:  12%|█▏        | 14791/125326 [1:14:06<41:28, 44.42 examples/s]Map:  12%|█▏        | 14861/125326 [1:14:06<29:12, 63.04 examples/s]Map:  12%|█▏        | 14913/125326 [1:14:06<22:35, 81.46 examples/s]Map:  12%|█▏        | 14980/125326 [1:14:06<16:40, 110.34 examples/s]Map:  12%|█▏        | 14980/125326 [1:14:21<16:40, 110.34 examples/s]Map:  12%|█▏        | 15000/125326 [1:19:25<59:07:56,  1.93s/ examples]Map:  12%|█▏        | 15066/125326 [1:19:25<37:41:07,  1.23s/ examples]Map:  12%|█▏        | 15122/125326 [1:19:25<26:10:58,  1.17 examples/s]Map:  12%|█▏        | 15180/125326 [1:19:25<18:02:33,  1.70 examples/s]Map:  12%|█▏        | 15238/125326 [1:19:25<12:30:00,  2.45 examples/s]Map:  12%|█▏        | 15302/125326 [1:19:25<8:25:41,  3.63 examples/s] Map:  12%|█▏        | 15363/125326 [1:19:26<5:50:46,  5.22 examples/s]Map:  12%|█▏        | 15441/125326 [1:19:26<3:45:39,  8.12 examples/s]Map:  12%|█▏        | 15518/125326 [1:19:26<2:30:48, 12.14 examples/s]Map:  12%|█▏        | 15584/125326 [1:19:26<1:47:58, 16.94 examples/s]Map:  12%|█▏        | 15642/125326 [1:19:26<1:20:16, 22.77 examples/s]Map:  13%|█▎        | 15696/125326 [1:19:26<1:00:02, 30.43 examples/s]Map:  13%|█▎        | 15759/125326 [1:19:26<43:05, 42.38 examples/s]  Map:  13%|█▎        | 15815/125326 [1:19:27<32:28, 56.21 examples/s]Map:  13%|█▎        | 15870/125326 [1:19:27<24:45, 73.69 examples/s]Map:  13%|█▎        | 15922/125326 [1:19:27<19:29, 93.58 examples/s]Map:  13%|█▎        | 15978/125326 [1:19:27<15:11, 119.91 examples/s]Map:  13%|█▎        | 15978/125326 [1:19:42<15:11, 119.91 examples/s]Map:  13%|█▎        | 16000/125326 [1:24:58<65:31:25,  2.16s/ examples]Map:  13%|█▎        | 16060/125326 [1:24:58<42:03:52,  1.39s/ examples]Map:  13%|█▎        | 16117/125326 [1:24:58<28:18:50,  1.07 examples/s]Map:  13%|█▎        | 16177/125326 [1:24:58<18:59:16,  1.60 examples/s]Map:  13%|█▎        | 16232/125326 [1:24:58<13:16:27,  2.28 examples/s]Map:  13%|█▎        | 16287/125326 [1:24:58<9:17:24,  3.26 examples/s] Map:  13%|█▎        | 16344/125326 [1:24:58<6:26:21,  4.70 examples/s]Map:  13%|█▎        | 16423/125326 [1:24:58<4:01:04,  7.53 examples/s]Map:  13%|█▎        | 16496/125326 [1:24:59<2:41:49, 11.21 examples/s]Map:  13%|█▎        | 16560/125326 [1:24:59<1:55:22, 15.71 examples/s]Map:  13%|█▎        | 16618/125326 [1:24:59<1:24:48, 21.36 examples/s]Map:  13%|█▎        | 16676/125326 [1:24:59<1:01:41, 29.36 examples/s]Map:  13%|█▎        | 16733/125326 [1:24:59<45:02, 40.18 examples/s]  Map:  13%|█▎        | 16795/125326 [1:24:59<32:36, 55.47 examples/s]Map:  13%|█▎        | 16859/125326 [1:24:59<23:47, 75.98 examples/s]Map:  14%|█▎        | 16925/125326 [1:25:00<17:38, 102.44 examples/s]Map:  14%|█▎        | 16987/125326 [1:25:00<13:16, 136.01 examples/s]Map:  14%|█▎        | 16987/125326 [1:25:14<13:16, 136.01 examples/s]Map:  14%|█▎        | 17000/125326 [1:30:13<59:28:48,  1.98s/ examples]Map:  14%|█▎        | 17055/125326 [1:30:14<39:49:47,  1.32s/ examples]Map:  14%|█▎        | 17110/125326 [1:30:14<27:03:51,  1.11 examples/s]Map:  14%|█▎        | 17167/125326 [1:30:14<18:21:37,  1.64 examples/s]Map:  14%|█▎        | 17226/125326 [1:30:14<12:26:58,  2.41 examples/s]Map:  14%|█▍        | 17290/125326 [1:30:14<8:18:46,  3.61 examples/s] Map:  14%|█▍        | 17352/125326 [1:30:14<5:42:05,  5.26 examples/s]Map:  14%|█▍        | 17440/125326 [1:30:14<3:29:39,  8.58 examples/s]Map:  14%|█▍        | 17498/125326 [1:30:14<2:34:05, 11.66 examples/s]Map:  14%|█▍        | 17558/125326 [1:30:14<1:51:06, 16.17 examples/s]Map:  14%|█▍        | 17627/125326 [1:30:15<1:16:57, 23.33 examples/s]Map:  14%|█▍        | 17691/125326 [1:30:15<55:21, 32.40 examples/s]  Map:  14%|█▍        | 17742/125326 [1:30:15<42:16, 42.41 examples/s]Map:  14%|█▍        | 17810/125326 [1:30:15<29:51, 60.01 examples/s]Map:  14%|█▍        | 17868/125326 [1:30:15<22:16, 80.42 examples/s]Map:  14%|█▍        | 17925/125326 [1:30:15<16:49, 106.35 examples/s]Map:  14%|█▍        | 17989/125326 [1:30:15<12:53, 138.75 examples/s]Map:  14%|█▍        | 17989/125326 [1:30:30<12:53, 138.75 examples/s]Map:  14%|█▍        | 18000/125326 [1:35:27<60:31:05,  2.03s/ examples]Map:  14%|█▍        | 18052/125326 [1:35:27<40:48:58,  1.37s/ examples]Map:  14%|█▍        | 18108/125326 [1:35:27<27:11:58,  1.09 examples/s]Map:  14%|█▍        | 18171/125326 [1:35:27<17:42:38,  1.68 examples/s]Map:  15%|█▍        | 18253/125326 [1:35:27<10:45:12,  2.77 examples/s]Map:  15%|█▍        | 18311/125326 [1:35:27<7:42:15,  3.86 examples/s] Map:  15%|█▍        | 18391/125326 [1:35:27<4:57:11,  6.00 examples/s]Map:  15%|█▍        | 18468/125326 [1:35:28<3:19:57,  8.91 examples/s]Map:  15%|█▍        | 18534/125326 [1:35:28<2:23:27, 12.41 examples/s]Map:  15%|█▍        | 18597/125326 [1:35:28<1:44:08, 17.08 examples/s]Map:  15%|█▍        | 18645/125326 [1:35:28<1:20:32, 22.08 examples/s]Map:  15%|█▍        | 18704/125326 [1:35:28<58:20, 30.46 examples/s]  Map:  15%|█▍        | 18759/125326 [1:35:28<42:54, 41.40 examples/s]Map:  15%|█▌        | 18817/125326 [1:35:28<31:05, 57.09 examples/s]Map:  15%|█▌        | 18897/125326 [1:35:29<20:51, 85.05 examples/s]Map:  15%|█▌        | 18954/125326 [1:35:29<16:28, 107.63 examples/s]Map:  15%|█▌        | 18994/125326 [1:35:47<16:27, 107.63 examples/s]Map:  15%|█▌        | 19000/125326 [1:41:06<52:04:59,  1.76s/ examples]Map:  15%|█▌        | 19056/125326 [1:41:06<36:46:09,  1.25s/ examples]Map:  15%|█▌        | 19111/125326 [1:41:06<26:02:06,  1.13 examples/s]Map:  15%|█▌        | 19166/125326 [1:41:06<18:22:40,  1.60 examples/s]Map:  15%|█▌        | 19221/125326 [1:41:07<12:56:49,  2.28 examples/s]Map:  15%|█▌        | 19277/125326 [1:41:07<9:03:41,  3.25 examples/s] Map:  15%|█▌        | 19353/125326 [1:41:07<5:44:24,  5.13 examples/s]Map:  15%|█▌        | 19407/125326 [1:41:07<4:11:26,  7.02 examples/s]Map:  16%|█▌        | 19485/125326 [1:41:07<2:42:07, 10.88 examples/s]Map:  16%|█▌        | 19556/125326 [1:41:07<1:51:36, 15.79 examples/s]Map:  16%|█▌        | 19627/125326 [1:41:07<1:17:50, 22.63 examples/s]Map:  16%|█▌        | 19690/125326 [1:41:08<56:30, 31.16 examples/s]  Map:  16%|█▌        | 19753/125326 [1:41:08<40:59, 42.92 examples/s]Map:  16%|█▌        | 19811/125326 [1:41:08<30:33, 57.53 examples/s]Map:  16%|█▌        | 19879/125326 [1:41:08<22:09, 79.31 examples/s]Map:  16%|█▌        | 19957/125326 [1:41:08<17:35, 99.84 examples/s]Map:  16%|█▌        | 19990/125326 [1:41:22<17:35, 99.84 examples/s]Map:  16%|█▌        | 20000/125326 [1:46:13<44:08:01,  1.51s/ examples]Map:  16%|█▌        | 20040/125326 [1:46:13<34:27:04,  1.18s/ examples]Map:  16%|█▌        | 20088/125326 [1:46:13<25:02:18,  1.17 examples/s]Map:  16%|█▌        | 20132/125326 [1:46:14<18:26:53,  1.58 examples/s]Map:  16%|█▌        | 20184/125326 [1:46:14<12:46:40,  2.29 examples/s]Map:  16%|█▌        | 20245/125326 [1:46:14<8:26:23,  3.46 examples/s] Map:  16%|█▌        | 20303/125326 [1:46:14<5:47:02,  5.04 examples/s]Map:  16%|█▌        | 20357/125326 [1:46:14<4:05:09,  7.14 examples/s]Map:  16%|█▋        | 20438/125326 [1:46:14<2:31:10, 11.56 examples/s]Map:  16%|█▋        | 20496/125326 [1:46:14<1:49:00, 16.03 examples/s]Map:  16%|█▋        | 20552/125326 [1:46:14<1:19:10, 22.06 examples/s]Map:  16%|█▋        | 20632/125326 [1:46:14<51:26, 33.92 examples/s]  Map:  17%|█▋        | 20691/125326 [1:46:15<37:57, 45.94 examples/s]Map:  17%|█▋        | 20750/125326 [1:46:15<28:00, 62.22 examples/s]Map:  17%|█▋        | 20815/125326 [1:46:15<20:36, 84.52 examples/s]Map:  17%|█▋        | 20893/125326 [1:46:15<14:39, 118.80 examples/s]Map:  17%|█▋        | 20960/125326 [1:46:15<11:27, 151.74 examples/s]Map:  17%|█▋        | 20998/125326 [1:46:30<11:27, 151.74 examples/s]Map:  17%|█▋        | 21000/125326 [1:51:18<44:34:58,  1.54s/ examples]Map:  17%|█▋        | 21058/125326 [1:51:18<31:23:39,  1.08s/ examples]Map:  17%|█▋        | 21116/125326 [1:51:18<22:04:20,  1.31 examples/s]Map:  17%|█▋        | 21177/125326 [1:51:18<15:16:03,  1.89 examples/s]Map:  17%|█▋        | 21244/125326 [1:51:18<10:17:41,  2.81 examples/s]Map:  17%|█▋        | 21326/125326 [1:51:18<6:34:12,  4.40 examples/s] Map:  17%|█▋        | 21387/125326 [1:51:18<4:45:03,  6.08 examples/s]Map:  17%|█▋        | 21455/125326 [1:51:18<3:18:31,  8.72 examples/s]Map:  17%|█▋        | 21532/125326 [1:51:19<2:13:39, 12.94 examples/s]Map:  17%|█▋        | 21593/125326 [1:51:19<1:38:15, 17.59 examples/s]Map:  17%|█▋        | 21656/125326 [1:51:19<1:11:12, 24.26 examples/s]Map:  17%|█▋        | 21724/125326 [1:51:19<50:31, 34.18 examples/s]  Map:  17%|█▋        | 21779/125326 [1:51:19<38:06, 45.28 examples/s]Map:  17%|█▋        | 21842/125326 [1:51:19<27:30, 62.71 examples/s]Map:  17%|█▋        | 21910/125326 [1:51:19<19:36, 87.90 examples/s]Map:  18%|█▊        | 21970/125326 [1:51:19<14:50, 116.02 examples/s]Map:  18%|█▊        | 21994/125326 [1:51:34<14:50, 116.02 examples/s]Map:  18%|█▊        | 22000/125326 [1:56:28<50:04:06,  1.74s/ examples]Map:  18%|█▊        | 22060/125326 [1:56:28<33:45:06,  1.18s/ examples]Map:  18%|█▊        | 22137/125326 [1:56:28<21:08:10,  1.36 examples/s]Map:  18%|█▊        | 22212/125326 [1:56:28<13:54:43,  2.06 examples/s]Map:  18%|█▊        | 22285/125326 [1:56:28<9:26:19,  3.03 examples/s] Map:  18%|█▊        | 22358/125326 [1:56:28<6:28:34,  4.42 examples/s]Map:  18%|█▊        | 22409/125326 [1:56:28<4:56:13,  5.79 examples/s]Map:  18%|█▊        | 22463/125326 [1:56:28<3:38:13,  7.86 examples/s]Map:  18%|█▊        | 22532/125326 [1:56:29<2:28:04, 11.57 examples/s]Map:  18%|█▊        | 22584/125326 [1:56:29<1:50:21, 15.52 examples/s]Map:  18%|█▊        | 22653/125326 [1:56:29<1:15:07, 22.78 examples/s]Map:  18%|█▊        | 22722/125326 [1:56:29<52:14, 32.74 examples/s]  Map:  18%|█▊        | 22778/125326 [1:56:29<38:54, 43.93 examples/s]Map:  18%|█▊        | 22837/125326 [1:56:29<28:28, 59.98 examples/s]Map:  18%|█▊        | 22898/125326 [1:56:29<21:13, 80.45 examples/s]Map:  18%|█▊        | 22965/125326 [1:56:30<15:39, 108.92 examples/s]Map:  18%|█▊        | 22983/125326 [1:56:45<15:39, 108.92 examples/s]Map:  18%|█▊        | 23000/125326 [2:01:58<51:31:53,  1.81s/ examples]Map:  18%|█▊        | 23053/125326 [2:01:58<36:22:05,  1.28s/ examples]Map:  18%|█▊        | 23109/125326 [2:01:58<25:11:12,  1.13 examples/s]Map:  18%|█▊        | 23163/125326 [2:01:58<17:41:57,  1.60 examples/s]Map:  19%|█▊        | 23218/125326 [2:01:58<12:21:39,  2.29 examples/s]Map:  19%|█▊        | 23277/125326 [2:01:58<8:27:34,  3.35 examples/s] Map:  19%|█▊        | 23333/125326 [2:01:58<5:55:53,  4.78 examples/s]Map:  19%|█▊        | 23388/125326 [2:01:58<4:11:11,  6.76 examples/s]Map:  19%|█▊        | 23442/125326 [2:01:58<2:58:15,  9.53 examples/s]Map:  19%|█▉        | 23512/125326 [2:01:58<1:56:42, 14.54 examples/s]Map:  19%|█▉        | 23572/125326 [2:01:59<1:22:49, 20.47 examples/s]Map:  19%|█▉        | 23626/125326 [2:01:59<1:00:33, 27.99 examples/s]Map:  19%|█▉        | 23688/125326 [2:01:59<42:22, 39.97 examples/s]  Map:  19%|█▉        | 23749/125326 [2:01:59<30:15, 55.96 examples/s]Map:  19%|█▉        | 23814/125326 [2:01:59<21:27, 78.82 examples/s]Map:  19%|█▉        | 23882/125326 [2:01:59<15:24, 109.68 examples/s]Map:  19%|█▉        | 23951/125326 [2:01:59<11:41, 144.60 examples/s]Map:  19%|█▉        | 23987/125326 [2:02:15<11:40, 144.60 examples/s]Map:  19%|█▉        | 24000/125326 [2:07:13<44:11:14,  1.57s/ examples]Map:  19%|█▉        | 24054/125326 [2:07:13<31:55:03,  1.13s/ examples]Map:  19%|█▉        | 24110/125326 [2:07:14<22:37:06,  1.24 examples/s]Map:  19%|█▉        | 24193/125326 [2:07:14<13:59:49,  2.01 examples/s]Map:  19%|█▉        | 24262/125326 [2:07:14<9:38:18,  2.91 examples/s] Map:  19%|█▉        | 24325/125326 [2:07:14<6:51:36,  4.09 examples/s]Map:  19%|█▉        | 24410/125326 [2:07:14<4:25:10,  6.34 examples/s]Map:  20%|█▉        | 24484/125326 [2:07:14<3:04:25,  9.11 examples/s]Map:  20%|█▉        | 24540/125326 [2:07:14<2:19:02, 12.08 examples/s]Map:  20%|█▉        | 24614/125326 [2:07:15<1:35:32, 17.57 examples/s]Map:  20%|█▉        | 24681/125326 [2:07:15<1:08:37, 24.44 examples/s]Map:  20%|█▉        | 24732/125326 [2:07:15<52:49, 31.74 examples/s]  Map:  20%|█▉        | 24783/125326 [2:07:15<40:07, 41.76 examples/s]Map:  20%|█▉        | 24843/125326 [2:07:15<29:18, 57.13 examples/s]Map:  20%|█▉        | 24898/125326 [2:07:15<22:19, 74.96 examples/s]Map:  20%|█▉        | 24955/125326 [2:07:15<16:37, 100.66 examples/s]Map:  20%|█▉        | 24983/125326 [2:07:32<16:36, 100.66 examples/s]Map:  20%|█▉        | 25000/125326 [2:12:36<49:49:11,  1.79s/ examples]Map:  20%|██        | 25069/125326 [2:12:36<32:11:35,  1.16s/ examples]Map:  20%|██        | 25126/125326 [2:12:36<22:42:54,  1.23 examples/s]Map:  20%|██        | 25184/125326 [2:12:36<15:54:42,  1.75 examples/s]Map:  20%|██        | 25269/125326 [2:12:36<9:47:15,  2.84 examples/s] Map:  20%|██        | 25326/125326 [2:12:37<7:09:24,  3.88 examples/s]Map:  20%|██        | 25399/125326 [2:12:37<4:48:03,  5.78 examples/s]Map:  20%|██        | 25468/125326 [2:12:37<3:19:48,  8.33 examples/s]Map:  20%|██        | 25534/125326 [2:12:37<2:21:12, 11.78 examples/s]Map:  20%|██        | 25601/125326 [2:12:37<1:39:26, 16.72 examples/s]Map:  20%|██        | 25678/125326 [2:12:37<1:07:36, 24.56 examples/s]Map:  21%|██        | 25758/125326 [2:12:37<46:43, 35.52 examples/s]  Map:  21%|██        | 25831/125326 [2:12:37<33:43, 49.18 examples/s]Map:  21%|██        | 25905/125326 [2:12:38<24:31, 67.56 examples/s]Map:  21%|██        | 25959/125326 [2:12:38<19:46, 83.76 examples/s]Map:  21%|██        | 25995/125326 [2:12:52<19:45, 83.76 examples/s]Map:  21%|██        | 26000/125326 [2:17:49<43:27:40,  1.58s/ examples]Map:  21%|██        | 26052/125326 [2:17:49<31:37:19,  1.15s/ examples]Map:  21%|██        | 26110/125326 [2:17:49<22:03:12,  1.25 examples/s]Map:  21%|██        | 26167/125326 [2:17:49<15:28:58,  1.78 examples/s]Map:  21%|██        | 26223/125326 [2:17:49<10:55:24,  2.52 examples/s]Map:  21%|██        | 26282/125326 [2:17:49<7:34:28,  3.63 examples/s] Map:  21%|██        | 26338/125326 [2:17:49<5:21:26,  5.13 examples/s]Map:  21%|██        | 26417/125326 [2:17:49<3:22:48,  8.13 examples/s]Map:  21%|██        | 26498/125326 [2:17:49<2:12:14, 12.46 examples/s]Map:  21%|██        | 26553/125326 [2:17:50<1:39:14, 16.59 examples/s]Map:  21%|██        | 26625/125326 [2:17:50<1:08:16, 24.09 examples/s]Map:  21%|██▏       | 26681/125326 [2:17:50<51:00, 32.23 examples/s]  Map:  21%|██▏       | 26742/125326 [2:17:50<36:55, 44.50 examples/s]Map:  21%|██▏       | 26803/125326 [2:17:50<26:51, 61.13 examples/s]Map:  21%|██▏       | 26862/125326 [2:17:50<19:54, 82.45 examples/s]Map:  21%|██▏       | 26931/125326 [2:17:50<14:36, 112.22 examples/s]Map:  22%|██▏       | 26987/125326 [2:17:50<11:51, 138.26 examples/s]Map:  22%|██▏       | 26987/125326 [2:18:09<11:51, 138.26 examples/s]Map:  22%|██▏       | 27000/125326 [2:23:08<55:43:06,  2.04s/ examples]Map:  22%|██▏       | 27055/125326 [2:23:08<37:03:32,  1.36s/ examples]Map:  22%|██▏       | 27112/125326 [2:23:08<24:46:43,  1.10 examples/s]Map:  22%|██▏       | 27167/125326 [2:23:08<17:00:54,  1.60 examples/s]Map:  22%|██▏       | 27220/125326 [2:23:08<11:53:38,  2.29 examples/s]Map:  22%|██▏       | 27294/125326 [2:23:08<7:26:33,  3.66 examples/s] Map:  22%|██▏       | 27371/125326 [2:23:09<4:47:30,  5.68 examples/s]Map:  22%|██▏       | 27431/125326 [2:23:09<3:26:12,  7.91 examples/s]Map:  22%|██▏       | 27495/125326 [2:23:09<2:24:26, 11.29 examples/s]Map:  22%|██▏       | 27553/125326 [2:23:09<1:44:30, 15.59 examples/s]Map:  22%|██▏       | 27618/125326 [2:23:09<1:13:15, 22.23 examples/s]Map:  22%|██▏       | 27686/125326 [2:23:09<51:09, 31.81 examples/s]  Map:  22%|██▏       | 27748/125326 [2:23:09<36:57, 44.01 examples/s]Map:  22%|██▏       | 27803/125326 [2:23:09<27:45, 58.55 examples/s]Map:  22%|██▏       | 27878/125326 [2:23:10<19:18, 84.12 examples/s]Map:  22%|██▏       | 27945/125326 [2:23:10<14:32, 111.65 examples/s]Map:  22%|██▏       | 27995/125326 [2:23:10<12:11, 132.97 examples/s]Map:  22%|██▏       | 27995/125326 [2:23:25<12:11, 132.97 examples/s]Map:  22%|██▏       | 28000/125326 [2:28:40<60:44:26,  2.25s/ examples]Map:  22%|██▏       | 28053/125326 [2:28:40<40:07:29,  1.48s/ examples]Map:  22%|██▏       | 28112/125326 [2:28:40<26:03:40,  1.04 examples/s]Map:  22%|██▏       | 28167/125326 [2:28:40<17:46:24,  1.52 examples/s]Map:  23%|██▎       | 28243/125326 [2:28:40<10:55:42,  2.47 examples/s]Map:  23%|██▎       | 28297/125326 [2:28:40<7:51:47,  3.43 examples/s] Map:  23%|██▎       | 28353/125326 [2:28:41<5:33:38,  4.84 examples/s]Map:  23%|██▎       | 28409/125326 [2:28:41<3:55:37,  6.86 examples/s]Map:  23%|██▎       | 28485/125326 [2:28:41<2:30:47, 10.70 examples/s]Map:  23%|██▎       | 28554/125326 [2:28:41<1:43:27, 15.59 examples/s]Map:  23%|██▎       | 28606/125326 [2:28:41<1:17:39, 20.76 examples/s]Map:  23%|██▎       | 28672/125326 [2:28:41<53:44, 29.98 examples/s]  Map:  23%|██▎       | 28735/125326 [2:28:41<38:16, 42.07 examples/s]Map:  23%|██▎       | 28792/125326 [2:28:41<28:17, 56.86 examples/s]Map:  23%|██▎       | 28866/125326 [2:28:42<19:43, 81.50 examples/s]Map:  23%|██▎       | 28929/125326 [2:28:42<15:03, 106.70 examples/s]Map:  23%|██▎       | 28966/125326 [2:28:56<15:03, 106.70 examples/s]Map:  23%|██▎       | 29000/125326 [2:34:06<39:29:53,  1.48s/ examples]Map:  23%|██▎       | 29068/125326 [2:34:07<27:25:42,  1.03s/ examples]Map:  23%|██▎       | 29140/125326 [2:34:07<18:45:34,  1.42 examples/s]Map:  23%|██▎       | 29234/125326 [2:34:07<11:48:29,  2.26 examples/s]Map:  23%|██▎       | 29320/125326 [2:34:07<7:57:41,  3.35 examples/s] Map:  23%|██▎       | 29408/125326 [2:34:07<5:23:59,  4.93 examples/s]Map:  24%|██▎       | 29494/125326 [2:34:07<3:43:58,  7.13 examples/s]Map:  24%|██▎       | 29572/125326 [2:34:07<2:40:27,  9.95 examples/s]Map:  24%|██▎       | 29651/125326 [2:34:08<1:54:11, 13.97 examples/s]Map:  24%|██▎       | 29727/125326 [2:34:08<1:22:13, 19.38 examples/s]Map:  24%|██▍       | 29804/125326 [2:34:08<58:56, 27.01 examples/s]  Map:  24%|██▍       | 29864/125326 [2:34:08<45:03, 35.32 examples/s]Map:  24%|██▍       | 29921/125326 [2:34:08<34:27, 46.14 examples/s]Map:  24%|██▍       | 29983/125326 [2:34:08<25:30, 62.29 examples/s]Map:  24%|██▍       | 29983/125326 [2:34:23<25:30, 62.29 examples/s]Map:  24%|██▍       | 30000/125326 [2:39:29<49:46:15,  1.88s/ examples]Map:  24%|██▍       | 30055/125326 [2:39:29<34:09:00,  1.29s/ examples]Map:  24%|██▍       | 30132/125326 [2:39:29<20:59:09,  1.26 examples/s]Map:  24%|██▍       | 30203/125326 [2:39:29<13:55:36,  1.90 examples/s]Map:  24%|██▍       | 30256/125326 [2:39:29<10:15:15,  2.58 examples/s]Map:  24%|██▍       | 30319/125326 [2:39:29<7:05:37,  3.72 examples/s] Map:  24%|██▍       | 30384/125326 [2:39:30<4:53:10,  5.40 examples/s]Map:  24%|██▍       | 30449/125326 [2:39:30<3:23:08,  7.78 examples/s]Map:  24%|██▍       | 30514/125326 [2:39:30<2:21:32, 11.16 examples/s]Map:  24%|██▍       | 30594/125326 [2:39:30<1:32:56, 16.99 examples/s]Map:  24%|██▍       | 30651/125326 [2:39:30<1:09:13, 22.79 examples/s]Map:  25%|██▍       | 30717/125326 [2:39:30<48:57, 32.21 examples/s]  Map:  25%|██▍       | 30798/125326 [2:39:30<32:58, 47.78 examples/s]Map:  25%|██▍       | 30880/125326 [2:39:30<22:55, 68.67 examples/s]Map:  25%|██▍       | 30936/125326 [2:39:30<17:58, 87.50 examples/s]Map:  25%|██▍       | 30990/125326 [2:39:46<17:58, 87.50 examples/s]Map:  25%|██▍       | 31000/125326 [2:44:53<38:04:21,  1.45s/ examples]Map:  25%|██▍       | 31052/125326 [2:44:53<28:34:16,  1.09s/ examples]Map:  25%|██▍       | 31131/125326 [2:44:54<18:32:15,  1.41 examples/s]Map:  25%|██▍       | 31199/125326 [2:44:54<12:57:15,  2.02 examples/s]Map:  25%|██▍       | 31253/125326 [2:44:54<9:39:31,  2.71 examples/s] Map:  25%|██▍       | 31306/125326 [2:44:54<7:07:27,  3.67 examples/s]Map:  25%|██▌       | 31360/125326 [2:44:54<5:09:39,  5.06 examples/s]Map:  25%|██▌       | 31427/125326 [2:44:54<3:28:42,  7.50 examples/s]Map:  25%|██▌       | 31479/125326 [2:44:54<2:33:36, 10.18 examples/s]Map:  25%|██▌       | 31538/125326 [2:44:55<1:48:20, 14.43 examples/s]Map:  25%|██▌       | 31593/125326 [2:44:55<1:19:21, 19.69 examples/s]Map:  25%|██▌       | 31639/125326 [2:44:55<59:56, 26.05 examples/s]  Map:  25%|██▌       | 31685/125326 [2:44:55<44:49, 34.82 examples/s]Map:  25%|██▌       | 31751/125326 [2:44:55<30:12, 51.61 examples/s]Map:  25%|██▌       | 31802/125326 [2:44:55<22:35, 69.00 examples/s]Map:  25%|██▌       | 31852/125326 [2:44:55<17:06, 91.05 examples/s]Map:  25%|██▌       | 31910/125326 [2:44:55<12:30, 124.42 examples/s]Map:  26%|██▌       | 31981/125326 [2:44:56<09:13, 168.64 examples/s]Map:  26%|██▌       | 31996/125326 [2:45:11<09:13, 168.64 examples/s]Map:  26%|██▌       | 32000/125326 [2:50:27<54:31:49,  2.10s/ examples]Map:  26%|██▌       | 32047/125326 [2:50:27<38:15:17,  1.48s/ examples]Map:  26%|██▌       | 32120/125326 [2:50:27<23:01:07,  1.12 examples/s]Map:  26%|██▌       | 32169/125326 [2:50:27<16:39:43,  1.55 examples/s]Map:  26%|██▌       | 32222/125326 [2:50:27<11:41:01,  2.21 examples/s]Map:  26%|██▌       | 32284/125326 [2:50:27<7:47:50,  3.31 examples/s] Map:  26%|██▌       | 32341/125326 [2:50:27<5:26:01,  4.75 examples/s]Map:  26%|██▌       | 32406/125326 [2:50:28<3:38:35,  7.08 examples/s]Map:  26%|██▌       | 32476/125326 [2:50:28<2:25:47, 10.61 examples/s]Map:  26%|██▌       | 32533/125326 [2:50:28<1:45:22, 14.68 examples/s]Map:  26%|██▌       | 32602/125326 [2:50:28<1:12:18, 21.37 examples/s]Map:  26%|██▌       | 32668/125326 [2:50:28<51:01, 30.27 examples/s]  Map:  26%|██▌       | 32734/125326 [2:50:28<36:31, 42.24 examples/s]Map:  26%|██▌       | 32798/125326 [2:50:29<26:44, 57.68 examples/s]Map:  26%|██▌       | 32847/125326 [2:50:29<20:56, 73.59 examples/s]Map:  26%|██▌       | 32894/125326 [2:50:29<16:30, 93.34 examples/s]Map:  26%|██▋       | 32951/125326 [2:50:29<12:19, 124.91 examples/s]Map:  26%|██▋       | 32976/125326 [2:50:44<12:19, 124.91 examples/s]Map:  26%|██▋       | 33000/125326 [2:55:51<45:58:32,  1.79s/ examples]Map:  26%|██▋       | 33051/125326 [2:55:51<32:44:25,  1.28s/ examples]Map:  26%|██▋       | 33114/125326 [2:55:51<21:42:42,  1.18 examples/s]Map:  26%|██▋       | 33179/125326 [2:55:51<14:30:42,  1.76 examples/s]Map:  27%|██▋       | 33256/125326 [2:55:51<9:18:16,  2.75 examples/s] Map:  27%|██▋       | 33339/125326 [2:55:52<5:59:59,  4.26 examples/s]Map:  27%|██▋       | 33417/125326 [2:55:52<4:04:15,  6.27 examples/s]Map:  27%|██▋       | 33497/125326 [2:55:52<2:46:30,  9.19 examples/s]Map:  27%|██▋       | 33575/125326 [2:55:52<1:55:49, 13.20 examples/s]Map:  27%|██▋       | 33628/125326 [2:55:52<1:29:41, 17.04 examples/s]Map:  27%|██▋       | 33684/125326 [2:55:52<1:07:10, 22.74 examples/s]Map:  27%|██▋       | 33765/125326 [2:55:52<44:45, 34.10 examples/s]  Map:  27%|██▋       | 33833/125326 [2:55:53<32:13, 47.33 examples/s]Map:  27%|██▋       | 33898/125326 [2:55:53<23:38, 64.44 examples/s]Map:  27%|██▋       | 33981/125326 [2:55:53<16:29, 92.34 examples/s]Map:  27%|██▋       | 33981/125326 [2:56:13<16:29, 92.34 examples/s]Map:  27%|██▋       | 34000/125326 [3:01:12<43:18:10,  1.71s/ examples]Map:  27%|██▋       | 34064/125326 [3:01:12<29:08:01,  1.15s/ examples]Map:  27%|██▋       | 34150/125326 [3:01:12<17:53:53,  1.42 examples/s]Map:  27%|██▋       | 34225/125326 [3:01:12<12:05:45,  2.09 examples/s]Map:  27%|██▋       | 34302/125326 [3:01:13<8:12:15,  3.08 examples/s] Map:  27%|██▋       | 34380/125326 [3:01:13<5:36:16,  4.51 examples/s]Map:  27%|██▋       | 34453/125326 [3:01:13<3:56:39,  6.40 examples/s]Map:  28%|██▊       | 34517/125326 [3:01:13<2:53:08,  8.74 examples/s]Map:  28%|██▊       | 34579/125326 [3:01:13<2:06:42, 11.94 examples/s]Map:  28%|██▊       | 34630/125326 [3:01:13<1:36:35, 15.65 examples/s]Map:  28%|██▊       | 34684/125326 [3:01:13<1:11:21, 21.17 examples/s]Map:  28%|██▊       | 34733/125326 [3:01:14<53:40, 28.13 examples/s]  Map:  28%|██▊       | 34806/125326 [3:01:14<35:43, 42.23 examples/s]Map:  28%|██▊       | 34863/125326 [3:01:14<26:44, 56.39 examples/s]Map:  28%|██▊       | 34916/125326 [3:01:14<20:36, 73.09 examples/s]Map:  28%|██▊       | 34979/125326 [3:01:14<15:13, 98.87 examples/s]Map:  28%|██▊       | 34998/125326 [3:01:29<15:13, 98.87 examples/s]Map:  28%|██▊       | 35000/125326 [3:07:02<54:50:15,  2.19s/ examples]Map:  28%|██▊       | 35045/125326 [3:07:03<39:07:01,  1.56s/ examples]Map:  28%|██▊       | 35094/125326 [3:07:03<27:03:21,  1.08s/ examples]Map:  28%|██▊       | 35150/125326 [3:07:03<18:00:00,  1.39 examples/s]Map:  28%|██▊       | 35208/125326 [3:07:03<12:02:35,  2.08 examples/s]Map:  28%|██▊       | 35273/125326 [3:07:03<7:52:38,  3.18 examples/s] Map:  28%|██▊       | 35328/125326 [3:07:03<5:33:42,  4.49 examples/s]Map:  28%|██▊       | 35406/125326 [3:07:03<3:29:47,  7.14 examples/s]Map:  28%|██▊       | 35460/125326 [3:07:03<2:33:47,  9.74 examples/s]Map:  28%|██▊       | 35523/125326 [3:07:03<1:46:43, 14.02 examples/s]Map:  28%|██▊       | 35586/125326 [3:07:04<1:14:36, 20.05 examples/s]Map:  28%|██▊       | 35645/125326 [3:07:04<53:35, 27.89 examples/s]  Map:  29%|██▊       | 35728/125326 [3:07:04<34:47, 42.93 examples/s]Map:  29%|██▊       | 35809/125326 [3:07:04<23:54, 62.41 examples/s]Map:  29%|██▊       | 35889/125326 [3:07:04<17:03, 87.38 examples/s]Map:  29%|██▊       | 35947/125326 [3:07:04<13:25, 110.92 examples/s]Map:  29%|██▊       | 35973/125326 [3:07:19<13:25, 110.92 examples/s]Map:  29%|██▊       | 36000/125326 [3:12:15<36:05:52,  1.45s/ examples]Map:  29%|██▉       | 36055/125326 [3:12:15<26:25:04,  1.07s/ examples]Map:  29%|██▉       | 36113/125326 [3:12:15<18:49:09,  1.32 examples/s]Map:  29%|██▉       | 36173/125326 [3:12:15<13:12:33,  1.87 examples/s]Map:  29%|██▉       | 36230/125326 [3:12:15<9:24:34,  2.63 examples/s] Map:  29%|██▉       | 36313/125326 [3:12:15<5:53:39,  4.19 examples/s]Map:  29%|██▉       | 36394/125326 [3:12:16<3:53:01,  6.36 examples/s]Map:  29%|██▉       | 36471/125326 [3:12:16<2:39:44,  9.27 examples/s]Map:  29%|██▉       | 36546/125326 [3:12:16<1:51:34, 13.26 examples/s]Map:  29%|██▉       | 36610/125326 [3:12:16<1:22:06, 18.01 examples/s]Map:  29%|██▉       | 36664/125326 [3:12:16<1:02:29, 23.65 examples/s]Map:  29%|██▉       | 36722/125326 [3:12:16<45:59, 32.11 examples/s]  Map:  29%|██▉       | 36789/125326 [3:12:16<32:18, 45.66 examples/s]Map:  29%|██▉       | 36850/125326 [3:12:16<23:40, 62.27 examples/s]Map:  29%|██▉       | 36935/125326 [3:12:17<16:02, 91.80 examples/s]Map:  30%|██▉       | 36988/125326 [3:12:36<16:02, 91.80 examples/s]Map:  30%|██▉       | 37000/125326 [3:17:31<34:00:19,  1.39s/ examples]Map:  30%|██▉       | 37039/125326 [3:17:31<27:19:45,  1.11s/ examples]Map:  30%|██▉       | 37100/125326 [3:17:31<19:00:05,  1.29 examples/s]Map:  30%|██▉       | 37170/125326 [3:17:31<12:40:35,  1.93 examples/s]Map:  30%|██▉       | 37223/125326 [3:17:31<9:19:28,  2.62 examples/s] Map:  30%|██▉       | 37288/125326 [3:17:32<6:22:56,  3.83 examples/s]Map:  30%|██▉       | 37340/125326 [3:17:32<4:42:04,  5.20 examples/s]Map:  30%|██▉       | 37404/125326 [3:17:32<3:13:11,  7.59 examples/s]Map:  30%|██▉       | 37453/125326 [3:17:32<2:23:58, 10.17 examples/s]Map:  30%|██▉       | 37503/125326 [3:17:32<1:45:19, 13.90 examples/s]Map:  30%|██▉       | 37555/125326 [3:17:32<1:15:40, 19.33 examples/s]Map:  30%|███       | 37630/125326 [3:17:32<48:30, 30.13 examples/s]  Map:  30%|███       | 37687/125326 [3:17:32<35:14, 41.45 examples/s]Map:  30%|███       | 37743/125326 [3:17:33<25:50, 56.48 examples/s]Map:  30%|███       | 37800/125326 [3:17:33<18:58, 76.90 examples/s]Map:  30%|███       | 37863/125326 [3:17:33<13:40, 106.65 examples/s]Map:  30%|███       | 37943/125326 [3:17:33<09:40, 150.45 examples/s]Map:  30%|███       | 37984/125326 [3:17:49<09:40, 150.45 examples/s]Map:  30%|███       | 38000/125326 [3:22:59<37:45:14,  1.56s/ examples]Map:  30%|███       | 38044/125326 [3:22:59<29:03:28,  1.20s/ examples]Map:  30%|███       | 38106/125326 [3:22:59<19:51:32,  1.22 examples/s]Map:  30%|███       | 38166/125326 [3:22:59<13:49:13,  1.75 examples/s]Map:  31%|███       | 38226/125326 [3:22:59<9:38:32,  2.51 examples/s] Map:  31%|███       | 38285/125326 [3:23:00<6:46:36,  3.57 examples/s]Map:  31%|███       | 38343/125326 [3:23:00<4:47:25,  5.04 examples/s]Map:  31%|███       | 38397/125326 [3:23:00<3:27:21,  6.99 examples/s]Map:  31%|███       | 38440/125326 [3:23:00<2:37:45,  9.18 examples/s]Map:  31%|███       | 38487/125326 [3:23:00<1:55:09, 12.57 examples/s]Map:  31%|███       | 38543/125326 [3:23:00<1:19:13, 18.26 examples/s]Map:  31%|███       | 38593/125326 [3:23:00<57:09, 25.29 examples/s]  Map:  31%|███       | 38647/125326 [3:23:00<40:20, 35.81 examples/s]Map:  31%|███       | 38703/125326 [3:23:01<28:29, 50.67 examples/s]Map:  31%|███       | 38761/125326 [3:23:01<20:15, 71.19 examples/s]Map:  31%|███       | 38819/125326 [3:23:01<14:44, 97.85 examples/s]Map:  31%|███       | 38876/125326 [3:23:01<11:01, 130.60 examples/s]Map:  31%|███       | 38955/125326 [3:23:01<07:55, 181.66 examples/s]Map:  31%|███       | 38997/125326 [3:23:17<07:55, 181.66 examples/s]Map:  31%|███       | 39000/125326 [3:28:22<40:12:57,  1.68s/ examples]Map:  31%|███       | 39030/125326 [3:28:22<32:52:58,  1.37s/ examples]Map:  31%|███       | 39092/125326 [3:28:23<21:22:36,  1.12 examples/s]Map:  31%|███       | 39154/125326 [3:28:23<14:15:36,  1.68 examples/s]Map:  31%|███▏      | 39211/125326 [3:28:23<9:55:51,  2.41 examples/s] Map:  31%|███▏      | 39262/125326 [3:28:23<7:09:52,  3.34 examples/s]Map:  31%|███▏      | 39318/125326 [3:28:23<4:59:38,  4.78 examples/s]Map:  31%|███▏      | 39372/125326 [3:28:23<3:32:00,  6.76 examples/s]Map:  31%|███▏      | 39437/125326 [3:28:23<2:21:31, 10.11 examples/s]Map:  32%|███▏      | 39486/125326 [3:28:24<1:44:32, 13.69 examples/s]Map:  32%|███▏      | 39541/125326 [3:28:24<1:13:59, 19.32 examples/s]Map:  32%|███▏      | 39598/125326 [3:28:24<52:25, 27.25 examples/s]  Map:  32%|███▏      | 39642/125326 [3:28:24<39:58, 35.72 examples/s]Map:  32%|███▏      | 39689/125326 [3:28:24<29:41, 48.06 examples/s]Map:  32%|███▏      | 39751/125326 [3:28:24<20:16, 70.33 examples/s]Map:  32%|███▏      | 39818/125326 [3:28:24<13:59, 101.90 examples/s]Map:  32%|███▏      | 39883/125326 [3:28:24<10:09, 140.08 examples/s]Map:  32%|███▏      | 39942/125326 [3:28:24<07:51, 180.90 examples/s]Map:  32%|███▏      | 39999/125326 [3:28:42<07:51, 180.90 examples/s]Map:  32%|███▏      | 40000/125326 [3:33:50<39:09:10,  1.65s/ examples]Map:  32%|███▏      | 40039/125326 [3:33:50<30:32:01,  1.29s/ examples]Map:  32%|███▏      | 40107/125326 [3:33:50<19:43:26,  1.20 examples/s]Map:  32%|███▏      | 40170/125326 [3:33:50<13:26:16,  1.76 examples/s]Map:  32%|███▏      | 40235/125326 [3:33:50<9:08:59,  2.58 examples/s] Map:  32%|███▏      | 40289/125326 [3:33:50<6:38:48,  3.55 examples/s]Map:  32%|███▏      | 40344/125326 [3:33:51<4:45:43,  4.96 examples/s]Map:  32%|███▏      | 40396/125326 [3:33:51<3:27:10,  6.83 examples/s]Map:  32%|███▏      | 40457/125326 [3:33:51<2:22:15,  9.94 examples/s]Map:  32%|███▏      | 40512/125326 [3:33:51<1:41:35, 13.92 examples/s]Map:  32%|███▏      | 40568/125326 [3:33:51<1:12:07, 19.59 examples/s]Map:  32%|███▏      | 40624/125326 [3:33:51<51:21, 27.49 examples/s]  Map:  32%|███▏      | 40679/125326 [3:33:51<36:57, 38.16 examples/s]Map:  33%|███▎      | 40734/125326 [3:33:51<26:46, 52.67 examples/s]Map:  33%|███▎      | 40789/125326 [3:33:52<19:34, 71.99 examples/s]Map:  33%|███▎      | 40861/125326 [3:33:52<13:38, 103.17 examples/s]Map:  33%|███▎      | 40932/125326 [3:33:52<10:04, 139.68 examples/s]Map:  33%|███▎      | 40994/125326 [3:33:52<08:06, 173.26 examples/s]Map:  33%|███▎      | 40994/125326 [3:34:10<08:06, 173.26 examples/s]Map:  33%|███▎      | 41000/125326 [3:39:26<51:13:49,  2.19s/ examples]Map:  33%|███▎      | 41032/125326 [3:39:26<39:27:49,  1.69s/ examples]Map:  33%|███▎      | 41095/125326 [3:39:27<23:58:43,  1.02s/ examples]Map:  33%|███▎      | 41154/125326 [3:39:27<15:43:32,  1.49 examples/s]Map:  33%|███▎      | 41214/125326 [3:39:27<10:29:16,  2.23 examples/s]Map:  33%|███▎      | 41275/125326 [3:39:27<7:04:25,  3.30 examples/s] Map:  33%|███▎      | 41332/125326 [3:39:27<4:56:36,  4.72 examples/s]Map:  33%|███▎      | 41401/125326 [3:39:27<3:15:27,  7.16 examples/s]Map:  33%|███▎      | 41459/125326 [3:39:27<2:18:55, 10.06 examples/s]Map:  33%|███▎      | 41512/125326 [3:39:27<1:41:13, 13.80 examples/s]Map:  33%|███▎      | 41564/125326 [3:39:28<1:13:41, 18.94 examples/s]Map:  33%|███▎      | 41640/125326 [3:39:28<47:31, 29.34 examples/s]  Map:  33%|███▎      | 41695/125326 [3:39:28<35:07, 39.68 examples/s]Map:  33%|███▎      | 41753/125326 [3:39:28<25:31, 54.59 examples/s]Map:  33%|███▎      | 41811/125326 [3:39:28<18:41, 74.47 examples/s]Map:  33%|███▎      | 41870/125326 [3:39:28<13:47, 100.82 examples/s]Map:  33%|███▎      | 41955/125326 [3:39:28<09:28, 146.60 examples/s]Map:  33%|███▎      | 41983/125326 [3:39:43<09:28, 146.60 examples/s]Map:  34%|███▎      | 42000/125326 [3:44:41<36:09:50,  1.56s/ examples]Map:  34%|███▎      | 42034/125326 [3:44:41<29:07:16,  1.26s/ examples]Map:  34%|███▎      | 42096/125326 [3:44:41<19:19:20,  1.20 examples/s]Map:  34%|███▎      | 42152/125326 [3:44:41<13:28:53,  1.71 examples/s]Map:  34%|███▎      | 42207/125326 [3:44:41<9:28:29,  2.44 examples/s] Map:  34%|███▎      | 42249/125326 [3:44:42<7:09:33,  3.22 examples/s]Map:  34%|███▍      | 42311/125326 [3:44:42<4:44:00,  4.87 examples/s]Map:  34%|███▍      | 42362/125326 [3:44:42<3:24:13,  6.77 examples/s]Map:  34%|███▍      | 42402/125326 [3:44:42<2:36:21,  8.84 examples/s]Map:  34%|███▍      | 42436/125326 [3:44:42<2:02:10, 11.31 examples/s]Map:  34%|███▍      | 42468/125326 [3:44:43<1:36:42, 14.28 examples/s]Map:  34%|███▍      | 42495/125326 [3:44:43<1:16:35, 18.02 examples/s]Map:  34%|███▍      | 42524/125326 [3:44:43<1:02:55, 21.93 examples/s]Map:  34%|███▍      | 42551/125326 [3:44:43<48:32, 28.42 examples/s]  Map:  34%|███▍      | 42577/125326 [3:44:43<37:29, 36.79 examples/s]Map:  34%|███▍      | 42604/125326 [3:44:44<29:22, 46.95 examples/s]Map:  34%|███▍      | 42626/125326 [3:44:44<24:43, 55.74 examples/s]Map:  34%|███▍      | 42645/125326 [3:44:44<25:58, 53.05 examples/s]Map:  34%|███▍      | 42667/125326 [3:44:44<20:33, 67.03 examples/s]Map:  34%|███▍      | 42688/125326 [3:44:44<16:47, 82.03 examples/s]Map:  34%|███▍      | 42710/125326 [3:44:44<13:51, 99.37 examples/s]Map:  34%|███▍      | 42730/125326 [3:44:45<12:05, 113.80 examples/s]Map:  34%|███▍      | 42751/125326 [3:44:45<10:37, 129.54 examples/s]Map:  34%|███▍      | 42784/125326 [3:44:45<09:24, 146.27 examples/s]Map:  34%|███▍      | 42817/125326 [3:44:45<07:32, 182.27 examples/s]Map:  34%|███▍      | 42861/125326 [3:44:45<05:49, 236.14 examples/s]Map:  34%|███▍      | 42901/125326 [3:44:45<05:02, 272.12 examples/s]Map:  34%|███▍      | 42945/125326 [3:44:45<04:24, 311.65 examples/s]Map:  34%|███▍      | 42989/125326 [3:44:45<04:01, 341.11 examples/s]Map:  34%|███▍      | 42989/125326 [3:45:00<04:01, 341.11 examples/s]Map:  34%|███▍      | 43000/125326 [3:50:01<70:11:34,  3.07s/ examples]Map:  34%|███▍      | 43036/125326 [3:50:01<46:49:12,  2.05s/ examples]Map:  34%|███▍      | 43073/125326 [3:50:01<31:27:07,  1.38s/ examples]Map:  34%|███▍      | 43111/125326 [3:50:02<21:14:10,  1.08 examples/s]Map:  34%|███▍      | 43151/125326 [3:50:02<14:16:29,  1.60 examples/s]Map:  34%|███▍      | 43189/125326 [3:50:02<9:53:18,  2.31 examples/s] Map:  34%|███▍      | 43230/125326 [3:50:02<6:43:05,  3.39 examples/s]Map:  35%|███▍      | 43288/125326 [3:50:02<4:05:25,  5.57 examples/s]Map:  35%|███▍      | 43336/125326 [3:50:02<2:48:41,  8.10 examples/s]Map:  35%|███▍      | 43374/125326 [3:50:02<2:05:33, 10.88 examples/s]Map:  35%|███▍      | 43413/125326 [3:50:03<1:31:57, 14.85 examples/s]Map:  35%|███▍      | 43448/125326 [3:50:03<1:08:43, 19.86 examples/s]Map:  35%|███▍      | 43484/125326 [3:50:03<50:35, 26.96 examples/s]  Map:  35%|███▍      | 43521/125326 [3:50:03<36:56, 36.91 examples/s]Map:  35%|███▍      | 43556/125326 [3:50:03<27:39, 49.27 examples/s]Map:  35%|███▍      | 43601/125326 [3:50:03<19:51, 68.61 examples/s]Map:  35%|███▍      | 43646/125326 [3:50:03<14:52, 91.48 examples/s]Map:  35%|███▍      | 43683/125326 [3:50:03<11:47, 115.47 examples/s]Map:  35%|███▍      | 43716/125326 [3:50:03<09:48, 138.57 examples/s]Map:  35%|███▍      | 43749/125326 [3:50:04<08:19, 163.44 examples/s]Map:  35%|███▍      | 43800/125326 [3:50:04<06:43, 202.17 examples/s]Map:  35%|███▍      | 43848/125326 [3:50:04<05:26, 249.81 examples/s]Map:  35%|███▌      | 43886/125326 [3:50:04<04:56, 274.78 examples/s]Map:  35%|███▌      | 43923/125326 [3:50:04<04:39, 291.76 examples/s]Map:  35%|███▌      | 43961/125326 [3:50:04<04:21, 311.18 examples/s]Map:  35%|███▌      | 43994/125326 [3:50:18<04:21, 311.18 examples/s]Map:  35%|███▌      | 44000/125326 [3:55:23<55:02:26,  2.44s/ examples]Map:  35%|███▌      | 44032/125326 [3:55:23<40:48:55,  1.81s/ examples]Map:  35%|███▌      | 44082/125326 [3:55:24<25:53:26,  1.15s/ examples]Map:  35%|███▌      | 44121/125326 [3:55:24<18:24:03,  1.23 examples/s]Map:  35%|███▌      | 44159/125326 [3:55:24<13:07:32,  1.72 examples/s]Map:  35%|███▌      | 44205/125326 [3:55:24<8:46:49,  2.57 examples/s] Map:  35%|███▌      | 44248/125326 [3:55:24<6:05:48,  3.69 examples/s]Map:  35%|███▌      | 44289/125326 [3:55:24<4:18:46,  5.22 examples/s]Map:  35%|███▌      | 44348/125326 [3:55:24<2:42:17,  8.32 examples/s]Map:  35%|███▌      | 44403/125326 [3:55:24<1:49:10, 12.35 examples/s]Map:  35%|███▌      | 44457/125326 [3:55:25<1:15:32, 17.84 examples/s]Map:  36%|███▌      | 44496/125326 [3:55:25<58:06, 23.19 examples/s]  Map:  36%|███▌      | 44535/125326 [3:55:25<44:17, 30.40 examples/s]Map:  36%|███▌      | 44571/125326 [3:55:25<34:25, 39.10 examples/s]Map:  36%|███▌      | 44602/125326 [3:55:25<27:46, 48.44 examples/s]Map:  36%|███▌      | 44635/125326 [3:55:25<21:28, 62.64 examples/s]Map:  36%|███▌      | 44669/125326 [3:55:25<16:32, 81.24 examples/s]Map:  36%|███▌      | 44707/125326 [3:55:25<12:32, 107.16 examples/s]Map:  36%|███▌      | 44743/125326 [3:55:26<09:58, 134.66 examples/s]Map:  36%|███▌      | 44778/125326 [3:55:26<08:11, 163.72 examples/s]Map:  36%|███▌      | 44814/125326 [3:55:26<06:54, 194.15 examples/s]Map:  36%|███▌      | 44863/125326 [3:55:26<05:55, 226.56 examples/s]Map:  36%|███▌      | 44900/125326 [3:55:26<05:18, 252.72 examples/s]Map:  36%|███▌      | 44937/125326 [3:55:26<04:51, 275.39 examples/s]Map:  36%|███▌      | 44985/125326 [3:55:26<04:39, 287.35 examples/s]Map:  36%|███▌      | 44985/125326 [3:55:41<04:39, 287.35 examples/s]Map:  36%|███▌      | 45000/125326 [4:00:55<65:54:20,  2.95s/ examples]Map:  36%|███▌      | 45041/125326 [4:00:55<43:11:21,  1.94s/ examples]Map:  36%|███▌      | 45090/125326 [4:00:55<27:11:57,  1.22s/ examples]Map:  36%|███▌      | 45139/125326 [4:00:55<17:47:58,  1.25 examples/s]Map:  36%|███▌      | 45173/125326 [4:00:55<13:15:53,  1.68 examples/s]Map:  36%|███▌      | 45207/125326 [4:00:56<9:43:56,  2.29 examples/s] Map:  36%|███▌      | 45243/125326 [4:00:56<6:56:42,  3.20 examples/s]Map:  36%|███▌      | 45277/125326 [4:00:56<5:01:06,  4.43 examples/s]Map:  36%|███▌      | 45312/125326 [4:00:56<3:34:23,  6.22 examples/s]Map:  36%|███▌      | 45349/125326 [4:00:56<2:29:55,  8.89 examples/s]Map:  36%|███▌      | 45390/125326 [4:00:56<1:42:03, 13.05 examples/s]Map:  36%|███▌      | 45428/125326 [4:00:56<1:12:19, 18.41 examples/s]Map:  36%|███▋      | 45481/125326 [4:00:56<46:37, 28.54 examples/s]  Map:  36%|███▋      | 45518/125326 [4:00:56<34:56, 38.07 examples/s]Map:  36%|███▋      | 45554/125326 [4:00:57<26:57, 49.33 examples/s]Map:  36%|███▋      | 45586/125326 [4:00:57<21:37, 61.46 examples/s]Map:  36%|███▋      | 45624/125326 [4:00:57<16:59, 78.20 examples/s]Map:  36%|███▋      | 45653/125326 [4:00:57<13:56, 95.30 examples/s]Map:  36%|███▋      | 45684/125326 [4:00:57<11:17, 117.64 examples/s]Map:  36%|███▋      | 45721/125326 [4:00:58<14:02, 94.52 examples/s] Map:  37%|███▋      | 45747/125326 [4:00:58<11:54, 111.38 examples/s]Map:  37%|███▋      | 45779/125326 [4:00:58<09:37, 137.79 examples/s]Map:  37%|███▋      | 45808/125326 [4:00:58<08:13, 161.08 examples/s]Map:  37%|███▋      | 45845/125326 [4:00:59<18:18, 72.34 examples/s] Map:  37%|███▋      | 45871/125326 [4:00:59<15:02, 88.08 examples/s]Map:  37%|███▋      | 45900/125326 [4:00:59<12:05, 109.45 examples/s]Map:  37%|███▋      | 45933/125326 [4:01:00<11:26, 115.58 examples/s]Map:  37%|███▋      | 45957/125326 [4:01:00<10:03, 131.43 examples/s]Map:  37%|███▋      | 45985/125326 [4:01:00<08:33, 154.50 examples/s]Map:  37%|███▋      | 45999/125326 [4:01:14<08:33, 154.50 examples/s]Map:  37%|███▋      | 46000/125326 [4:06:33<89:50:17,  4.08s/ examples]Map:  37%|███▋      | 46034/125326 [4:06:33<56:23:52,  2.56s/ examples]Map:  37%|███▋      | 46068/125326 [4:06:33<36:49:35,  1.67s/ examples]Map:  37%|███▋      | 46100/125326 [4:06:34<25:07:09,  1.14s/ examples]Map:  37%|███▋      | 46134/125326 [4:06:34<16:57:06,  1.30 examples/s]Map:  37%|███▋      | 46167/125326 [4:06:34<11:41:40,  1.88 examples/s]Map:  37%|███▋      | 46200/125326 [4:06:34<8:06:51,  2.71 examples/s] Map:  37%|███▋      | 46246/125326 [4:06:34<5:02:50,  4.35 examples/s]Map:  37%|███▋      | 46288/125326 [4:06:34<3:23:26,  6.48 examples/s]Map:  37%|███▋      | 46328/125326 [4:06:34<2:21:12,  9.32 examples/s]Map:  37%|███▋      | 46370/125326 [4:06:34<1:37:17, 13.53 examples/s]Map:  37%|███▋      | 46411/125326 [4:06:34<1:08:24, 19.23 examples/s]Map:  37%|███▋      | 46451/125326 [4:06:35<49:29, 26.56 examples/s]  Map:  37%|███▋      | 46495/125326 [4:06:35<35:12, 37.32 examples/s]Map:  37%|███▋      | 46547/125326 [4:06:35<24:12, 54.22 examples/s]Map:  37%|███▋      | 46584/125326 [4:06:35<18:49, 69.73 examples/s]Map:  37%|███▋      | 46629/125326 [4:06:35<14:18, 91.64 examples/s]Map:  37%|███▋      | 46681/125326 [4:06:35<10:44, 121.98 examples/s]Map:  37%|███▋      | 46723/125326 [4:06:35<08:36, 152.18 examples/s]Map:  37%|███▋      | 46770/125326 [4:06:36<07:14, 180.61 examples/s]Map:  37%|███▋      | 46813/125326 [4:06:36<06:31, 200.41 examples/s]Map:  37%|███▋      | 46852/125326 [4:06:36<05:40, 230.45 examples/s]Map:  37%|███▋      | 46890/125326 [4:06:36<05:04, 257.25 examples/s]Map:  37%|███▋      | 46930/125326 [4:06:36<04:33, 286.70 examples/s]Map:  37%|███▋      | 46968/125326 [4:06:36<04:16, 305.77 examples/s]Map:  37%|███▋      | 46987/125326 [4:06:50<04:16, 305.77 examples/s]Map:  38%|███▊      | 47000/125326 [4:11:39<52:31:31,  2.41s/ examples]Map:  38%|███▊      | 47027/125326 [4:11:39<40:11:25,  1.85s/ examples]Map:  38%|███▊      | 47078/125326 [4:11:39<24:36:24,  1.13s/ examples]Map:  38%|███▊      | 47129/125326 [4:11:39<15:50:43,  1.37 examples/s]Map:  38%|███▊      | 47186/125326 [4:11:40<10:06:11,  2.15 examples/s]Map:  38%|███▊      | 47242/125326 [4:11:40<6:42:36,  3.23 examples/s] Map:  38%|███▊      | 47297/125326 [4:11:40<4:34:14,  4.74 examples/s]Map:  38%|███▊      | 47335/125326 [4:11:40<3:28:57,  6.22 examples/s]Map:  38%|███▊      | 47380/125326 [4:11:40<2:29:40,  8.68 examples/s]Map:  38%|███▊      | 47421/125326 [4:11:40<1:50:01, 11.80 examples/s]Map:  38%|███▊      | 47456/125326 [4:11:40<1:23:53, 15.47 examples/s]Map:  38%|███▊      | 47487/125326 [4:11:41<1:04:44, 20.04 examples/s]Map:  38%|███▊      | 47522/125326 [4:11:41<47:41, 27.19 examples/s]  Map:  38%|███▊      | 47559/125326 [4:11:41<34:34, 37.49 examples/s]Map:  38%|███▊      | 47593/125326 [4:11:41<25:57, 49.90 examples/s]Map:  38%|███▊      | 47629/125326 [4:11:41<19:20, 66.95 examples/s]Map:  38%|███▊      | 47674/125326 [4:11:41<14:10, 91.29 examples/s]Map:  38%|███▊      | 47706/125326 [4:11:41<11:32, 112.11 examples/s]Map:  38%|███▊      | 47742/125326 [4:11:41<09:16, 139.29 examples/s]Map:  38%|███▊      | 47778/125326 [4:11:41<07:37, 169.66 examples/s]Map:  38%|███▊      | 47817/125326 [4:11:42<06:16, 205.77 examples/s]Map:  38%|███▊      | 47856/125326 [4:11:42<05:24, 238.70 examples/s]Map:  38%|███▊      | 47899/125326 [4:11:42<04:38, 278.31 examples/s]Map:  38%|███▊      | 47940/125326 [4:11:42<04:13, 305.50 examples/s]Map:  38%|███▊      | 47981/125326 [4:11:42<03:55, 328.62 examples/s]Map:  38%|███▊      | 47981/125326 [4:11:56<03:55, 328.62 examples/s]Map:  38%|███▊      | 48000/125326 [4:16:56<59:55:07,  2.79s/ examples]Map:  38%|███▊      | 48033/125326 [4:16:56<42:15:08,  1.97s/ examples]Map:  38%|███▊      | 48074/125326 [4:16:56<27:44:55,  1.29s/ examples]Map:  38%|███▊      | 48116/125326 [4:16:57<18:28:51,  1.16 examples/s]Map:  38%|███▊      | 48161/125326 [4:16:57<12:14:24,  1.75 examples/s]Map:  38%|███▊      | 48196/125326 [4:16:57<8:54:23,  2.41 examples/s] Map:  38%|███▊      | 48231/125326 [4:16:57<6:25:10,  3.34 examples/s]Map:  39%|███▊      | 48264/125326 [4:16:57<4:40:25,  4.58 examples/s]Map:  39%|███▊      | 48307/125326 [4:16:57<3:07:03,  6.86 examples/s]Map:  39%|███▊      | 48347/125326 [4:16:57<2:10:31,  9.83 examples/s]Map:  39%|███▊      | 48386/125326 [4:16:57<1:32:07, 13.92 examples/s]Map:  39%|███▊      | 48432/125326 [4:16:58<1:02:32, 20.49 examples/s]Map:  39%|███▊      | 48470/125326 [4:16:58<46:14, 27.70 examples/s]  Map:  39%|███▊      | 48504/125326 [4:16:58<35:29, 36.08 examples/s]Map:  39%|███▊      | 48537/125326 [4:16:58<26:59, 47.42 examples/s]Map:  39%|███▉      | 48568/125326 [4:16:58<20:58, 61.01 examples/s]Map:  39%|███▉      | 48611/125326 [4:16:58<14:48, 86.38 examples/s]Map:  39%|███▉      | 48653/125326 [4:16:58<10:59, 116.23 examples/s]Map:  39%|███▉      | 48695/125326 [4:16:58<08:30, 150.16 examples/s]Map:  39%|███▉      | 48737/125326 [4:16:58<06:50, 186.49 examples/s]Map:  39%|███▉      | 48779/125326 [4:16:59<05:43, 222.92 examples/s]Map:  39%|███▉      | 48834/125326 [4:16:59<04:56, 257.95 examples/s]Map:  39%|███▉      | 48875/125326 [4:16:59<04:27, 285.77 examples/s]Map:  39%|███▉      | 48924/125326 [4:16:59<04:19, 294.88 examples/s]Map:  39%|███▉      | 48968/125326 [4:16:59<04:21, 291.50 examples/s]Map:  39%|███▉      | 48998/125326 [4:17:17<04:21, 291.50 examples/s]Map:  39%|███▉      | 49000/125326 [4:22:32<51:32:34,  2.43s/ examples]Map:  39%|███▉      | 49031/125326 [4:22:32<38:57:07,  1.84s/ examples]Map:  39%|███▉      | 49064/125326 [4:22:32<28:24:22,  1.34s/ examples]Map:  39%|███▉      | 49097/125326 [4:22:32<20:29:24,  1.03 examples/s]Map:  39%|███▉      | 49144/125326 [4:22:32<13:05:15,  1.62 examples/s]Map:  39%|███▉      | 49176/125326 [4:22:32<9:41:32,  2.18 examples/s] Map:  39%|███▉      | 49208/125326 [4:22:33<7:04:45,  2.99 examples/s]Map:  39%|███▉      | 49254/125326 [4:22:33<4:34:11,  4.62 examples/s]Map:  39%|███▉      | 49288/125326 [4:22:33<3:19:58,  6.34 examples/s]Map:  39%|███▉      | 49324/125326 [4:22:33<2:22:22,  8.90 examples/s]Map:  39%|███▉      | 49360/125326 [4:22:33<1:41:24, 12.49 examples/s]Map:  39%|███▉      | 49410/125326 [4:22:33<1:05:21, 19.36 examples/s]Map:  39%|███▉      | 49450/125326 [4:22:33<47:23, 26.69 examples/s]  Map:  39%|███▉      | 49488/125326 [4:22:33<35:20, 35.77 examples/s]Map:  40%|███▉      | 49525/125326 [4:22:34<26:47, 47.17 examples/s]Map:  40%|███▉      | 49552/125326 [4:22:34<22:19, 56.56 examples/s]Map:  40%|███▉      | 49578/125326 [4:22:34<18:10, 69.48 examples/s]Map:  40%|███▉      | 49609/125326 [4:22:34<14:07, 89.32 examples/s]Map:  40%|███▉      | 49644/125326 [4:22:34<10:47, 116.97 examples/s]Map:  40%|███▉      | 49680/125326 [4:22:34<08:30, 148.18 examples/s]Map:  40%|███▉      | 49725/125326 [4:22:34<07:00, 179.74 examples/s]Map:  40%|███▉      | 49757/125326 [4:22:34<06:11, 203.59 examples/s]Map:  40%|███▉      | 49790/125326 [4:22:35<05:35, 225.45 examples/s]Map:  40%|███▉      | 49826/125326 [4:22:35<04:57, 253.99 examples/s]Map:  40%|███▉      | 49860/125326 [4:22:35<04:36, 272.64 examples/s]Map:  40%|███▉      | 49909/125326 [4:22:35<04:21, 288.03 examples/s]Map:  40%|███▉      | 49955/125326 [4:22:35<04:19, 290.59 examples/s]Map:  40%|███▉      | 49989/125326 [4:22:35<04:13, 297.44 examples/s]Map:  40%|███▉      | 49989/125326 [4:22:50<04:13, 297.44 examples/s]Map:  40%|███▉      | 50000/125326 [4:28:03<67:19:42,  3.22s/ examples]Map:  40%|███▉      | 50038/125326 [4:28:03<43:56:38,  2.10s/ examples]Map:  40%|███▉      | 50072/125326 [4:28:03<30:26:24,  1.46s/ examples]Map:  40%|███▉      | 50111/125326 [4:28:03<20:15:00,  1.03 examples/s]Map:  40%|████      | 50146/125326 [4:28:04<14:10:41,  1.47 examples/s]Map:  40%|████      | 50182/125326 [4:28:04<9:50:57,  2.12 examples/s] Map:  40%|████      | 50221/125326 [4:28:04<6:41:46,  3.12 examples/s]Map:  40%|████      | 50274/125326 [4:28:04<4:08:34,  5.03 examples/s]Map:  40%|████      | 50311/125326 [4:28:04<3:00:33,  6.92 examples/s]Map:  40%|████      | 50357/125326 [4:28:04<2:02:19, 10.22 examples/s]Map:  40%|████      | 50399/125326 [4:28:04<1:26:50, 14.38 examples/s]Map:  40%|████      | 50447/125326 [4:28:04<59:31, 20.97 examples/s]  Map:  40%|████      | 50483/125326 [4:28:05<44:54, 27.78 examples/s]Map:  40%|████      | 50526/125326 [4:28:05<32:28, 38.39 examples/s]Map:  40%|████      | 50567/125326 [4:28:05<24:21, 51.16 examples/s]Map:  40%|████      | 50601/125326 [4:28:05<19:39, 63.34 examples/s]Map:  40%|████      | 50638/125326 [4:28:05<14:59, 83.02 examples/s]Map:  40%|████      | 50675/125326 [4:28:05<11:37, 107.06 examples/s]Map:  40%|████      | 50709/125326 [4:28:06<18:49, 66.04 examples/s] Map:  40%|████      | 50746/125326 [4:28:07<18:00, 69.05 examples/s]Map:  41%|████      | 50777/125326 [4:28:07<14:19, 86.77 examples/s]Map:  41%|████      | 50799/125326 [4:28:07<14:17, 86.87 examples/s]Map:  41%|████      | 50824/125326 [4:28:07<11:55, 104.11 examples/s]Map:  41%|████      | 50845/125326 [4:28:08<12:45, 97.26 examples/s] Map:  41%|████      | 50876/125326 [4:28:08<09:54, 125.18 examples/s]Map:  41%|████      | 50907/125326 [4:28:08<08:03, 153.83 examples/s]Map:  41%|████      | 50934/125326 [4:28:08<07:08, 173.64 examples/s]Map:  41%|████      | 50963/125326 [4:28:08<06:19, 195.89 examples/s]Map:  41%|████      | 50992/125326 [4:28:08<05:44, 215.65 examples/s]Map:  41%|████      | 50992/125326 [4:28:22<05:44, 215.65 examples/s]Map:  41%|████      | 51000/125326 [4:33:14<84:17:20,  4.08s/ examples]Map:  41%|████      | 51032/125326 [4:33:14<52:21:31,  2.54s/ examples]Map:  41%|████      | 51064/125326 [4:33:14<33:58:51,  1.65s/ examples]Map:  41%|████      | 51095/125326 [4:33:14<22:52:51,  1.11s/ examples]Map:  41%|████      | 51133/125326 [4:33:14<14:33:41,  1.42 examples/s]Map:  41%|████      | 51177/125326 [4:33:14<9:06:01,  2.26 examples/s] Map:  41%|████      | 51221/125326 [4:33:14<5:56:02,  3.47 examples/s]Map:  41%|████      | 51261/125326 [4:33:14<4:05:45,  5.02 examples/s]Map:  41%|████      | 51309/125326 [4:33:15<2:40:56,  7.67 examples/s]Map:  41%|████      | 51355/125326 [4:33:15<1:49:46, 11.23 examples/s]Map:  41%|████      | 51416/125326 [4:33:15<1:09:14, 17.79 examples/s]Map:  41%|████      | 51472/125326 [4:33:15<47:19, 26.01 examples/s]  Map:  41%|████      | 51525/125326 [4:33:15<33:44, 36.46 examples/s]Map:  41%|████      | 51574/125326 [4:33:15<25:03, 49.06 examples/s]Map:  41%|████      | 51610/125326 [4:33:15<20:02, 61.29 examples/s]Map:  41%|████      | 51657/125326 [4:33:16<15:35, 78.71 examples/s]Map:  41%|████▏     | 51698/125326 [4:33:16<13:33, 90.56 examples/s]Map:  41%|████▏     | 51733/125326 [4:33:16<11:02, 111.07 examples/s]Map:  41%|████▏     | 51764/125326 [4:33:16<09:22, 130.70 examples/s]Map:  41%|████▏     | 51810/125326 [4:33:16<07:38, 160.49 examples/s]Map:  41%|████▏     | 51843/125326 [4:33:16<06:43, 181.97 examples/s]Map:  41%|████▏     | 51876/125326 [4:33:16<05:57, 205.56 examples/s]Map:  41%|████▏     | 51914/125326 [4:33:17<05:09, 237.42 examples/s]Map:  41%|████▏     | 51954/125326 [4:33:17<04:32, 269.11 examples/s]Map:  41%|████▏     | 51998/125326 [4:33:17<04:26, 274.68 examples/s]Map:  41%|████▏     | 51998/125326 [4:33:36<04:26, 274.68 examples/s]Map:  41%|████▏     | 52000/125326 [4:38:37<68:45:16,  3.38s/ examples]Map:  42%|████▏     | 52034/125326 [4:38:37<45:28:48,  2.23s/ examples]Map:  42%|████▏     | 52082/125326 [4:38:37<27:02:14,  1.33s/ examples]Map:  42%|████▏     | 52125/125326 [4:38:37<17:48:40,  1.14 examples/s]Map:  42%|████▏     | 52165/125326 [4:38:37<12:15:57,  1.66 examples/s]Map:  42%|████▏     | 52199/125326 [4:38:38<8:54:20,  2.28 examples/s] Map:  42%|████▏     | 52232/125326 [4:38:38<6:27:43,  3.14 examples/s]Map:  42%|████▏     | 52273/125326 [4:38:38<4:21:34,  4.65 examples/s]Map:  42%|████▏     | 52313/125326 [4:38:38<3:00:45,  6.73 examples/s]Map:  42%|████▏     | 52349/125326 [4:38:38<2:10:09,  9.35 examples/s]Map:  42%|████▏     | 52384/125326 [4:38:38<1:33:57, 12.94 examples/s]Map:  42%|████▏     | 52423/125326 [4:38:38<1:05:35, 18.52 examples/s]Map:  42%|████▏     | 52461/125326 [4:38:38<46:41, 26.01 examples/s]  Map:  42%|████▏     | 52500/125326 [4:38:39<33:51, 35.86 examples/s]Map:  42%|████▏     | 52532/125326 [4:38:39<25:55, 46.80 examples/s]Map:  42%|████▏     | 52569/125326 [4:38:39<19:37, 61.80 examples/s]Map:  42%|████▏     | 52615/125326 [4:38:39<14:10, 85.51 examples/s]Map:  42%|████▏     | 52651/125326 [4:38:39<11:08, 108.68 examples/s]Map:  42%|████▏     | 52684/125326 [4:38:39<09:09, 132.20 examples/s]Map:  42%|████▏     | 52730/125326 [4:38:39<07:22, 164.17 examples/s]Map:  42%|████▏     | 52762/125326 [4:38:39<06:29, 186.41 examples/s]Map:  42%|████▏     | 52796/125326 [4:38:40<05:42, 211.69 examples/s]Map:  42%|████▏     | 52834/125326 [4:38:40<04:57, 243.45 examples/s]Map:  42%|████▏     | 52882/125326 [4:38:40<04:35, 262.57 examples/s]Map:  42%|████▏     | 52916/125326 [4:38:40<04:21, 277.27 examples/s]Map:  42%|████▏     | 52958/125326 [4:38:40<04:23, 274.97 examples/s]Map:  42%|████▏     | 52989/125326 [4:38:40<04:17, 280.50 examples/s]Map:  42%|████▏     | 52989/125326 [4:38:56<04:17, 280.50 examples/s]Map:  42%|████▏     | 53000/125326 [4:44:37<73:57:03,  3.68s/ examples]Map:  42%|████▏     | 53030/125326 [4:44:37<51:18:08,  2.55s/ examples]Map:  42%|████▏     | 53072/125326 [4:44:37<31:49:31,  1.59s/ examples]Map:  42%|████▏     | 53114/125326 [4:44:38<20:38:40,  1.03s/ examples]Map:  42%|████▏     | 53143/125326 [4:44:38<15:20:20,  1.31 examples/s]Map:  42%|████▏     | 53174/125326 [4:44:38<11:01:22,  1.82 examples/s]Map:  42%|████▏     | 53217/125326 [4:44:38<7:05:25,  2.83 examples/s] Map:  42%|████▏     | 53250/125326 [4:44:38<5:06:18,  3.92 examples/s]Map:  43%|████▎     | 53291/125326 [4:44:38<3:25:28,  5.84 examples/s]Map:  43%|████▎     | 53327/125326 [4:44:38<2:26:18,  8.20 examples/s]Map:  43%|████▎     | 53359/125326 [4:44:39<1:48:00, 11.11 examples/s]Map:  43%|████▎     | 53390/125326 [4:44:39<1:20:05, 14.97 examples/s]Map:  43%|████▎     | 53426/125326 [4:44:39<56:39, 21.15 examples/s]  Map:  43%|████▎     | 53462/125326 [4:44:39<40:13, 29.78 examples/s]Map:  43%|████▎     | 53493/125326 [4:44:39<30:12, 39.63 examples/s]Map:  43%|████▎     | 53532/125326 [4:44:39<21:14, 56.34 examples/s]Map:  43%|████▎     | 53567/125326 [4:44:39<15:56, 75.04 examples/s]Map:  43%|████▎     | 53608/125326 [4:44:39<11:36, 102.92 examples/s]Map:  43%|████▎     | 53644/125326 [4:44:40<09:11, 130.07 examples/s]Map:  43%|████▎     | 53681/125326 [4:44:40<07:25, 160.87 examples/s]Map:  43%|████▎     | 53718/125326 [4:44:40<06:10, 193.08 examples/s]Map:  43%|████▎     | 53763/125326 [4:44:40<04:58, 239.42 examples/s]Map:  43%|████▎     | 53816/125326 [4:44:40<04:26, 268.63 examples/s]Map:  43%|████▎     | 53854/125326 [4:44:40<04:06, 289.61 examples/s]Map:  43%|████▎     | 53902/125326 [4:44:40<04:00, 297.26 examples/s]Map:  43%|████▎     | 53941/125326 [4:44:40<04:12, 283.10 examples/s]Map:  43%|████▎     | 53985/125326 [4:44:41<04:11, 283.82 examples/s]Map:  43%|████▎     | 53985/125326 [4:44:57<04:11, 283.82 examples/s]Map:  43%|████▎     | 54000/125326 [4:50:05<56:01:10,  2.83s/ examples]Map:  43%|████▎     | 54027/125326 [4:50:05<41:56:10,  2.12s/ examples]Map:  43%|████▎     | 54068/125326 [4:50:05<27:08:44,  1.37s/ examples]Map:  43%|████▎     | 54110/125326 [4:50:05<17:54:55,  1.10 examples/s]Map:  43%|████▎     | 54148/125326 [4:50:05<12:26:55,  1.59 examples/s]Map:  43%|████▎     | 54193/125326 [4:50:05<8:12:56,  2.41 examples/s] Map:  43%|████▎     | 54240/125326 [4:50:06<5:27:25,  3.62 examples/s]Map:  43%|████▎     | 54292/125326 [4:50:06<3:34:40,  5.52 examples/s]Map:  43%|████▎     | 54337/125326 [4:50:06<2:31:16,  7.82 examples/s]Map:  43%|████▎     | 54384/125326 [4:50:06<1:45:35, 11.20 examples/s]Map:  43%|████▎     | 54427/125326 [4:50:06<1:16:20, 15.48 examples/s]Map:  43%|████▎     | 54475/125326 [4:50:06<53:28, 22.08 examples/s]  Map:  44%|████▎     | 54521/125326 [4:50:07<38:39, 30.52 examples/s]Map:  44%|████▎     | 54572/125326 [4:50:07<26:55, 43.80 examples/s]Map:  44%|████▎     | 54613/125326 [4:50:07<20:25, 57.69 examples/s]Map:  44%|████▎     | 54659/125326 [4:50:07<15:02, 78.34 examples/s]Map:  44%|████▎     | 54700/125326 [4:50:07<11:39, 100.97 examples/s]Map:  44%|████▎     | 54752/125326 [4:50:07<08:56, 131.65 examples/s]Map:  44%|████▎     | 54794/125326 [4:50:07<07:39, 153.47 examples/s]Map:  44%|████▍     | 54834/125326 [4:50:07<06:22, 184.53 examples/s]Map:  44%|████▍     | 54892/125326 [4:50:07<05:11, 226.09 examples/s]Map:  44%|████▍     | 54930/125326 [4:50:08<04:39, 251.46 examples/s]Map:  44%|████▍     | 54976/125326 [4:50:08<04:26, 263.83 examples/s]Map:  44%|████▍     | 54994/125326 [4:50:22<04:26, 263.83 examples/s]Map:  44%|████▍     | 55000/125326 [4:54:46<41:56:01,  2.15s/ examples]Map:  44%|████▍     | 55035/125326 [4:54:46<30:15:48,  1.55s/ examples]Map:  44%|████▍     | 55077/125326 [4:54:46<20:29:27,  1.05s/ examples]Map:  44%|████▍     | 55116/125326 [4:54:46<14:21:06,  1.36 examples/s]Map:  44%|████▍     | 55156/125326 [4:54:46<9:58:46,  1.95 examples/s] Map:  44%|████▍     | 55197/125326 [4:54:46<6:54:26,  2.82 examples/s]Map:  44%|████▍     | 55238/125326 [4:54:46<4:48:17,  4.05 examples/s]Map:  44%|████▍     | 55277/125326 [4:54:46<3:24:22,  5.71 examples/s]Map:  44%|████▍     | 55335/125326 [4:54:47<2:06:55,  9.19 examples/s]Map:  44%|████▍     | 55389/125326 [4:54:47<1:25:02, 13.71 examples/s]Map:  44%|████▍     | 55429/125326 [4:54:47<1:03:23, 18.38 examples/s]Map:  44%|████▍     | 55470/125326 [4:54:47<46:32, 25.02 examples/s]  Map:  44%|████▍     | 55512/125326 [4:54:47<33:50, 34.37 examples/s]Map:  44%|████▍     | 55562/125326 [4:54:47<23:51, 48.75 examples/s]Map:  44%|████▍     | 55610/125326 [4:54:47<17:36, 65.98 examples/s]Map:  44%|████▍     | 55652/125326 [4:54:47<13:27, 86.33 examples/s]Map:  44%|████▍     | 55696/125326 [4:54:48<10:41, 108.61 examples/s]Map:  44%|████▍     | 55747/125326 [4:54:48<08:21, 138.83 examples/s]Map:  45%|████▍     | 55786/125326 [4:54:48<07:26, 155.65 examples/s]Map:  45%|████▍     | 55826/125326 [4:54:48<07:14, 159.98 examples/s]Map:  45%|████▍     | 55853/125326 [4:54:48<07:42, 150.30 examples/s]Map:  45%|████▍     | 55876/125326 [4:54:49<08:26, 137.10 examples/s]Map:  45%|████▍     | 55895/125326 [4:54:49<08:00, 144.49 examples/s]Map:  45%|████▍     | 55915/125326 [4:54:49<07:34, 152.84 examples/s]Map:  45%|████▍     | 55941/125326 [4:54:49<13:05, 88.34 examples/s] Map:  45%|████▍     | 55961/125326 [4:54:49<11:25, 101.25 examples/s]Map:  45%|████▍     | 55980/125326 [4:54:50<10:09, 113.75 examples/s]Map:  45%|████▍     | 55997/125326 [4:54:50<15:29, 74.60 examples/s] Map:  45%|████▍     | 55997/125326 [4:55:08<15:29, 74.60 examples/s]Map:  45%|████▍     | 56000/125326 [5:00:19<121:51:33,  6.33s/ examples]Map:  45%|████▍     | 56024/125326 [5:00:19<73:31:39,  3.82s/ examples] Map:  45%|████▍     | 56051/125326 [5:00:20<44:54:46,  2.33s/ examples]Map:  45%|████▍     | 56077/125326 [5:00:20<29:15:53,  1.52s/ examples]Map:  45%|████▍     | 56101/125326 [5:00:20<20:03:51,  1.04s/ examples]Map:  45%|████▍     | 56125/125326 [5:00:20<13:51:28,  1.39 examples/s]Map:  45%|████▍     | 56149/125326 [5:00:20<9:37:24,  2.00 examples/s] Map:  45%|████▍     | 56174/125326 [5:00:20<6:37:38,  2.90 examples/s]Map:  45%|████▍     | 56201/125326 [5:00:20<4:29:18,  4.28 examples/s]Map:  45%|████▍     | 56226/125326 [5:00:20<3:09:35,  6.07 examples/s]Map:  45%|████▍     | 56252/125326 [5:00:20<2:12:20,  8.70 examples/s]Map:  45%|████▍     | 56278/125326 [5:00:20<1:33:11, 12.35 examples/s]Map:  45%|████▍     | 56305/125326 [5:00:21<1:05:26, 17.58 examples/s]Map:  45%|████▍     | 56332/125326 [5:00:21<46:37, 24.66 examples/s]  Map:  45%|████▍     | 56368/125326 [5:00:21<31:10, 36.87 examples/s]Map:  45%|████▌     | 56404/125326 [5:00:21<21:31, 53.37 examples/s]Map:  45%|████▌     | 56447/125326 [5:00:21<14:32, 78.94 examples/s]Map:  45%|████▌     | 56491/125326 [5:00:21<10:22, 110.66 examples/s]Map:  45%|████▌     | 56533/125326 [5:00:21<07:54, 145.09 examples/s]Map:  45%|████▌     | 56572/125326 [5:00:21<06:27, 177.54 examples/s]Map:  45%|████▌     | 56617/125326 [5:00:21<05:10, 221.25 examples/s]Map:  45%|████▌     | 56657/125326 [5:00:22<04:33, 250.74 examples/s]Map:  45%|████▌     | 56696/125326 [5:00:22<04:05, 278.99 examples/s]Map:  45%|████▌     | 56751/125326 [5:00:22<03:44, 305.00 examples/s]Map:  45%|████▌     | 56802/125326 [5:00:22<03:39, 311.78 examples/s]Map:  45%|████▌     | 56849/125326 [5:00:22<03:41, 308.75 examples/s]Map:  45%|████▌     | 56892/125326 [5:00:22<03:49, 297.61 examples/s]Map:  45%|████▌     | 56934/125326 [5:00:22<03:55, 290.34 examples/s]Map:  45%|████▌     | 56980/125326 [5:00:23<03:54, 291.78 examples/s]Map:  45%|████▌     | 56995/125326 [5:00:38<03:54, 291.78 examples/s]Map:  45%|████▌     | 56999/125326 [5:05:57<51:13:29,  2.70s/ examples]Map:  45%|████▌     | 56999/125326 [5:11:11<6:13:02,  3.05 examples/s] 
+02/12/2026 23:39:51 - INFO - audiobench.dataset - Loaded 3000 samples for evaluation
+2026-02-12 23:39:51 - INFO :       Loaded 3000 samples for evaluation
+02/12/2026 23:39:51 - INFO - audiobench.dataset - = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-12 23:39:51 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+02/12/2026 23:39:51 - INFO - root - Number of samples: 4
+2026-02-12 23:39:51 - INFO :       Number of samples: 4
+02/12/2026 23:39:51 - INFO - root - 
+=  =  =  Dataset Sample  =  =  =
+2026-02-12 23:39:51 - INFO :       
+=  =  =  Dataset Sample  =  =  =
+02/12/2026 23:39:51 - INFO - root - {'audio': {'path': None, 'array': array([-0.0050354 , -0.00506592, -0.00570679, ...,  0.00460815,
+        0.00454712,  0.00442505]), 'sampling_rate': 16000}, 'instruction': 'Please help me transcribe the speech into text.', 'reference': 'Mountbatten Vocational School Bukit Batok Driving and Test Centre and Dalhousie Lane', 'task_type': 'ASR'}
+2026-02-12 23:39:51 - INFO :       {'audio': {'path': None, 'array': array([-0.0050354 , -0.00506592, -0.00570679, ...,  0.00460815,
+        0.00454712,  0.00442505]), 'sampling_rate': 16000}, 'instruction': 'Please help me transcribe the speech into text.', 'reference': 'Mountbatten Vocational School Bukit Batok Driving and Test Centre and Dalhousie Lane', 'task_type': 'ASR'}
+--- Logging error ---
+02/12/2026 23:39:51 - INFO - root - =  =  =  =  =  =  =  =  =  =  =  =
+
+--- Logging error ---
+2026-02-12 23:39:51 - INFO :       =  =  =  =  =  =  =  =  =  =  =  =
+
+--- Logging error ---
+02/12/2026 23:39:51 - INFO - root - Use taylor pruner...
+--- Logging error ---
+2026-02-12 23:39:51 - INFO :       Use taylor pruner...
+--- Logging error ---
+02/12/2026 23:39:51 - INFO - root - Pruning Attention Layer = []
+--- Logging error ---
+2026-02-12 23:39:51 - INFO :       Pruning Attention Layer = []
+--- Logging error ---
+02/12/2026 23:39:51 - INFO - root - Pruning MLP Layer = []
+--- Logging error ---
+2026-02-12 23:39:51 - INFO :       Pruning MLP Layer = []
+--- Logging error ---
+Traceback (most recent call last):
+

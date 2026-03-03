@@ -1,0 +1,18 @@
+2026-02-12 13:34:44 - INFO :       Loading model from: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 13:35:47 - INFO :       Model loaded: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 13:35:47 - INFO :       Model loaded: ./meralion_checkpoints/MERaLiON-2-3B-0_25-4-23-both
+2026-02-12 13:35:47 - INFO :       Loaded model: MERaLiON-2-3B
+2026-02-12 13:35:47 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-12 13:35:47 - INFO :       Loading dataset: imda_part2_asr_test
+2026-02-12 13:35:47 - INFO :       Loaded 125326 samples for evaluation
+2026-02-12 13:35:47 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-12 13:35:47 - INFO :       Number of samples: 4
+2026-02-12 13:35:48 - INFO :       
+=  =  =  Dataset Sample  =  =  =
+2026-02-12 13:35:48 - INFO :       {'audio': {'text': None, 'audio': {'path': None, 'array': array([1.37329102e-03, 1.52587891e-04, 1.58691406e-03, ...,
+       1.22070312e-04, 0.00000000e+00, 3.05175781e-05]), 'sampling_rate': 16000}}, 'instruction': 'Please help me transcribe the speech into text.', 'reference': {'text': "<Speaker1>: I think your group and my group is like around there. <Speaker2>: around the same ya ya. <Speaker1>: but I don't think my group will be able to overtake yours because of our condition right now, like all state right now isn't very good. <Speaker2>: our sale is not that good as well. <Speaker1>: but you all are better off than us. Like really, <Speaker2>: my group.", 'audio': None}, 'task_type': 'ASR'}
+2026-02-12 13:35:48 - INFO :       =  =  =  =  =  =  =  =  =  =  =  =
+
+2026-02-12 13:35:48 - INFO :       Use taylor pruner...
+2026-02-12 13:35:48 - INFO :       Pruning Attention Layer = []
+2026-02-12 13:35:48 - INFO :       Pruning MLP Layer = []

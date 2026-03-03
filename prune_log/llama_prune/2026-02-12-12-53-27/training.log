@@ -1,0 +1,8 @@
+2026-02-12 12:53:28 - INFO :       Loading model from: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 12:53:31 - INFO :       We will use 90% of the memory on device 0 for storing the model, and 10% for the buffer to avoid OOM. You can set `max_memory` in to a higher value to use more memory (at your own risk).
+2026-02-12 12:53:33 - INFO :       Model loaded: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 12:53:33 - INFO :       Model loaded: ./meralion_checkpoints/MERaLiON-2-3B-0_25-4-23-both
+2026-02-12 12:53:33 - INFO :       Loaded model: MERaLiON-2-3B
+2026-02-12 12:53:33 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-12 12:53:33 - INFO :       Loading dataset: imda_part2_asr_test
+2026-02-12 12:53:44 - WARNING :       Using the latest cached version of the dataset since MERaLiON/Multitask-National-Speech-Corpus-v1 couldn't be found on the Hugging Face Hub

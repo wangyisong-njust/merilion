@@ -1,0 +1,17 @@
+2026-02-12 13:46:27 - INFO :       Loading model from: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 13:47:28 - INFO :       Model loaded: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 13:47:28 - INFO :       Loaded model: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 13:47:28 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-12 13:47:28 - INFO :       Loading dataset: imda_part2_asr_test
+2026-02-12 17:35:19 - INFO :       Loaded 3000 samples for evaluation
+2026-02-12 17:35:19 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-12 17:35:19 - INFO :       Number of samples: 4
+2026-02-12 17:35:19 - INFO :       
+=  =  =  Dataset Sample  =  =  =
+2026-02-12 17:35:19 - INFO :       {'audio': {'path': None, 'array': array([-0.0050354 , -0.00506592, -0.00570679, ...,  0.00460815,
+        0.00454712,  0.00442505]), 'sampling_rate': 16000}, 'instruction': 'Please help me transcribe the speech into text.', 'reference': 'Mountbatten Vocational School Bukit Batok Driving and Test Centre and Dalhousie Lane', 'task_type': 'ASR'}
+2026-02-12 17:35:19 - INFO :       =  =  =  =  =  =  =  =  =  =  =  =
+
+2026-02-12 17:35:19 - INFO :       Use taylor pruner...
+2026-02-12 17:35:19 - INFO :       Pruning Attention Layer = []
+2026-02-12 17:35:19 - INFO :       Pruning MLP Layer = []

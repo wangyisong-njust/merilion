@@ -1,0 +1,26 @@
+2026-02-12 11:33:23 - INFO :       Loading model from: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 11:33:26 - INFO :       We will use 90% of the memory on device 0 for storing the model, and 10% for the buffer to avoid OOM. You can set `max_memory` in to a higher value to use more memory (at your own risk).
+2026-02-12 11:33:28 - INFO :       Model loaded: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-02-12 11:33:28 - INFO :       Model loaded: ./meralion_checkpoints/MERaLiON-2-3B-0_25-4-23-both
+2026-02-12 11:33:28 - INFO :       Loaded model: MERaLiON-2-3B
+2026-02-12 11:33:28 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-12 11:33:28 - INFO :       Loading dataset: imda_part2_asr_test
+2026-02-12 11:33:33 - INFO :       Loaded 3000 samples for evaluation
+2026-02-12 11:33:33 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-02-12 11:33:33 - INFO :       Number of samples: 3
+2026-02-12 11:33:34 - INFO :       
+=  =  =  Dataset Sample  =  =  =
+2026-02-12 11:33:34 - INFO :       {'audio': {'path': None, 'array': array([ 1.22070312e-04,  9.15527344e-05,  1.22070312e-04, ...,
+       -9.15527344e-04, -7.32421875e-04, -6.71386719e-04], shape=(74080,)), 'sampling_rate': 16000}, 'instruction': 'Transcribe the spoken words into written form.', 'reference': 'Loke Yew Alfred Wong ** Hong Kwok and Twisstii', 'task_type': 'ASR'}
+2026-02-12 11:33:34 - INFO :       =  =  =  =  =  =  =  =  =  =  =  =
+
+2026-02-12 11:33:34 - INFO :       Use taylor pruner...
+2026-02-12 11:33:34 - INFO :       Pruning Attention Layer = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+2026-02-12 11:33:34 - INFO :       Pruning MLP Layer = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+2026-02-12 11:33:35 - INFO :       Start Pruning
+2026-02-12 11:33:35 - INFO :       Start Backwarding in iterative steps = 0...
+2026-02-12 11:33:35 - INFO :       Loss = 16.864473342895508
+2026-02-12 11:33:38 - INFO :       Loss = 18.074674606323242
+2026-02-12 11:33:42 - INFO :       Loss = 18.041105270385742
+2026-02-12 11:33:45 - INFO :       After Iter 1/1, #parameters: 1284636672
+2026-02-12 11:33:45 - INFO :       #Param before: 2024275968, #Param after: 1284636672, Ratio = 63.4615%

@@ -1,0 +1,1 @@
+python meralion.py --base_model MERaLiON-2-10B-ASR --pruning_ratio 0.25 --pruner_type taylor --taylor param_mix --block_wise --block_mlp_layer_start 7 --block_mlp_layer_end 35 --block_attention_layer_start 7 --block_attention_layer_end 35 --num_examples 20 --max_seq_len 256

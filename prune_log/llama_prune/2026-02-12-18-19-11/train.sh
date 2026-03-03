@@ -1,0 +1,1 @@
+python meralion.py --base_model /home/jinchao/runtao/LL_base_model/MERaLiON-2-3B --pruning_ratio 0.5 --pruner_type taylor --taylor param_mix --block_wise --whisper_block_layer_start 4 --whisper_block_layer_end 28 --save_model_path meralion_checkpoints/MERaLiON-2-3B-Whisper-50 --num_examples 3 --iterative_steps 1

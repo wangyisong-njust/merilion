@@ -1,0 +1,19 @@
+2026-01-07 15:45:48 - INFO :       Model loaded: /home/kaixin/programs/LLM_base_model/MERaLiON-2-10B-ASR
+2026-01-07 15:45:48 - INFO :       Loaded model: MERaLiON-2-10B-ASR
+2026-01-07 15:45:48 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-01-07 15:45:48 - INFO :       Loading dataset: imda_part2_asr_test
+2026-01-07 15:45:52 - INFO :       Loaded 3000 samples for evaluation
+2026-01-07 15:45:52 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-01-07 15:45:52 - INFO :       Number of samples: 21
+2026-01-07 15:46:05 - INFO :       
+=  =  =  Dataset Sample  =  =  =
+2026-01-07 15:46:05 - INFO :       {'audio': {'path': None, 'array': array([-0.00015259, -0.00021362, -0.00012207, ..., -0.00015259,
+       -0.00015259, -0.00024414], shape=(184160,)), 'sampling_rate': 16000}, 'instruction': 'Transcribe the spoken conversation into written text.', 'reference': 'by using such names as Tan Keong Saik Zhu Hong and Loke Wan Tho we hope to capture some of the common names', 'task_type': 'ASR'}
+2026-01-07 15:46:05 - INFO :       =  =  =  =  =  =  =  =  =  =  =  =
+
+2026-01-07 15:46:05 - INFO :       Use taylor pruner...
+2026-01-07 15:46:05 - INFO :       Pruning Attention Layer = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]
+2026-01-07 15:46:05 - INFO :       Pruning MLP Layer = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]
+2026-01-07 15:46:07 - INFO :       Start Pruning
+2026-01-07 15:46:07 - INFO :       Start Backwarding in iterative steps = 0...
+2026-01-07 15:46:07 - INFO :       Loss = 21.813413619995117
