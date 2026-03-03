@@ -12,6 +12,7 @@ from operator import mul
 from typing import Callable, Sequence, Tuple, Dict
 from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding
 
+import pdb
 ##############################
 # Pruners
 ##############################
@@ -57,10 +58,30 @@ class HFAttentionPrunner(BasePruningFunc):
             sub_layer.weight = torch.nn.Parameter(
                 sub_layer.weight.data[:, keep_idxs]
             )
-
         return layer
 
+    # def prune_out_channels(self, layer: nn.Module, idxs: Sequence[int]) -> nn.Module:
+    #     assert len(idxs) % layer.num_heads == 0
+    #     print("Prune IDX in HFAttentionPruner: ", idxs)
+    #     for sub_layer in [layer.o_proj, layer.q_proj, layer.k_proj, layer.v_proj]:
+    #         keep_idxs = list(set(range(sub_layer.out_features)) - set(idxs))
+    #         keep_idxs.sort()
+    #         sub_layer.out_features = sub_layer.out_features-len(idxs)
+
+    #         sub_layer.weight = torch.nn.Parameter(sub_layer.weight.data[keep_idxs])
+    #         if sub_layer.bias is not None:
+    #             sub_layer.bias = torch.nn.Parameter(sub_layer.bias.data[keep_idxs])
+
+    #         keep_idxs = list(set(range(sub_layer.in_features)) - set(idxs))
+    #         keep_idxs.sort()
+    #         sub_layer.in_features = sub_layer.in_features-len(idxs)
+    #         sub_layer.weight = torch.nn.Parameter(
+    #             sub_layer.weight.data[:, keep_idxs]
+    #         )
+    #     return layer
+
     prune_in_channels = prune_out_channels
+
 
     def get_out_channels(self, layer):
         return layer.hidden_size
@@ -239,7 +260,7 @@ class TaylorImportance(tp.importance.Importance):
 
     @torch.no_grad()
     def __call__(self, group, ch_groups=1, consecutive_groups=1):
-    
+
         group_imp = []
         for dep, idxs in group:
             idxs.sort()
@@ -268,7 +289,10 @@ class TaylorImportance(tp.importance.Importance):
                 if self.taylor in ['param_second']:
                     salience = layer.weight * layer.weight.acc_grad * layer.weight
                 elif self.taylor in ['param_mix']: 
+                    # pdb.set_trace()
+                    layer.weight.acc_grad = layer.weight.acc_grad.to(layer.weight.device)
                     salience = salience - 0.5 * layer.weight * layer.weight.acc_grad * layer.weight
+                    layer.weight.acc_grad = layer.weight.acc_grad.detach().cpu()
                     
             # Linear out_channels
             if prune_fn in [tp.prune_linear_out_channels, hf_linear_pruner.prune_out_channels]:

@@ -10,7 +10,7 @@ from typing import Tuple
 
 import torch
 import numpy as np
-from transformers import LlamaTokenizer, GenerationConfig, LlamaConfig
+from transformers import LlamaTokenizer, GenerationConfig, LlamaConfig, AutoModel, AutoTokenizer, AutoModelForCausalLM
 from LLMPruner.models.hf_llama.modeling_llama import LlamaForCausalLM, LlamaRMSNorm, LlamaAttention, LlamaMLP
 
 import LLMPruner.torch_pruning as tp 
@@ -36,11 +36,29 @@ def main(args):
         setup_sublogger=True
     )
 
-    tokenizer = LlamaTokenizer.from_pretrained(args.base_model)
-    model = LlamaForCausalLM.from_pretrained(
-        args.base_model,
-        low_cpu_mem_usage=True if args.torch_version >=1.9 else False
-    )
+    if "MiniCPM" in args.base_model:
+        model = AutoModelForCausalLM.from_pretrained(args.base_model, torch_dtype=torch.bfloat16, device_map='cuda', trust_remote_code=True) 
+        # sdpa or flash_attention_2, no eager
+        # torch_dtype=torch.bfloat16
+        input(model)
+        tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
+    elif "qwen2" in args.base_model.lower():
+        model = AutoModelForCausalLM.from_pretrained(
+            args.base_model, 
+            device_map="auto",
+            torch_dtype="auto",
+            trust_remote_code=True
+        )
+        tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
+    else:
+        tokenizer = LlamaTokenizer.from_pretrained(args.base_model)
+        model = LlamaForCausalLM.from_pretrained(
+            args.base_model,
+            low_cpu_mem_usage=True if args.torch_version >=1.9 else False
+        )
+    print(model)
+
+    # if "MiniCPM" in args.base_model:
     if args.device != "cpu":
         model.half()
     model.to(args.device)
@@ -193,7 +211,7 @@ def main(args):
         for i in range(args.iterative_steps):
 
             if pruner_type in ['taylor']:
-                example_prompts = get_examples('bookcorpus', tokenizer, 10, seq_len = 64)
+                example_prompts = get_examples('bookcorpus', tokenizer, 10, seq_len = 64).to(args.device)
                 logger.log("Start Backwarding in iterative steps = {}...".format(i))
                 loss = model(example_prompts, labels=example_prompts).loss
                 logger.log("Loss = {}".format(loss))
@@ -227,13 +245,19 @@ def main(args):
     gc.collect()
     torch.cuda.empty_cache()
 
-    if args.save_model:
-        model.half()
-        torch.save({
-            'model': model, 
-            'tokenizer': tokenizer,
-        }, logger.best_checkpoint_path)
+    # if args.save_model:
+    #     model.half()
+    #     torch.save({
+    #         'model': model, 
+    #         'tokenizer': tokenizer,
+    #     }, logger.best_checkpoint_path)
+    if "MiniCPM" in args.base_model:
+        if args.save_model_path:
+            model.save_pretrained(args.save_model_path)
+            tokenizer.save_pretrained(args.save_model_path)
+            print("Pruned MiniCPM model has been saved!")
     
+    print(model)
     if args.eval_device != "cpu":
         model.half()
     model.to(args.eval_device)
@@ -307,6 +331,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--seed', type=int, default=42, help='seed')
     parser.add_argument('--save_model', action='store_true', help='if save model')
+    parser.add_argument('--save_model_path', type=str, help='path to save pruned model')
     args = parser.parse_args()
 
     torch_version = float('.'.join(torch.__version__.split('.')[:2]))

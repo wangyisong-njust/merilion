@@ -1,5 +1,5 @@
-torch>=1.7.1
-transformers>=4.28.1
+#torch>=1.7.1
+transformers==4.49.0
 datasets
 sentencepiece
 accelerate
@@ -17,3 +17,7 @@ importlib-resources
 pycountry
 omegaconf
 pytablewriter
+optimum
+trl
+peft
+#autoawq-kernels

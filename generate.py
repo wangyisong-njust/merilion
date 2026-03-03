@@ -6,7 +6,11 @@ import torch
 import transformers
 from transformers import GenerationConfig, AutoModelForCausalLM, AutoTokenizer
 
-from LLMPruner.peft import PeftModel
+# from LLMPruner.peft import PeftModel
+
+from peft import PeftModel, PeftConfig
+
+import pdb
 
 #from utils.callbacks import Iteratorize, Stream
 #from utils.prompter import Prompter
@@ -30,14 +34,21 @@ def main(args):
         tokenizer, model = pruned_dict['tokenizer'], pruned_dict['model']
         description = "Model Type: {}\n Pruned Model: {}".format(args.model_type, args.ckpt)
     elif args.model_type == 'tune_prune_LLM':
-        pruned_dict = torch.load(args.ckpt, map_location='cpu')
-        tokenizer, model = pruned_dict['tokenizer'], pruned_dict['model']
-        model = PeftModel.from_pretrained(
-            model,
-            args.lora_ckpt,
-            torch_dtype=torch.float16,
-        )
+        pruned_dict = torch.load(args.ckpt, map_location='cpu', weights_only=False)
+        if "SmolVLM" in args.ckpt:
+
+            processor, model = pruned_dict['processor'], pruned_dict['model']
+            adapter_config = PeftConfig.from_pretrained(args.lora_ckpt)
+            model = PeftModel.from_pretrained(model, args.lora_ckpt)
+        else:
+            tokenizer, model = pruned_dict['tokenizer'], pruned_dict['model']
+            model = PeftModel.from_pretrained(
+                model,
+                args.lora_ckpt,
+                torch_dtype=torch.float16,
+            )
         description = "Model Type: {}\n Pruned Model: {}\n LORA ckpt: {}".format(args.model_type, args.ckpt, args.lora_ckpt)
+        input("model loaded!")
     else:
         raise NotImplementedError
 
@@ -51,6 +62,12 @@ def main(args):
     model.config.eos_token_id = 2
 
     model.eval()
+
+    # from LLMPruner.evaluator.ppl import PPLMetric
+    # ppl = PPLMetric(model, tokenizer, ['wikitext2', 'ptb'], args.max_seq_len, device="cuda")
+    # print("PPL after pruning: {}".format(ppl))
+    # print("Memory Requirement: {} MiB\n".format(torch.cuda.memory_allocated()/1024/1024))
+    # input()
 
     def evaluate(
         input=None,
@@ -115,6 +132,9 @@ if __name__ == "__main__":
     parser.add_argument('--ckpt', type=str, default=None)
     parser.add_argument('--lora_ckpt', type=str, default=None)
     parser.add_argument('--share_gradio', action='store_true')
+
+    # PPL
+    parser.add_argument('--max_seq_len', type=int, default=2048)
 
     args = parser.parse_args()
     main(args)

@@ -2,7 +2,7 @@ prune_ckpt_path='llama_prune'
 tune_ckpt_path='llama_0.2'
 
 echo "[START] - Start Pruning Model"
-CUDA_VISIBLE_DEVICES=0 python hf_prune.py --pruning_ratio 0.25 --device cpu  --eval_device cuda --block_wise --block_mlp_layer_start 4 --block_mlp_layer_end 30 --block_attention_layer_start 4 --block_attention_layer_end 30 --save_ckpt_log_name $prune_ckpt_path --pruner_type taylor --test_after_train --taylor param_first --save_model
+CUDA_VISIBLE_DEVICES=0 python hf_prune.py --base_model meta-llama/Llama-2-7b-hf --pruning_ratio 0.25 --device cpu  --eval_device cuda --block_wise --block_mlp_layer_start 0 --block_mlp_layer_end 32 --block_attention_layer_start 0 --block_attention_layer_end 32 --save_ckpt_log_name $prune_ckpt_path --pruner_type taylor --test_after_train --taylor param_first --save_model
 echo "[FINISH] - Finish Pruning Model"
 
 echo "[START] - Start Tuning"
@@ -13,6 +13,3 @@ echo "[INFO] - The pruned model is at {prune_log/$prune_ckpt_path/pytorch_model.
 echo "You can use the command:"
 echo "       python generate.py --model_type tune_prune_LLM --ckpt prune_log/$prune_ckpt_path/pytorch_model.bin --lora_ckpt tune_log/$tune_ckpt_path"
 echo "to use the pruned model"
-
-
-

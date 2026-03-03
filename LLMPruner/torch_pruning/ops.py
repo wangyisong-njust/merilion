@@ -1,5 +1,6 @@
 import torch.nn as nn
 from enum import IntEnum
+# from LLMPruner.models.hf_MiniCPM.modeling_minicpm import MiniCPMSdpaAttention
 
 
 class DummyMHA(nn.Module):
@@ -107,9 +108,12 @@ TORCH_EMBED = nn.Embedding
 TORCH_PARAMETER = nn.Parameter
 TORCH_LSTM = nn.LSTM
 try:
-    TORCH_MHA = nn.MultiheadAttention
+    TORCH_MHA = MiniCPMSdpaAttention
 except:
-    TORCH_MHA = DummyMHA  # for pytorch w/o MultiHeadAttention
+    try:
+        TORCH_MHA = nn.MultiheadAttention
+    except:
+        TORCH_MHA = DummyMHA  # for pytorch w/o MultiHeadAttention
 TORCH_OTHERS = None
 
 

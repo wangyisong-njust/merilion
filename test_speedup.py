@@ -7,7 +7,7 @@ import numpy as np
 
 import transformers
 from transformers import GenerationConfig, LlamaForCausalLM, LlamaTokenizer
-from transformers.activations import SiLUActivation
+from torch.nn import SiLU as SiLUActivation
 
 from ptflops import get_model_complexity_info
 from ptflops.pytorch_ops import bn_flops_counter_hook, pool_flops_counter_hook

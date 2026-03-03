@@ -27,10 +27,10 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def main(args):
     # Set WanDB
-    os.environ["WANDB_PROJECT"] = args.wandb_project
+    # os.environ["WANDB_PROJECT"] = args.wandb_project
 
     # Load Pruned Model
-    pruned_dict = torch.load(args.prune_model, map_location='cpu')
+    pruned_dict = torch.load(args.prune_model, map_location='cpu', weights_only=False)
     tokenizer, model = pruned_dict['tokenizer'], pruned_dict['model']
 
     gradient_accumulation_steps = args.batch_size // args.micro_batch_size
@@ -215,6 +215,11 @@ def main(args):
     model.state_dict = old_state_dict
     model.save_pretrained(args.output_dir)
 
+    from LLMPruner.evaluator.ppl import PPLMetric
+    ppl = PPLMetric(model, tokenizer, ['wikitext2', 'ptb'], args.max_seq_len, device="cuda")
+    print("PPL after pruning: {}".format(ppl))
+    print("Memory Requirement: {} MiB\n".format(torch.cuda.memory_allocated()/1024/1024))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Tuning Pruned LLM')
@@ -254,6 +259,9 @@ if __name__ == "__main__":
 
     #ddp
     parser.add_argument('--local_rank', type=int, default=-1)
+
+    # PPL
+    parser.add_argument('--max_seq_len', type=int, default=2048)
    
     args = parser.parse_args()
     torch_version = int(torch.__version__.split('.')[1])

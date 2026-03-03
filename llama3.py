@@ -42,6 +42,7 @@ def main(args):
         device_map="auto",
         torch_dtype=torch.float16,
     )
+    print(model)
     if args.device != "cpu":
         model.half()
 
@@ -172,11 +173,15 @@ def main(args):
         del pruner
 
     elif args.channel_wise:
+        # adjust hidden size to be a multiple of attention heads
+        adjusted_pruning_ratio = (model.config.hidden_size * args.pruning_ratio // model.config.num_attention_heads + 1) \
+                                * model.config.num_attention_heads / model.config.hidden_size
+        print("adjusted pruning ratio:", adjusted_pruning_ratio)
         kwargs = {
             "importance": imp,
             "global_pruning": args.global_pruning,
             "iterative_steps": args.iterative_steps,
-            "ch_sparsity": args.pruning_ratio, # remove 50% channels, ResNet18 = {64, 128, 256, 512} => ResNet18_Half = {32, 64, 128, 256}
+            "ch_sparsity": adjusted_pruning_ratio, # remove 50% channels, ResNet18 = {64, 128, 256, 512} => ResNet18_Half = {32, 64, 128, 256}
             "ignored_layers":[],
             #"round_to": model.config.num_attention_heads * 2,
             "channel_groups": {
@@ -200,7 +205,7 @@ def main(args):
         for i in range(args.iterative_steps):
 
             if pruner_type in ['taylor']:
-                example_prompts = get_examples('bookcorpus', tokenizer, 10, seq_len = 64)
+                example_prompts = get_examples('bookcorpus', tokenizer, 10, seq_len = 64).to(args.device)
                 logger.log("Start Backwarding in iterative steps = {}...".format(i))
                 loss = model(example_prompts, labels=example_prompts).loss
                 logger.log("Loss = {}".format(loss))
@@ -233,6 +238,8 @@ def main(args):
     
     gc.collect()
     torch.cuda.empty_cache()
+
+    print(model)
 
     if args.save_model:
         model.half()

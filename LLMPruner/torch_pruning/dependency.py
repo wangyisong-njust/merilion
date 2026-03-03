@@ -9,6 +9,8 @@ import torch.nn as nn
 from .pruner import function
 from . import _helpers, utils, ops
 
+import pdb
+
 __all__ = ["Dependency", "Group", "DependencyGraph"]
 
 
@@ -330,9 +332,10 @@ class DependencyGraph(object):
                     customized_module, customized_pruner)
 
         # Ignore all sub-modules of customized layers
+        
         for layer_type in self.CUSTOMIZED_PRUNERS.keys():
             for m in self.model.modules():
-                if isinstance(m, layer_type):
+                if isinstance(m, layer_type): # or "Attention" in str(m.__class__)
                     for sub_module in m.modules():
                         if sub_module != m:
                             self.IGNORED_LAYERS.append(sub_module)
@@ -374,6 +377,7 @@ class DependencyGraph(object):
         self.module2node = self._trace(
             model, example_inputs, forward_fn, output_transform=output_transform
         )
+
 
         # Build dependency graph
         self._build_dependency(self.module2node)
@@ -500,6 +504,9 @@ class DependencyGraph(object):
         visited_layers = []
         ignored_layers = ignored_layers+self.IGNORED_LAYERS
         for m in list(self.module2node.keys()):
+            # print("begin")
+            # print(m)
+            # input()
             if m in ignored_layers:
                 continue
     
@@ -518,6 +525,9 @@ class DependencyGraph(object):
                 continue
 
             pruner = self.get_pruner_of_module(m)
+            # print(m)
+            # print(pruner)
+            # input()
             if pruner is None or pruner.get_out_channels(m) is None:
                 continue
 
@@ -553,6 +563,7 @@ class DependencyGraph(object):
             pruning_dim = self.module2node[module].pruning_dim
         p = self.get_pruner_of_module(module)
         p.pruning_dim = pruning_dim
+        # input(pruning_dim)
         if p is None:
             return None
         return p.get_out_channels(module)
@@ -662,13 +673,33 @@ class DependencyGraph(object):
                 outputs = outputs.data
             gradfn2module[outputs.grad_fn] = module
 
-        registered_types = tuple(ops.type2class(
-            t) for t in self.REGISTERED_PRUNERS.keys()) + tuple(self.CUSTOMIZED_PRUNERS.keys())
+        # get RMSNorm type for MiniCPM
+        i=0
+        for m in model.modules():
+            if i == 16:
+                temp_t = type(m)
+                break
+            i += 1
+        # registered_types = tuple(ops.type2class(
+        #     t) for t in self.REGISTERED_PRUNERS.keys()) + tuple(self.CUSTOMIZED_PRUNERS.keys())
+        registered_types = list(ops.type2class(
+            t) for t in self.REGISTERED_PRUNERS.keys()) + list(self.CUSTOMIZED_PRUNERS.keys())
+        print(type(registered_types[0]))
+        registered_types.append(temp_t)
+        registered_types = tuple(registered_types)
         hooks = [
             m.register_forward_hook(_record_grad_fn)
             for m in model.modules()
             if (isinstance(m, registered_types) and m not in self.IGNORED_LAYERS)
         ]
+        # print(registered_types)
+        # i=0
+        # for m in model.modules():
+            # print(i)
+            # print(type(m))
+            # i += 1
+            # if (isinstance(m, registered_types) and m not in self.IGNORED_LAYERS):
+            #     input(m)
 
         # Feed forward and record gradient functions of prunable modules
         if forward_fn is not None:
@@ -821,6 +852,7 @@ class DependencyGraph(object):
             visited.add(grad_fn)
             visited_as_output_node.add(node)
         
+        # breakpoint()
         for (param, dim) in self.unwrapped_parameters:
             module2node[param].pruning_dim = dim
         return module2node

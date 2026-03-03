@@ -133,6 +133,7 @@ class MetaPruner:
         if self.global_pruning: # TODO: Support both ch_groups and consecutive_groups in a single forward
             initial_total_channels = 0
             for group in self.DG.get_all_groups(ignored_layers=self.ignored_layers, root_module_types=self.root_module_types, root_instances=self.root_instances):
+                print(group[0][0].target.module, group[0][0].handler)
                 ch_groups = self.get_channel_groups(group)
                 consecutive_groups = self.get_consecutive_groups(group)
                 # utils.count_prunable_out_channels( group[0][0].target.module )
@@ -235,6 +236,7 @@ class MetaPruner:
         if self.current_step > self.iterative_steps:
             return
         for group in self.DG.get_all_groups(ignored_layers=self.ignored_layers, root_module_types=self.root_module_types, root_instances=self.root_instances):
+            # only 1 group in total
             # check pruning rate
             if self._check_sparsity(group):
                 module = group[0][0].target.module
@@ -316,6 +318,7 @@ class MetaPruner:
         thres = topk_imp[-1]
         for group, ch_groups, consecutive_groups, imp in global_importance:
             module = group[0][0].target.module
+            print(module)
             pruning_fn = group[0][0].handler
             pruning_indices = (imp <= thres).nonzero().view(-1)
             
