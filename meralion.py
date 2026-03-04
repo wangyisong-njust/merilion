@@ -60,6 +60,12 @@ def main(args):
     #     torch_dtype=torch.bfloat16
     # ).to(args.device)
     model = Model(args.base_model)
+    # Fix model_name for audiobench routing (get_inputs/get_loss/generate use exact name matching)
+    # Model.__init__ uses model_name for load_model routing, which works on the server.
+    # But get_inputs/get_loss also use exact match, so normalize to basename after loading.
+    if os.path.sep in model.model_name:
+        model.model_name = os.path.basename(model.model_name.rstrip(os.path.sep))
+        print(f"[FIX] Normalized model_name to '{model.model_name}' for audiobench routing")
     # model = net.model
     processor = model.processor
 
