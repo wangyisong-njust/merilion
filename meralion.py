@@ -117,18 +117,19 @@ def main(args):
     _chat_prompt = processor.tokenizer.apply_chat_template(
         conversation=_conv, tokenize=False, add_generation_prompt=True
     )
-    forward_prompts = processor(text=_chat_prompt, audios=_audio_arr)
-    # Ensure ALL values are tensors on CUDA with correct dtype
-    for _k in list(forward_prompts.keys()):
-        _v = forward_prompts[_k]
-        if not isinstance(_v, torch.Tensor):
-            _v = torch.tensor(_v)
-        _v = _v.to('cuda')
-        if _v.dtype == torch.float32:
-            _v = _v.to(torch.bfloat16)
+    _batch = processor(text=_chat_prompt, audios=_audio_arr, return_tensors="pt")
+    # Convert BatchEncoding to plain dict with all tensors on CUDA.
+    # BatchEncoding (UserDict) may have special __getitem__/__setitem__ behavior,
+    # so we extract to a plain dict to guarantee model(**forward_prompts) works.
+    forward_prompts = {}
+    for _k, _v in _batch.items():
+        if isinstance(_v, torch.Tensor):
+            _v = _v.to('cuda')
+            if _v.dtype == torch.float32:
+                _v = _v.to(torch.bfloat16)
         forward_prompts[_k] = _v
     print(f"[DATA] forward_prompts preprocessed: keys={list(forward_prompts.keys())}, "
-          f"devices={[str(forward_prompts[k].device) for k in forward_prompts]}")
+          f"devices={[forward_prompts[k].device for k in forward_prompts]}")
     
     if args.test_before_train:
         logger.log("\n==================Generation Results before Pruning================\n")
