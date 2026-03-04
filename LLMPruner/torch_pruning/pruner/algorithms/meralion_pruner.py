@@ -79,15 +79,18 @@ class MeralionPruner:
         self.round_to = round_to
 
         # Build dependency graph
-        # get_inputs() preprocesses raw audio+instruction dict into model-ready tensors on CUDA
-        processed = self.model_parent.get_inputs(example_inputs)
-        if processed is None:
-            raise RuntimeError(
-                f"model_parent.get_inputs() returned None. "
-                f"Check that model_name='{getattr(self.model_parent, 'model_name', '?')}' "
-                f"matches audiobench routing (e.g. 'MERaLiON-2-3B')."
-            )
-        example_inputs = processed
+        # If example_inputs is already a dict of tensors (preprocessed in meralion.py),
+        # skip get_inputs() to avoid audiobench model_name routing and device issues.
+        if isinstance(example_inputs, dict) and any(isinstance(v, torch.Tensor) for v in example_inputs.values()):
+            pass  # already preprocessed, use as-is
+        else:
+            example_inputs = self.model_parent.get_inputs(example_inputs)
+            if example_inputs is None:
+                raise RuntimeError(
+                    f"model_parent.get_inputs() returned None. "
+                    f"Check that model_name='{getattr(self.model_parent, 'model_name', '?')}' "
+                    f"matches audiobench routing (e.g. 'MERaLiON-2-3B')."
+                )
         self.DG = dependency.DependencyGraph().build_dependency(
             model,
             example_inputs=example_inputs,

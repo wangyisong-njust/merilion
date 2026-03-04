@@ -104,8 +104,31 @@ def main(args):
     del _calib_raw, _calib_subset
     print(f"[DATA] Loaded {len(calib_input_data)} calibration samples (instant, no 125k mapping)")
 
-    forward_prompts = calib_input_data[-1]
     example_prompts = calib_input_data[:20]
+
+    # Preprocess forward_prompts into CUDA tensors for dependency graph tracing.
+    # This bypasses audiobench Model.get_inputs() which has model_name routing issues
+    # and may leave tensors on CPU.
+    _fp = calib_input_data[-1]
+    _audio_arr = _fp["audio"]["array"]
+    _instruction = _fp["instruction"]
+    _prompt_tpl = "Instruction: {instruction} \nFollow the text instruction based on the following audio: <SpeechHere>"
+    _conv = [{"role": "user", "content": _prompt_tpl.format(instruction=_instruction)}]
+    _chat_prompt = processor.tokenizer.apply_chat_template(
+        conversation=_conv, tokenize=False, add_generation_prompt=True
+    )
+    forward_prompts = processor(text=_chat_prompt, audios=_audio_arr)
+    # Ensure ALL values are tensors on CUDA with correct dtype
+    for _k in list(forward_prompts.keys()):
+        _v = forward_prompts[_k]
+        if not isinstance(_v, torch.Tensor):
+            _v = torch.tensor(_v)
+        _v = _v.to('cuda')
+        if _v.dtype == torch.float32:
+            _v = _v.to(torch.bfloat16)
+        forward_prompts[_k] = _v
+    print(f"[DATA] forward_prompts preprocessed: keys={list(forward_prompts.keys())}, "
+          f"devices={[str(forward_prompts[k].device) for k in forward_prompts]}")
     
     if args.test_before_train:
         logger.log("\n==================Generation Results before Pruning================\n")
