@@ -215,13 +215,19 @@ def main(args):
 
     print(model.model)
 
+    # Check if whisper encoder was pruned (from saved config)
+    whisper_pruned = (
+        hasattr(model.model.config, 'speech_config') and
+        getattr(model.model.config.speech_config, 'whisper_midblock_start', -1) >= 0
+    )
+
     for param in model.model.speech_encoder.parameters():
         param.requires_grad = False
     for param in model.model.ln_speech.parameters():
         param.requires_grad = False
     for param in model.model.speech_audio_adapter.parameters():
         param.requires_grad = False
-        
+
     model.model.text_decoder.gradient_checkpointing_enable()
     model.model.config.use_cache = False
     model.model.text_decoder.config.use_cache = False  # important for training
@@ -239,13 +245,21 @@ def main(args):
     # processor.tokenizer.pad_token_id = 0
     # processor.tokenizer.padding_side = "left"
 
-    
+
     # Prepare For LoRA
-    # model = prepare_model_for_kbit_training(model)
+    # If whisper encoder was pruned, also add fc1/fc2 (whisper MLP) to LoRA targets
+    lora_target_modules = args.lora_target_modules.split(",")
+    if whisper_pruned:
+        whisper_modules = ["fc1", "fc2", "out_proj"]
+        for wm in whisper_modules:
+            if wm not in lora_target_modules:
+                lora_target_modules.append(wm)
+        print(f"[INFO] Whisper encoder was pruned, LoRA targets extended: {lora_target_modules}")
+
     config = LoraConfig(
         r=args.lora_r,
         lora_alpha=args.lora_alpha,
-        target_modules=args.lora_target_modules.split(","),
+        target_modules=lora_target_modules,
         lora_dropout=args.lora_dropout,
         use_dora=True,
         bias="none",
@@ -582,24 +596,13 @@ def main(args):
             
 
             # Logging / evaluation / checkpointing
-            # large batch size
+            # WER-based saving is handled by WEREvalCallback (best_model/ + latest_model/)
+            # Trainer's own checkpointing is disabled to save disk space
             warmup_ratio=0.05,
-            logging_steps=2,
+            logging_steps=10,
             eval_strategy="steps",
-            eval_steps=10,
-            save_strategy="steps",
-            save_steps=10,
-            # small batch size
-            # warmup_steps=200,
-            # logging_steps=25,
-            # eval_strategy="steps",
-            # eval_steps=100,
-            # save_strategy="steps",
-            # save_steps=100,
-
-            load_best_model_at_end=True,
-            metric_for_best_model="eval_loss",
-            greater_is_better=False,
+            eval_steps=100,
+            save_strategy="no",
 
             # Precision
             bf16=True,
@@ -769,17 +772,23 @@ def main(args):
 
     trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
 
-    # model.state_dict = old_state_dict
-    # model.save_model(args.output_dir)
-    # model.text_decoder.config.use_cache = True
+    # Load the best WER model (saved by WEREvalCallback) instead of using the final step
+    best_model_dir = os.path.join(args.output_dir, "best_model")
+    if os.path.exists(best_model_dir):
+        print(f"\n[INFO] Loading best WER model from {best_model_dir}")
+        from peft import PeftModel
+        # Load best LoRA weights into the base model
+        peft_model.load_adapter(best_model_dir, adapter_name="default")
+        if os.path.exists(os.path.join(best_model_dir, "best_step.txt")):
+            print(open(os.path.join(best_model_dir, "best_step.txt")).read())
+    else:
+        print("[WARN] No best WER model found, using final step model")
+
+    # Save final model (best WER version)
     trainer.save_model(args.output_dir)
-
-    # input("Model saved")
-
 
     # eval with test dataset
     peft_model.eval()
-    # model.model.eval()
     model.model = peft_model
     nsamples = -1
     dataset = Dataset(DATASET_ID_TEST, nsamples)

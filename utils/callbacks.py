@@ -95,5 +95,14 @@ class WEREvalCallback(TrainerCallback):
             # Restore model and training state
             self.model_wrapper.model = original_model
             current_model.train()
-            
+
         return control
+
+    def on_train_end(self, args, state, control, **kwargs):
+        print(f"\n{'='*50}")
+        print(f"Training complete. Best Validation WER: {self.best_wer:.4f}")
+        best_dir = os.path.join(args.output_dir, "best_model")
+        if os.path.exists(os.path.join(best_dir, "best_step.txt")):
+            with open(os.path.join(best_dir, "best_step.txt")) as f:
+                print(f.read())
+        print(f"{'='*50}")

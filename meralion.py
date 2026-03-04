@@ -160,6 +160,15 @@ def main(args):
             p.requires_grad_(True)
         for p in layer.self_attn.parameters():
             p.requires_grad_(True)
+    # Also enable gradients for whisper encoder layers if whisper pruning is requested
+    if args.whisper_block_layer_start >= 0 and args.whisper_block_layer_end > args.whisper_block_layer_start:
+        for layer in model.model.speech_encoder.layers:
+            for p in layer.self_attn.parameters():
+                p.requires_grad_(True)
+            for p in layer.fc1.parameters():
+                p.requires_grad_(True)
+            for p in layer.fc2.parameters():
+                p.requires_grad_(True)
     before_pruning_parameters = sum(p.numel() for p in model.model.parameters() if p.requires_grad)
     
     # forward_prompts = torch.tensor([
@@ -199,32 +208,63 @@ def main(args):
                 LayerNorm = type(m)
                 break
         
+        # Resolve per-component pruning ratios (fall back to --pruning_ratio if not specified)
+        text_mlp_ratio = args.text_mlp_pruning_ratio if args.text_mlp_pruning_ratio is not None else args.pruning_ratio
+        text_attn_ratio = args.text_attn_pruning_ratio if args.text_attn_pruning_ratio is not None else args.pruning_ratio
+        whisper_attn_ratio = args.whisper_attn_pruning_ratio if args.whisper_attn_pruning_ratio is not None else args.pruning_ratio
+        whisper_mlp_ratio = args.whisper_mlp_pruning_ratio if args.whisper_mlp_pruning_ratio is not None else args.pruning_ratio
+
+        # Build root_instances and per-module sparsity dict
+        root_instances = []
+        ch_sparsity_dict = {}
+
+        for i in range(args.block_mlp_layer_start, args.block_mlp_layer_end):
+            m = model.model.text_decoder.model.layers[i].mlp.gate_proj
+            root_instances.append(m)
+            ch_sparsity_dict[m] = text_mlp_ratio
+
+        for i in range(args.block_attention_layer_start, args.block_attention_layer_end):
+            m = model.model.text_decoder.model.layers[i].self_attn.k_proj
+            root_instances.append(m)
+            ch_sparsity_dict[m] = text_attn_ratio
+
+        if whisper_attn_ratio > 0:
+            for i in range(args.whisper_block_layer_start, args.whisper_block_layer_end):
+                m = model.model.speech_encoder.layers[i].self_attn.k_proj
+                root_instances.append(m)
+                ch_sparsity_dict[m] = whisper_attn_ratio
+
+        if whisper_mlp_ratio > 0:
+            for i in range(args.whisper_block_layer_start, args.whisper_block_layer_end):
+                m = model.model.speech_encoder.layers[i].fc1
+                root_instances.append(m)
+                ch_sparsity_dict[m] = whisper_mlp_ratio
+
         kwargs = {
             "importance": imp,
             "global_pruning": args.global_pruning,
             "iterative_steps": args.iterative_steps,
-            "ch_sparsity": args.pruning_ratio, 
+            "ch_sparsity": args.pruning_ratio,  # default fallback
+            "ch_sparsity_dict": ch_sparsity_dict,  # per-component ratios
             "ignored_layers":[],
             "channel_groups": {
             },
             "consecutive_groups": {
-                layer.self_attn.k_proj: layer.self_attn.head_dim for layer in model.model.text_decoder.model.layers
-                # layer.self_attn.k_proj: layer.self_attn.head_dim for layer in model.model.speech_encoder.model.layers
+                **{layer.self_attn.k_proj: layer.self_attn.head_dim for layer in model.model.text_decoder.model.layers},
+                **{layer.self_attn.k_proj: layer.self_attn.head_dim for layer in model.model.speech_encoder.layers},
             },
             "customized_pruners": {
                 LLamaRMSNorm: llama_pruner.hf_rmsnorm_pruner,
                 LayerNorm: llama_pruner.hf_rmsnorm_pruner,
             },
-            "root_module_types": None, 
-            "root_instances": [model.model.text_decoder.model.layers[i].mlp.gate_proj for i in range(args.block_mlp_layer_start, args.block_mlp_layer_end)]
-                              + [model.model.text_decoder.model.layers[i].self_attn.k_proj for i in range(args.block_attention_layer_start, args.block_attention_layer_end)]
-                              + [model.model.speech_encoder.layers[i].self_attn.k_proj for i in range(args.whisper_block_layer_start, args.whisper_block_layer_end)]
-                              + [model.model.speech_encoder.layers[i].fc1 for i in range(args.whisper_block_layer_start, args.whisper_block_layer_end)],
+            "root_module_types": None,
+            "root_instances": root_instances,
             "forward_fn": lambda model, example_inputs: model(**example_inputs).logits
         }
-        logger.log("Pruning Attention Layer = {}".format(list(range(args.block_attention_layer_start, args.block_attention_layer_end))))
-        logger.log("Pruning MLP Layer = {}".format(list(range(args.block_mlp_layer_start, args.block_mlp_layer_end))))
-        logger.log("Pruning Whisper Layer = {}".format(list(range(args.whisper_block_layer_start, args.whisper_block_layer_end))))
+        logger.log("Pruning Text Attention (ratio={}) Layer = {}".format(text_attn_ratio, list(range(args.block_attention_layer_start, args.block_attention_layer_end))))
+        logger.log("Pruning Text MLP (ratio={}) Layer = {}".format(text_mlp_ratio, list(range(args.block_mlp_layer_start, args.block_mlp_layer_end))))
+        logger.log("Pruning Whisper Attn (ratio={}) Layer = {}".format(whisper_attn_ratio, list(range(args.whisper_block_layer_start, args.whisper_block_layer_end))))
+        logger.log("Pruning Whisper MLP (ratio={}) Layer = {}".format(whisper_mlp_ratio, list(range(args.whisper_block_layer_start, args.whisper_block_layer_end))))
 
         pruner = tp.pruner.MeralionPruner(
             model.model,
@@ -283,9 +323,11 @@ def main(args):
                 layer.self_attn.num_heads = layer.self_attn.q_proj.weight.data.shape[0] // layer.self_attn.head_dim
                 layer.self_attn.num_key_value_heads = layer.self_attn.k_proj.weight.data.shape[0] // layer.self_attn.head_dim
 
-            # for layer in model.model.vision_model.encoder.layers:
-            #     layer.self_attn.num_heads = layer.self_attn.q_proj.weight.data.shape[0] // layer.self_attn.head_dim
-            #     layer.self_attn.embed_dim = layer.self_attn.q_proj.weight.data.shape[1]
+            # Also update whisper encoder attention heads after pruning
+            for layer in model.model.speech_encoder.layers:
+                if hasattr(layer.self_attn, 'head_dim') and layer.self_attn.head_dim > 0:
+                    layer.self_attn.num_heads = layer.self_attn.q_proj.weight.data.shape[0] // layer.self_attn.head_dim
+                    layer.self_attn.embed_dim = layer.self_attn.q_proj.weight.data.shape[0]
 
         # Clean the gradient in the model
         model.model.zero_grad()
@@ -406,14 +448,26 @@ def main(args):
             #     },
             # }
             # model.model.config.update(config_updates)
-            model.model.config.midblock_ratio = 1-args.pruning_ratio
-            model.model.config.text_config.midblock_ratio = 1-args.pruning_ratio
+            # Resolve per-component ratios for config saving
+            _text_attn_r = args.text_attn_pruning_ratio if args.text_attn_pruning_ratio is not None else args.pruning_ratio
+            _text_mlp_r = args.text_mlp_pruning_ratio if args.text_mlp_pruning_ratio is not None else args.pruning_ratio
+            _whisper_attn_r = args.whisper_attn_pruning_ratio if args.whisper_attn_pruning_ratio is not None else args.pruning_ratio
+            _whisper_mlp_r = args.whisper_mlp_pruning_ratio if args.whisper_mlp_pruning_ratio is not None else args.pruning_ratio
+
+            # Text decoder config (use attn ratio for midblock_ratio since it affects head count)
+            model.model.config.midblock_ratio = 1 - _text_attn_r
+            model.model.config.text_config.midblock_ratio = 1 - _text_attn_r
+            model.model.config.text_config.text_mlp_midblock_ratio = 1 - _text_mlp_r
             model.model.config.midblock_end = args.block_mlp_layer_end
             model.model.config.text_config.midblock_end = args.block_mlp_layer_end
             model.model.config.midblock_start = args.block_mlp_layer_start
             model.model.config.text_config.midblock_start = args.block_mlp_layer_start
+
+            # Whisper encoder config
             model.model.config.speech_config.whisper_midblock_start = args.whisper_block_layer_start
             model.model.config.speech_config.whisper_midblock_end = args.whisper_block_layer_end
+            model.model.config.speech_config.whisper_attn_midblock_ratio = 1 - _whisper_attn_r
+            model.model.config.speech_config.whisper_mlp_midblock_ratio = 1 - _whisper_mlp_r
 
             
             model.model.save_pretrained(args.save_model_path)
@@ -551,7 +605,11 @@ if __name__ == "__main__":
     # argument for parsing
     parser.add_argument('--base_model', type=str, default="meta-llama/Llama-2-7b-hf", help='base model name')
     parser.add_argument('--save_ckpt_log_name', type=str, default="llama_prune", help='the path for save the checkpoint and the log. The final path would be log/{your_name_here}_{pruner_type}_{pruning_ratio}')
-    parser.add_argument('--pruning_ratio', type=float, default=0.5, help='pruning ratio')
+    parser.add_argument('--pruning_ratio', type=float, default=0.5, help='default pruning ratio (used when component-specific ratios are not set)')
+    parser.add_argument('--text_attn_pruning_ratio', type=float, default=None, help='pruning ratio for text decoder attention heads (reduces KV cache)')
+    parser.add_argument('--text_mlp_pruning_ratio', type=float, default=None, help='pruning ratio for text decoder MLP intermediate dim')
+    parser.add_argument('--whisper_attn_pruning_ratio', type=float, default=None, help='pruning ratio for whisper encoder attention heads')
+    parser.add_argument('--whisper_mlp_pruning_ratio', type=float, default=None, help='pruning ratio for whisper encoder MLP (fc1/fc2)')
     parser.add_argument('--pruner_type', type=str, default='l2', help='pruner type')
 
     # argument for generation
