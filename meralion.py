@@ -60,76 +60,58 @@ def main(args):
     #     torch_dtype=torch.bfloat16
     # ).to(args.device)
     model = Model(args.base_model)
-    # Fix model_name for audiobench routing (get_inputs/get_loss/generate use exact name matching)
-    # Model.__init__ uses model_name for load_model routing, which works on the server.
-    # But get_inputs/get_loss also use exact match, so normalize to basename after loading.
-    if os.path.sep in model.model_name:
-        model.model_name = os.path.basename(model.model_name.rstrip(os.path.sep))
-        print(f"[FIX] Normalized model_name to '{model.model_name}' for audiobench routing")
     # model = net.model
     processor = model.processor
 
     print(model.model)
 
-    # model.config.pad_token_id = processor.pad_token_id = 0 
+    # model.config.pad_token_id = processor.pad_token_id = 0
     # model.config.bos_token_id = 1
     # model.config.eos_token_id = 2
 
+    DATASET_ID_CALIB = "imda_part2_asr_test"
     DATASET_ID_TEST = "imda_part1_asr_test"
-    nsamples = args.num_examples + 1  # 21
+    nsamples = args.num_examples + 1
     MAX_SEQUENCE_LENGTH = 256
 
-    # Load calibration data directly from local dataset (no audiobench.Dataset needed)
-    # This avoids loading+mapping 125k samples when we only need ~21
-    from datasets import load_from_disk
-    print(f"[DATA] Loading {nsamples} calibration samples from local dataset...")
-    _calib_raw = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR")
-    _calib_subset = _calib_raw.shuffle(seed=42).select(range(nsamples))
+    # Load calibration dataset with caching (avoids 8x parallel loading of 125k samples)
+    # First process builds cache via audiobench.Dataset; other 7 wait via file lock, then load instantly.
+    import pickle, fcntl
+    CACHE_DIR = "/home/jinchao/runtao/meralion_datasets/ASR/_cached"
+    calib_cache = os.path.join(CACHE_DIR, f"calib_{DATASET_ID_CALIB}_{nsamples}.pkl")
+    cache_lock = os.path.join(CACHE_DIR, ".calib_cache.lock")
 
-    calib_input_data = []
-    for sample in _calib_subset:
-        ctx = sample['context']
-        audio = ctx['audio'] if 'audio' in ctx else ctx  # handle both formats
-        instruction = random.choice(asr_instructions)
-        if sample["other_attributes"]["partition"] == "PART1":
-            reference = "<Speaker1>: " + sample["other_attributes"]["Transcription"]
-        else:
-            reference = sample.get("answer", "")
-        calib_input_data.append({
-            "audio": audio,
-            "instruction": instruction,
-            "reference": reference,
-            "task_type": "ASR"
-        })
-    del _calib_raw, _calib_subset
-    print(f"[DATA] Loaded {len(calib_input_data)} calibration samples (instant, no 125k mapping)")
+    if os.path.exists(calib_cache):
+        print(f"[DATA] Loading cached calibration data from {calib_cache}")
+        with open(calib_cache, 'rb') as f:
+            calib_input_data = pickle.load(f)
+    else:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        with open(cache_lock, 'w') as lf:
+            try:
+                fcntl.flock(lf, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if os.path.exists(calib_cache):
+                    print(f"[DATA] Cache appeared, loading...")
+                    with open(calib_cache, 'rb') as f:
+                        calib_input_data = pickle.load(f)
+                else:
+                    print(f"[DATA] Building calibration cache (first run only)...")
+                    calib_ds = Dataset(DATASET_ID_CALIB, nsamples)
+                    calib_input_data = calib_ds.input_data
+                    with open(calib_cache, 'wb') as f:
+                        pickle.dump(calib_input_data, f)
+                    print(f"[DATA] Calibration cache saved.")
+                fcntl.flock(lf, fcntl.LOCK_UN)
+            except BlockingIOError:
+                print(f"[DATA] Waiting for another process to build calibration cache...")
+                fcntl.flock(lf, fcntl.LOCK_EX)
+                fcntl.flock(lf, fcntl.LOCK_UN)
+                print(f"[DATA] Loading cached calibration data...")
+                with open(calib_cache, 'rb') as f:
+                    calib_input_data = pickle.load(f)
 
+    forward_prompts = calib_input_data[-1]
     example_prompts = calib_input_data[:20]
-
-    # Preprocess forward_prompts into CUDA tensors for dependency graph tracing.
-    # This bypasses audiobench Model.get_inputs() which has model_name routing issues
-    # and may leave tensors on CPU.
-    _fp = calib_input_data[-1]
-    _audio_arr = _fp["audio"]["array"]
-    _instruction = _fp["instruction"]
-    _prompt_tpl = "Instruction: {instruction} \nFollow the text instruction based on the following audio: <SpeechHere>"
-    _conv = [{"role": "user", "content": _prompt_tpl.format(instruction=_instruction)}]
-    _chat_prompt = processor.tokenizer.apply_chat_template(
-        conversation=_conv, tokenize=False, add_generation_prompt=True
-    )
-    _batch = processor(text=_chat_prompt, audios=_audio_arr, return_tensors="pt")
-    # Convert BatchEncoding to plain dict with all tensors on CUDA.
-    # BatchEncoding (UserDict) may have special __getitem__/__setitem__ behavior,
-    # so we extract to a plain dict to guarantee model(**forward_prompts) works.
-    forward_prompts = {}
-    for _k, _v in _batch.items():
-        if isinstance(_v, torch.Tensor):
-            _v = _v.to('cuda')
-            if _v.dtype == torch.float32:
-                _v = _v.to(torch.bfloat16)
-        forward_prompts[_k] = _v
-    print(f"[DATA] forward_prompts preprocessed: keys={list(forward_prompts.keys())}, "
-          f"devices={[forward_prompts[k].device for k in forward_prompts]}")
     
     if args.test_before_train:
         logger.log("\n==================Generation Results before Pruning================\n")
