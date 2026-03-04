@@ -74,10 +74,43 @@ def main(args):
     nsamples = args.num_examples + 1
     MAX_SEQUENCE_LENGTH = 256
 
-    # Load dataset and preprocess.
-    calib_ds = Dataset(DATASET_ID_CALIB, nsamples)
-    forward_prompts = calib_ds.input_data[-1]
-    example_prompts = calib_ds.input_data[:20]
+    # Load calibration dataset with caching (avoids 8x parallel loading of 125k samples)
+    import pickle, fcntl
+    CACHE_DIR = "/home/jinchao/runtao/meralion_datasets/ASR/_cached"
+    calib_cache = os.path.join(CACHE_DIR, f"calib_{DATASET_ID_CALIB}_{nsamples}.pkl")
+    cache_lock = os.path.join(CACHE_DIR, ".calib_cache.lock")
+
+    if os.path.exists(calib_cache):
+        print(f"[DATA] Loading cached calibration data from {calib_cache}")
+        with open(calib_cache, 'rb') as f:
+            calib_input_data = pickle.load(f)
+    else:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        with open(cache_lock, 'w') as lf:
+            try:
+                fcntl.flock(lf, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if os.path.exists(calib_cache):
+                    print(f"[DATA] Cache appeared, loading...")
+                    with open(calib_cache, 'rb') as f:
+                        calib_input_data = pickle.load(f)
+                else:
+                    print(f"[DATA] Building calibration cache (first run only)...")
+                    calib_ds = Dataset(DATASET_ID_CALIB, nsamples)
+                    calib_input_data = calib_ds.input_data
+                    with open(calib_cache, 'wb') as f:
+                        pickle.dump(calib_input_data, f)
+                    print(f"[DATA] Calibration cache saved.")
+                fcntl.flock(lf, fcntl.LOCK_UN)
+            except BlockingIOError:
+                print(f"[DATA] Waiting for another process to build calibration cache...")
+                fcntl.flock(lf, fcntl.LOCK_EX)
+                fcntl.flock(lf, fcntl.LOCK_UN)
+                print(f"[DATA] Loading cached calibration data...")
+                with open(calib_cache, 'rb') as f:
+                    calib_input_data = pickle.load(f)
+
+    forward_prompts = calib_input_data[-1]
+    example_prompts = calib_input_data[:20]
     
     if args.test_before_train:
         logger.log("\n==================Generation Results before Pruning================\n")
