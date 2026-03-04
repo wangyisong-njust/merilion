@@ -37,17 +37,34 @@ class WEREvalCallback(TrainerCallback):
             # Prepare data
             input_data = []
             for sample in eval_subset:
-                # Same logic as preprocess_keep_raw but for the wrapper
-                # Correcting extraction for MERaLiON dataset
+                # Must match preprocess_keep_raw logic exactly
                 if 'context' in sample:
-                    audio_array = sample['context']['array']
-                    sr = sample['context']['sampling_rate']
+                    ctx = sample['context']
+                    if 'audio' in ctx:
+                        # Official IMDA format: context.audio.array
+                        audio_array = ctx['audio']['array']
+                        sr = ctx['audio']['sampling_rate']
+                    else:
+                        # Alternative format: context.array
+                        audio_array = ctx['array']
+                        sr = ctx['sampling_rate']
                 else:
                     audio_array = sample['audio_array']
                     sr = sample['sampling_rate']
-                
+
                 instruction = sample['instruction']['text'] if isinstance(sample['instruction'], dict) else sample['instruction']
-                ref = sample.get('answer', "Unknown")
+
+                # Match answer extraction from preprocess_keep_raw
+                if 'other_attributes' in sample:
+                    oa = sample['other_attributes']
+                    if oa.get('partition') == 'PART1':
+                        ref = "<Speaker1>: " + oa['Transcription']
+                    elif oa.get('partition') == 'PART3':
+                        ref = oa['transcription']
+                    else:
+                        ref = sample.get('answer', "Unknown")
+                else:
+                    ref = sample.get('answer', "Unknown")
                 
                 input_data.append({
                     "audio": {"array": audio_array, "sampling_rate": sr},

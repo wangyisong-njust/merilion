@@ -776,9 +776,16 @@ def main(args):
     best_model_dir = os.path.join(args.output_dir, "best_model")
     if os.path.exists(best_model_dir):
         print(f"\n[INFO] Loading best WER model from {best_model_dir}")
-        from peft import PeftModel
-        # Load best LoRA weights into the base model
-        peft_model.load_adapter(best_model_dir, adapter_name="default")
+        from peft import set_peft_model_state_dict
+        # Load best LoRA weights via state_dict (safer than load_adapter for existing "default")
+        adapter_path = os.path.join(best_model_dir, "adapter_model.safetensors")
+        if os.path.exists(adapter_path):
+            import safetensors.torch
+            adapter_state = safetensors.torch.load_file(adapter_path)
+        else:
+            adapter_path = os.path.join(best_model_dir, "adapter_model.bin")
+            adapter_state = torch.load(adapter_path, map_location="cpu")
+        set_peft_model_state_dict(peft_model, adapter_state)
         if os.path.exists(os.path.join(best_model_dir, "best_step.txt")):
             print(open(os.path.join(best_model_dir, "best_step.txt")).read())
     else:

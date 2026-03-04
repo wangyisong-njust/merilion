@@ -463,11 +463,12 @@ def main(args):
             model.model.config.midblock_start = args.block_mlp_layer_start
             model.model.config.text_config.midblock_start = args.block_mlp_layer_start
 
-            # Whisper encoder config
+            # Whisper encoder config (only write ratios when whisper pruning is active)
             model.model.config.speech_config.whisper_midblock_start = args.whisper_block_layer_start
             model.model.config.speech_config.whisper_midblock_end = args.whisper_block_layer_end
-            model.model.config.speech_config.whisper_attn_midblock_ratio = 1 - _whisper_attn_r
-            model.model.config.speech_config.whisper_mlp_midblock_ratio = 1 - _whisper_mlp_r
+            if args.whisper_block_layer_start >= 0:
+                model.model.config.speech_config.whisper_attn_midblock_ratio = 1 - _whisper_attn_r
+                model.model.config.speech_config.whisper_mlp_midblock_ratio = 1 - _whisper_mlp_r
 
             
             model.model.save_pretrained(args.save_model_path)
