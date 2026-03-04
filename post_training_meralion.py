@@ -314,47 +314,65 @@ def main(args):
     # # eval_dataset = calib_ds.raw_data[2500:]
     # # test_dataset = calib_ds.raw_data[2500:]
     
-    IMDA_PART1_mono_en_30_ASR = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR") # 2258301 samples
-    IMDA_PART3_conv_en_30_ASR = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART3_conv_en_30_ASR")
+    # --- Cached dataset loading (avoids re-loading 2M+ samples every run) ---
+    # Cache stores the RAW selected 20k train + 500 eval datasets (before .map()).
+    # First process builds cache; other 7 wait via file lock, then load instantly.
+    CACHE_DIR = "/home/jinchao/runtao/meralion_datasets/ASR/_cached"
+    train_cache = os.path.join(CACHE_DIR, "train_20k_raw")
+    eval_cache = os.path.join(CACHE_DIR, "eval_500_raw")
+    cache_done_marker = os.path.join(CACHE_DIR, ".cache_done")
+    lock_file = os.path.join(CACHE_DIR, ".cache_building.lock")
 
-    # gigaspeech_en_30_ASR = load_from_disk("/home/kaixin/meralion_datasets/train/ASR/gigaspeech_en_30_ASR")
-    ds_list = [IMDA_PART1_mono_en_30_ASR.shuffle(seed=42).select(range(10000)),
-               IMDA_PART3_conv_en_30_ASR.shuffle(seed=42).select(range(10000)),
-            #    gigaspeech_en_30_ASR.shuffle(seed=42).select(range(10000)),
-            #    Dataset("/home/kaixin/meralion_datasets/train/ASR/IMDA_PART2_mono_en_30_ASR", nsamples).raw_data,
-            #    Dataset("/home/kaixin/meralion_datasets/train/ASR/IMDA_PART4_conv_codeswitch_30_ASR", nsamples).raw_data,
-            #    Dataset("/home/kaixin/meralion_datasets/train/ASR/gigaspeech_en_30_ASR", nsamples).raw_data,
-               ]
-    # for ds in ds_list:
-    #     for d in ds:
-    #         audio_array    = d["context"]["audio"]["array"]
-    #         sampling_rate  = d["context"]["audio"]["sampling_rate"]
-    #         audio_duration = len(audio_array) / sampling_rate
+    def _build_raw_datasets():
+        """Load full datasets, select subsets, save to cache."""
+        print("[DATA] Loading IMDA_PART1 (2.2M samples)...")
+        p1 = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR")
+        print("[DATA] Loading IMDA_PART3...")
+        p3 = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART3_conv_en_30_ASR")
 
-    #         # For ASR task, if audio duration is more than 30 seconds, we will chunk and infer separately
-    #         if audio_duration > 30:
-    #             print('Audio duration is more than 30 second.')
-    #         if audio_duration <= 30:
-    #             if audio_duration < 1:
-    #                 print('Audio duration is less than 1 second. Padding the audio to 1 second.')
-    #                 d["context"]["audio"]["array"] = np.pad(audio_array, (0, sampling_rate), 'constant')
-                # ds_30.append(copy.deepcopy(d))
-            
-    # print("dataset used:")
-    # for ds in ds_list:
-    #     dataset_name = ds.info.builder_name
-    #     print(dataset_name)
-    train_dataset = concatenate_datasets(ds_list).shuffle(seed=42)
-    
-    # ds_imda_part2 = Dataset(DATASET_imda_part2, nsamples).raw_data
-    # ds_imda_part3_30s = Dataset(DATASET_imda_part3_30s, nsamples).raw_data
-    # ds_imda_part4_30s = Dataset(DATASET_imda_part4_30s, nsamples).raw_data
-    # train_dataset = concatenate_datasets([ds_imda_part2,
-    #                                       ds_imda_part3_30s,
-    #                                       ds_imda_part4_30s]).shuffle(seed=42)
+        ds_list = [p1.shuffle(seed=42).select(range(10000)),
+                   p3.shuffle(seed=42).select(range(10000))]
+        _train = concatenate_datasets(ds_list).shuffle(seed=42)
+        _eval = Dataset("imda_part3_30s_asr_test", nsamples).raw_data.shuffle(seed=42).select(range(500))
 
-    # train_dataset = Dataset(DATASET_ID_TRAIN, nsamples).raw_data
-    eval_dataset = Dataset("imda_part3_30s_asr_test", nsamples).raw_data.shuffle(seed=42).select(range(500))
+        # Save cache
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        print("[DATA] Saving cache to disk...")
+        _train.save_to_disk(train_cache)
+        _eval.save_to_disk(eval_cache)
+        # Marker file signals cache is complete (atomic)
+        with open(cache_done_marker, 'w') as f:
+            f.write("done")
+        print("[DATA] Cache saved. Subsequent runs will load instantly.")
+        return _train, _eval
+
+    if os.path.exists(cache_done_marker):
+        print("[DATA] Loading cached datasets (instant)...")
+        train_dataset = load_from_disk(train_cache)
+        eval_dataset = load_from_disk(eval_cache)
+    else:
+        import fcntl
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        with open(lock_file, 'w') as lf:
+            try:
+                fcntl.flock(lf, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                # Got lock — double-check cache (another process may have just finished)
+                if os.path.exists(cache_done_marker):
+                    print("[DATA] Cache appeared, loading...")
+                    train_dataset = load_from_disk(train_cache)
+                    eval_dataset = load_from_disk(eval_cache)
+                else:
+                    print("[DATA] Building cache from raw datasets (first run only)...")
+                    train_dataset, eval_dataset = _build_raw_datasets()
+                fcntl.flock(lf, fcntl.LOCK_UN)
+            except BlockingIOError:
+                # Another process is building cache — wait for it
+                print("[DATA] Waiting for another process to build cache...")
+                fcntl.flock(lf, fcntl.LOCK_EX)  # blocking wait
+                fcntl.flock(lf, fcntl.LOCK_UN)
+                print("[DATA] Cache ready, loading...")
+                train_dataset = load_from_disk(train_cache)
+                eval_dataset = load_from_disk(eval_cache)
     # eval_dataset_2 = Dataset("imda_part3_30s_asr_test", nsamples).raw_data.shuffle(seed=42).select(range(500))
     # eval_dataset_1 = Dataset("imda_part1_asr_test", nsamples).raw_data.shuffle(seed=42).select(range(500))
     # eval_dataset = concatenate_datasets([eval_dataset_1, eval_dataset_2]).shuffle(seed=42)
@@ -413,6 +431,7 @@ def main(args):
             "answer": answer,
         }
 
+    # .map() on 20k samples is fast (~30s), each process does it independently
     train_ds = train_dataset.map(preprocess_keep_raw, remove_columns=train_dataset.column_names)
     eval_ds  = eval_dataset.map(preprocess_keep_raw,  remove_columns=eval_dataset.column_names)
     
