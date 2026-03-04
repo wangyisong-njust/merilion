@@ -43,7 +43,7 @@ NAME="TextAttn-25"
 echo "[GPU 0] $NAME"
 CUDA_VISIBLE_DEVICES=0 nohup bash -c "
 $PYTHON_PATH -u meralion.py \
-    --base_model MERaLiON-2-3B \
+    --base_model /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B \
     --pruning_ratio 0.25 --text_attn_pruning_ratio 0.25 \
     $PRUNE_COMMON \
     --block_attention_layer_start 4 --block_attention_layer_end 23 \
@@ -63,7 +63,7 @@ NAME="TextMLP-25"
 echo "[GPU 1] $NAME"
 CUDA_VISIBLE_DEVICES=1 nohup bash -c "
 $PYTHON_PATH -u meralion.py \
-    --base_model MERaLiON-2-3B \
+    --base_model /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B \
     --pruning_ratio 0.25 --text_mlp_pruning_ratio 0.25 \
     $PRUNE_COMMON \
     --block_mlp_layer_start 4 --block_mlp_layer_end 23 \
@@ -84,7 +84,7 @@ NAME="TextBoth-25"
 echo "[GPU 2] $NAME"
 CUDA_VISIBLE_DEVICES=2 nohup bash -c "
 $PYTHON_PATH -u meralion.py \
-    --base_model MERaLiON-2-3B \
+    --base_model /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B \
     --pruning_ratio 0.25 \
     --text_attn_pruning_ratio 0.25 --text_mlp_pruning_ratio 0.25 \
     $PRUNE_COMMON \
@@ -107,7 +107,7 @@ NAME="td25-wa10"
 echo "[GPU 3] $NAME"
 CUDA_VISIBLE_DEVICES=3 nohup bash -c "
 $PYTHON_PATH -u meralion.py \
-    --base_model MERaLiON-2-3B \
+    --base_model /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B \
     --pruning_ratio 0.25 \
     --text_attn_pruning_ratio 0.25 --text_mlp_pruning_ratio 0.25 \
     --whisper_attn_pruning_ratio 0.10 --whisper_mlp_pruning_ratio 0.0 \
@@ -132,7 +132,7 @@ NAME="td25-wa15"
 echo "[GPU 4] $NAME"
 CUDA_VISIBLE_DEVICES=4 nohup bash -c "
 $PYTHON_PATH -u meralion.py \
-    --base_model MERaLiON-2-3B \
+    --base_model /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B \
     --pruning_ratio 0.25 \
     --text_attn_pruning_ratio 0.25 --text_mlp_pruning_ratio 0.25 \
     --whisper_attn_pruning_ratio 0.15 --whisper_mlp_pruning_ratio 0.0 \
@@ -157,7 +157,7 @@ NAME="td25-wa10-wm10"
 echo "[GPU 5] $NAME"
 CUDA_VISIBLE_DEVICES=5 nohup bash -c "
 $PYTHON_PATH -u meralion.py \
-    --base_model MERaLiON-2-3B \
+    --base_model /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B \
     --pruning_ratio 0.25 \
     --text_attn_pruning_ratio 0.25 --text_mlp_pruning_ratio 0.25 \
     --whisper_attn_pruning_ratio 0.10 --whisper_mlp_pruning_ratio 0.10 \
@@ -183,7 +183,7 @@ NAME="ta125-tm15"
 echo "[GPU 6] $NAME"
 CUDA_VISIBLE_DEVICES=6 nohup bash -c "
 $PYTHON_PATH -u meralion.py \
-    --base_model MERaLiON-2-3B \
+    --base_model /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B \
     --pruning_ratio 0.15 \
     --text_attn_pruning_ratio 0.125 --text_mlp_pruning_ratio 0.15 \
     $PRUNE_COMMON \
@@ -206,7 +206,7 @@ NAME="ta25-tm35"
 echo "[GPU 7] $NAME"
 CUDA_VISIBLE_DEVICES=7 nohup bash -c "
 $PYTHON_PATH -u meralion.py \
-    --base_model MERaLiON-2-3B \
+    --base_model /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B \
     --pruning_ratio 0.35 \
     --text_attn_pruning_ratio 0.25 --text_mlp_pruning_ratio 0.35 \
     $PRUNE_COMMON \
