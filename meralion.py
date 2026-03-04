@@ -69,45 +69,34 @@ def main(args):
     # model.config.bos_token_id = 1
     # model.config.eos_token_id = 2
 
-    DATASET_ID_CALIB = "imda_part2_asr_test"
     DATASET_ID_TEST = "imda_part1_asr_test"
-    nsamples = args.num_examples + 1
+    nsamples = args.num_examples + 1  # 21
     MAX_SEQUENCE_LENGTH = 256
 
-    # Load calibration dataset with caching (avoids 8x parallel loading of 125k samples)
-    import pickle, fcntl
-    CACHE_DIR = "/home/jinchao/runtao/meralion_datasets/ASR/_cached"
-    calib_cache = os.path.join(CACHE_DIR, f"calib_{DATASET_ID_CALIB}_{nsamples}.pkl")
-    cache_lock = os.path.join(CACHE_DIR, ".calib_cache.lock")
+    # Load calibration data directly from local dataset (no audiobench.Dataset needed)
+    # This avoids loading+mapping 125k samples when we only need ~21
+    from datasets import load_from_disk
+    print(f"[DATA] Loading {nsamples} calibration samples from local dataset...")
+    _calib_raw = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR")
+    _calib_subset = _calib_raw.shuffle(seed=42).select(range(nsamples))
 
-    if os.path.exists(calib_cache):
-        print(f"[DATA] Loading cached calibration data from {calib_cache}")
-        with open(calib_cache, 'rb') as f:
-            calib_input_data = pickle.load(f)
-    else:
-        os.makedirs(CACHE_DIR, exist_ok=True)
-        with open(cache_lock, 'w') as lf:
-            try:
-                fcntl.flock(lf, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                if os.path.exists(calib_cache):
-                    print(f"[DATA] Cache appeared, loading...")
-                    with open(calib_cache, 'rb') as f:
-                        calib_input_data = pickle.load(f)
-                else:
-                    print(f"[DATA] Building calibration cache (first run only)...")
-                    calib_ds = Dataset(DATASET_ID_CALIB, nsamples)
-                    calib_input_data = calib_ds.input_data
-                    with open(calib_cache, 'wb') as f:
-                        pickle.dump(calib_input_data, f)
-                    print(f"[DATA] Calibration cache saved.")
-                fcntl.flock(lf, fcntl.LOCK_UN)
-            except BlockingIOError:
-                print(f"[DATA] Waiting for another process to build calibration cache...")
-                fcntl.flock(lf, fcntl.LOCK_EX)
-                fcntl.flock(lf, fcntl.LOCK_UN)
-                print(f"[DATA] Loading cached calibration data...")
-                with open(calib_cache, 'rb') as f:
-                    calib_input_data = pickle.load(f)
+    calib_input_data = []
+    for sample in _calib_subset:
+        ctx = sample['context']
+        audio = ctx['audio'] if 'audio' in ctx else ctx  # handle both formats
+        instruction = random.choice(asr_instructions)
+        if sample["other_attributes"]["partition"] == "PART1":
+            reference = "<Speaker1>: " + sample["other_attributes"]["Transcription"]
+        else:
+            reference = sample.get("answer", "")
+        calib_input_data.append({
+            "audio": audio,
+            "instruction": instruction,
+            "reference": reference,
+            "task_type": "ASR"
+        })
+    del _calib_raw, _calib_subset
+    print(f"[DATA] Loaded {len(calib_input_data)} calibration samples (instant, no 125k mapping)")
 
     forward_prompts = calib_input_data[-1]
     example_prompts = calib_input_data[:20]
