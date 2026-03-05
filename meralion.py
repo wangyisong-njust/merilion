@@ -110,6 +110,14 @@ def main(args):
                 with open(calib_cache, 'rb') as f:
                     calib_input_data = pickle.load(f)
 
+    # Normalize audio format: meralion_2_model_get_inputs expects input["audio"]["array"],
+    # but audiobench.Dataset may return input["audio"] = sample['context'] which is
+    # 3-level nested: {"audio": {"array": ..., "sampling_rate": ...}, ...}.
+    # Flatten to 2-level so input["audio"]["array"] works directly.
+    for item in calib_input_data:
+        if "audio" in item and isinstance(item["audio"], dict) and "audio" in item["audio"]:
+            item["audio"] = item["audio"]["audio"]
+
     forward_prompts = calib_input_data[-1]
     example_prompts = calib_input_data[:20]
     
