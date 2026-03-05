@@ -79,15 +79,8 @@ class MeralionPruner:
         self.round_to = round_to
 
         # Build dependency graph
-        print(f"[DEBUG pruner] Before get_inputs: type={type(example_inputs).__name__}")
         example_inputs = self.model_parent.get_inputs(example_inputs)
-        print(f"[DEBUG pruner] After get_inputs: type={type(example_inputs).__name__}")
-        if hasattr(example_inputs, 'items'):
-            print(f"[DEBUG pruner] get_inputs returned keys: {list(example_inputs.keys())}")
-            for k, v in example_inputs.items():
-                print(f"[DEBUG pruner]   {k}: type={type(v).__name__}, "
-                      f"{'device='+str(v.device)+' dtype='+str(v.dtype) if hasattr(v, 'device') else 'len='+str(len(v)) if hasattr(v, '__len__') else ''}")
-        # Force all values to CUDA tensors
+        # Force all values to CUDA tensors (get_inputs may return lists/numpy on CPU)
         if hasattr(example_inputs, 'items'):
             _fixed = {}
             for k, v in example_inputs.items():
@@ -98,7 +91,6 @@ class MeralionPruner:
                     v = v.to(torch.bfloat16)
                 _fixed[k] = v
             example_inputs = _fixed
-            print(f"[DEBUG pruner] After CUDA fix: { {k: (v.device, v.dtype) for k, v in _fixed.items()} }")
         self.DG = dependency.DependencyGraph().build_dependency(
             model,
             example_inputs=example_inputs,
