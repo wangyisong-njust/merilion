@@ -63,6 +63,15 @@ def main(args):
     # model = net.model
     processor = model.processor
 
+    # Remove accelerate dispatch hooks for pruning compatibility.
+    # Model is loaded with device_map="auto" (for finetune), but pruning's
+    # dependency graph tracing needs direct .to("cuda") without dispatch hooks.
+    if hasattr(model.model, 'hf_device_map'):
+        from accelerate.hooks import remove_hook_from_submodules
+        remove_hook_from_submodules(model.model)
+        model.model = model.model.to('cuda')
+        print("[FIX] Removed accelerate dispatch hooks, model moved to CUDA for pruning")
+
     print(model.model)
 
     # model.config.pad_token_id = processor.pad_token_id = 0
