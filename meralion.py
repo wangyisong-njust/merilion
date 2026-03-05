@@ -76,6 +76,37 @@ def main(args):
         print("[FIX] Removed accelerate dispatch hooks, model moved to CUDA")
     print(f"[INFO] Model device: {next(model.model.parameters()).device}")
 
+    # Monkey-patch get_loss to fix server's buggy do_sample_get_loss.
+    # Server's version calls self.processor(text=reference) without audio, crashing at audio.ndim.
+    # Also, reference may be a dict {'text': '...', 'audio': None} instead of a string.
+    def _fixed_get_loss(input_data):
+        audio_array = input_data["audio"]["array"]
+        sampling_rate = input_data["audio"]["sampling_rate"]
+        instruction = input_data["instruction"]
+        reference = input_data.get("reference", "")
+        if isinstance(reference, dict):
+            reference = reference.get("text", "")
+        audio_duration = len(audio_array) / sampling_rate
+        if audio_duration < 1:
+            import numpy as np
+            audio_array = np.pad(audio_array, (0, sampling_rate), 'constant')
+        # Build prompt and process with audio
+        prompt = "Instruction: {instruction} \nFollow the text instruction based on the following audio: <SpeechHere>"
+        conversation = [{"role": "user", "content": prompt.format(instruction=instruction)}]
+        chat_prompt = processor.tokenizer.apply_chat_template(
+            conversation=conversation, tokenize=False, add_generation_prompt=True)
+        inputs = processor(text=chat_prompt, audios=audio_array)
+        for key in inputs:
+            if not isinstance(inputs[key], torch.Tensor):
+                inputs[key] = torch.tensor(inputs[key])
+            inputs[key] = inputs[key].to('cuda')
+            if inputs[key].dtype == torch.float32:
+                inputs[key] = inputs[key].to(torch.bfloat16)
+        loss = model.model(**inputs, labels=inputs['input_ids']).loss
+        return loss
+    model.get_loss = _fixed_get_loss
+    print("[FIX] Patched model.get_loss to fix audio/reference handling")
+
     print(model.model)
 
     # model.config.pad_token_id = processor.pad_token_id = 0
