@@ -1,0 +1,1 @@
+python meralion.py --base_model MERaLiON-2-3B --pruning_ratio 0.25 --text_attn_pruning_ratio 0.25 --pruner_type taylor --taylor param_mix --block_wise --num_examples 20 --max_seq_len 256 --save_model --block_attention_layer_start 4 --block_attention_layer_end 23 --save_ckpt_log_name MERaLiON-2-3B-TextAttn-25 --save_model_path meralion_checkpoints/MERaLiON-2-3B-TextAttn-25

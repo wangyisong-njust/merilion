@@ -1,0 +1,1 @@
+python meralion.py --base_model /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B --pruning_ratio 0.25 --block_attention_layer_start -1
