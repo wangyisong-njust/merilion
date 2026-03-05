@@ -4,6 +4,8 @@ https://github.com/tloen/alpaca-lora/blob/main/finetune.py
 '''
 
 import os
+os.environ["HF_DATASETS_CACHE"] = "/tmp/hf_cache_" + str(os.getpid())  # per-process temp cache
+os.environ["HF_DATASETS_IN_MEMORY_MAX_SIZE"] = "0"  # no limit for in-memory datasets
 import sys
 import argparse
 from typing import List

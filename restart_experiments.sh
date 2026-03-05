@@ -20,6 +20,9 @@
 
 export WANDB_DISABLED=true
 export PYTHONUNBUFFERED=1
+export HF_DATASETS_OFFLINE=1          # 禁止任何网络请求（服务器无网）
+export TRANSFORMERS_OFFLINE=1         # 同上，transformers 也不联网
+export HF_HOME="/tmp/hf_home"         # HF 缓存放 /tmp，不占主盘
 PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
 WORKDIR="/home/jinchao/runtao/LLM-Pruner"
 
@@ -29,6 +32,11 @@ cd $WORKDIR
 pkill -f post_training_meralion.py
 pkill -f meralion.py
 sleep 2
+
+# 清理之前残留的 HF Arrow 缓存（可能几百GB）
+echo "Cleaning HF cache..."
+rm -rf ~/.cache/huggingface/datasets/ 2>/dev/null
+rm -rf /tmp/hf_cache_* 2>/dev/null
 
 # 通用微调参数
 LORA_ARGS="--lora_r 16 --lora_alpha 16 --learning_rate 5e-5 --num_epochs 3 --batch_size 8 --micro_batch_size 2"
