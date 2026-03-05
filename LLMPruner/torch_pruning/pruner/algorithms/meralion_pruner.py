@@ -80,6 +80,18 @@ class MeralionPruner:
 
         # Build dependency graph
         example_inputs = self.model_parent.get_inputs(example_inputs)
+        # Force all values to CUDA tensors. audiobench's get_inputs() may return
+        # lists/numpy arrays (processor without return_tensors="pt"), which stay on CPU.
+        if hasattr(example_inputs, 'items'):
+            _fixed = {}
+            for k, v in example_inputs.items():
+                if not isinstance(v, torch.Tensor):
+                    v = torch.tensor(v)
+                v = v.to('cuda')
+                if v.dtype == torch.float32:
+                    v = v.to(torch.bfloat16)
+                _fixed[k] = v
+            example_inputs = _fixed
         self.DG = dependency.DependencyGraph().build_dependency(
             model,
             example_inputs=example_inputs,
