@@ -273,6 +273,12 @@ class MeralionPruner:
                 if n_pruned <= 0:
                     continue
 
+                # Skip if not enough channels to prune a whole group
+                if consecutive_groups > 1 and n_pruned < consecutive_groups:
+                    continue
+                if ch_groups > 1 and n_pruned < ch_groups:
+                    continue
+
                 if ch_groups > 1:
                     imp = imp[:len(imp)//ch_groups]
 
@@ -280,7 +286,7 @@ class MeralionPruner:
                     imp = imp.view(-1, consecutive_groups).sum(1)
 
                 imp_argsort = torch.argsort(imp)
-                
+
                 if ch_groups > 1:
                     pruning_idxs = imp_argsort[:(n_pruned//ch_groups)]
                     group_size = current_channels//ch_groups
