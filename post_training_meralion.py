@@ -432,9 +432,9 @@ def main(args):
             "answer": answer,
         }
 
-    # .map() on 20k samples is fast (~30s), each process does it independently
-    train_ds = train_dataset.map(preprocess_keep_raw, remove_columns=train_dataset.column_names)
-    eval_ds  = eval_dataset.map(preprocess_keep_raw,  remove_columns=eval_dataset.column_names)
+    # .map() in memory only — avoid writing huge Arrow cache files to disk
+    train_ds = train_dataset.map(preprocess_keep_raw, remove_columns=train_dataset.column_names, keep_in_memory=True)
+    eval_ds  = eval_dataset.map(preprocess_keep_raw,  remove_columns=eval_dataset.column_names, keep_in_memory=True)
     
     # Validation WER Monitoring
     wer_callback = WEREvalCallback(
