@@ -7493,3 +7493,5 @@ Saving latest model to meralion_tune_log/MERaLiON-2-3B-TextAttn-25-tune/latest_m
 Evaluating WER:  30%|███       | 15/50 [03:31<06:32, 11.21s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
 
 Evaluating WER:  32%|███▏      | 16/50 [03:36<05:17,  9.34s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  34%|███▍      | 17/50 [03:43<04:49,  8.78s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.

@@ -7561,3 +7561,5 @@ Saving latest model to meralion_tune_log/MERaLiON-2-3B-ta125-tm15-tune/latest_mo
 Evaluating WER:  80%|████████  | 40/50 [09:29<01:42, 10.27s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
 
 Evaluating WER:  82%|████████▏ | 41/50 [09:50<02:00, 13.39s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  84%|████████▍ | 42/50 [10:00<01:38, 12.36s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
