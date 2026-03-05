@@ -1,0 +1,15 @@
+2026-03-05 07:10:45 - INFO :       Loading model from: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-03-05 07:11:42 - INFO :       Model loaded: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-03-05 07:11:42 - INFO :       Loaded model: /home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B
+2026-03-05 07:11:42 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-03-05 07:11:42 - INFO :       Loading dataset: imda_part2_asr_test
+2026-03-05 07:11:43 - INFO :       Loaded 125326 samples for evaluation
+2026-03-05 07:11:43 - INFO :       = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+2026-03-05 07:11:43 - INFO :       Number of samples: 11
+2026-03-05 07:11:45 - INFO :       
+=  =  =  Dataset Sample  =  =  =
+2026-03-05 07:11:45 - INFO :       {'audio': {'text': None, 'audio': {'path': None, 'array': array([0.0508728 , 0.0496521 , 0.0401001 , ..., 0.00662231, 0.00631714,
+       0.00518799]), 'sampling_rate': 16000}}, 'instruction': 'Transcribe the spoken words into written form.', 'reference': {'text': "<Speaker1>: Okay, okay, I shall circle that too. <Speaker2>: like parsley <Speaker1>: Yeah, I don't have that. <Speaker2>: Oh, then I have like an angry small boy. <Speaker1>: yeah.", 'audio': None}, 'task_type': 'ASR'}
+2026-03-05 07:11:45 - INFO :       =  =  =  =  =  =  =  =  =  =  =  =
+
+2026-03-05 07:11:45 - INFO :       Use l2 pruner...

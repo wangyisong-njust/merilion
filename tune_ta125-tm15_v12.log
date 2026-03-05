@@ -7127,3 +7127,437 @@ Saving latest model to meralion_tune_log/MERaLiON-2-3B-ta125-tm15-tune/latest_mo
 Evaluating WER:  16%|█▌        | 8/50 [01:59<09:05, 12.98s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
 
 Evaluating WER:  18%|█▊        | 9/50 [02:17<09:54, 14.51s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  20%|██        | 10/50 [02:36<10:27, 15.69s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  22%|██▏       | 11/50 [03:23<16:29, 25.38s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  24%|██▍       | 12/50 [03:34<13:16, 20.96s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  26%|██▌       | 13/50 [03:41<10:20, 16.76s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  28%|██▊       | 14/50 [03:53<09:08, 15.24s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  30%|███       | 15/50 [03:59<07:22, 12.63s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  32%|███▏      | 16/50 [04:04<05:51, 10.32s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  34%|███▍      | 17/50 [04:12<05:12,  9.46s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  36%|███▌      | 18/50 [04:24<05:30, 10.32s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  38%|███▊      | 19/50 [04:43<06:37, 12.82s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  40%|████      | 20/50 [04:55<06:21, 12.71s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  42%|████▏     | 21/50 [05:05<05:39, 11.72s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  44%|████▍     | 22/50 [05:21<06:06, 13.09s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  46%|████▌     | 23/50 [05:27<04:57, 11.01s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  48%|████▊     | 24/50 [05:36<04:26, 10.26s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  50%|█████     | 25/50 [05:54<05:19, 12.79s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  52%|█████▏    | 26/50 [06:09<05:21, 13.42s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  54%|█████▍    | 27/50 [06:26<05:35, 14.58s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  56%|█████▌    | 28/50 [06:45<05:45, 15.69s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  58%|█████▊    | 29/50 [06:55<04:58, 14.23s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  60%|██████    | 30/50 [07:10<04:48, 14.45s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  62%|██████▏   | 31/50 [07:38<05:48, 18.35s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  64%|██████▍   | 32/50 [07:46<04:36, 15.36s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  66%|██████▌   | 33/50 [07:58<04:01, 14.22s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  68%|██████▊   | 34/50 [08:05<03:15, 12.25s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  70%|███████   | 35/50 [08:28<03:50, 15.38s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  72%|███████▏  | 36/50 [08:39<03:16, 14.07s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  74%|███████▍  | 37/50 [08:54<03:07, 14.44s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  76%|███████▌  | 38/50 [09:12<03:02, 15.25s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  78%|███████▊  | 39/50 [09:20<02:25, 13.25s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  80%|████████  | 40/50 [09:24<01:42, 10.29s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  82%|████████▏ | 41/50 [09:44<02:00, 13.37s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  84%|████████▍ | 42/50 [09:54<01:38, 12.36s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  86%|████████▌ | 43/50 [10:15<01:43, 14.79s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  88%|████████▊ | 44/50 [10:25<01:20, 13.39s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  90%|█████████ | 45/50 [10:39<01:08, 13.75s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  92%|█████████▏| 46/50 [10:45<00:45, 11.33s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  94%|█████████▍| 47/50 [11:05<00:42, 14.07s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  96%|█████████▌| 48/50 [11:14<00:25, 12.51s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  98%|█████████▊| 49/50 [11:26<00:12, 12.16s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER: 100%|██████████| 50/50 [11:40<00:00, 12.70s/it][AEvaluating WER: 100%|██████████| 50/50 [11:40<00:00, 14.00s/it]
+Step 1400 Validation WER: 0.2712
+Saving latest model to meralion_tune_log/MERaLiON-2-3B-ta125-tm15-tune/latest_model...
+ 19%|█▊        | 1400/7500 [5:03:40<365:29:37, 215.70s/it]                                                          {'loss': 0.2856, 'grad_norm': 1.119742751121521, 'learning_rate': 4.749475931470561e-05, 'epoch': 0.56}
+ 19%|█▊        | 1400/7500 [5:03:40<365:29:37, 215.70s/it]
+  0%|          | 0/250 [00:00<?, ?it/s][A
+  1%|          | 2/250 [00:00<01:10,  3.52it/s][A
+  1%|          | 3/250 [00:01<01:27,  2.81it/s][A
+  2%|▏         | 4/250 [00:01<01:47,  2.29it/s][A
+  2%|▏         | 5/250 [00:02<01:56,  2.11it/s][A
+  2%|▏         | 6/250 [00:02<02:02,  1.99it/s][A
+  3%|▎         | 7/250 [00:03<01:49,  2.22it/s][A
+  3%|▎         | 8/250 [00:03<01:47,  2.26it/s][A
+  4%|▎         | 9/250 [00:03<01:48,  2.21it/s][A
+  4%|▍         | 10/250 [00:04<01:58,  2.03it/s][A
+  4%|▍         | 11/250 [00:05<02:09,  1.84it/s][A
+  5%|▍         | 12/250 [00:05<02:13,  1.78it/s][A
+  5%|▌         | 13/250 [00:06<02:08,  1.84it/s][A
+  6%|▌         | 14/250 [00:06<02:00,  1.96it/s][A
+  6%|▌         | 15/250 [00:07<01:55,  2.03it/s][A
+  6%|▋         | 16/250 [00:07<01:57,  1.99it/s][A
+  7%|▋         | 17/250 [00:08<01:45,  2.20it/s][A
+  7%|▋         | 18/250 [00:08<01:49,  2.11it/s][A
+  8%|▊         | 19/250 [00:09<01:57,  1.96it/s][A
+  8%|▊         | 20/250 [00:09<02:02,  1.88it/s][A
+  8%|▊         | 21/250 [00:10<02:06,  1.81it/s][A
+  9%|▉         | 22/250 [00:10<02:03,  1.85it/s][A
+  9%|▉         | 23/250 [00:11<02:02,  1.85it/s][A
+ 10%|▉         | 24/250 [00:11<01:49,  2.07it/s][A
+ 10%|█         | 25/250 [00:12<01:48,  2.07it/s][A
+ 10%|█         | 26/250 [00:12<01:41,  2.21it/s][A
+ 11%|█         | 27/250 [00:12<01:36,  2.31it/s][A
+ 11%|█         | 28/250 [00:13<01:40,  2.21it/s][A
+ 12%|█▏        | 29/250 [00:13<01:42,  2.16it/s][A
+ 12%|█▏        | 30/250 [00:14<01:49,  2.00it/s][A
+ 12%|█▏        | 31/250 [00:15<01:54,  1.92it/s][A
+ 13%|█▎        | 32/250 [00:15<01:58,  1.84it/s][A
+ 13%|█▎        | 33/250 [00:16<01:54,  1.90it/s][A
+ 14%|█▎        | 34/250 [00:16<01:56,  1.86it/s][A
+ 14%|█▍        | 35/250 [00:17<01:59,  1.79it/s][A
+ 14%|█▍        | 36/250 [00:17<01:51,  1.92it/s][A
+ 15%|█▍        | 37/250 [00:18<01:41,  2.09it/s][A
+ 15%|█▌        | 38/250 [00:18<01:40,  2.11it/s][A
+ 16%|█▌        | 39/250 [00:19<01:34,  2.24it/s][A
+ 16%|█▌        | 40/250 [00:19<01:43,  2.03it/s][A
+ 16%|█▋        | 41/250 [00:20<01:37,  2.14it/s][A
+ 17%|█▋        | 42/250 [00:20<01:36,  2.15it/s][A
+ 17%|█▋        | 43/250 [00:20<01:30,  2.28it/s][A
+ 18%|█▊        | 44/250 [00:21<01:38,  2.10it/s][A
+ 18%|█▊        | 45/250 [00:21<01:37,  2.10it/s][A
+ 18%|█▊        | 46/250 [00:22<01:33,  2.17it/s][A
+ 19%|█▉        | 47/250 [00:22<01:35,  2.13it/s][A
+ 19%|█▉        | 48/250 [00:23<01:40,  2.00it/s][A
+ 20%|█▉        | 49/250 [00:23<01:37,  2.05it/s][A
+ 20%|██        | 50/250 [00:24<01:39,  2.00it/s][A
+ 20%|██        | 51/250 [00:24<01:39,  1.99it/s][A
+ 21%|██        | 52/250 [00:25<01:40,  1.97it/s][A
+ 21%|██        | 53/250 [00:25<01:37,  2.01it/s][A
+ 22%|██▏       | 54/250 [00:26<01:35,  2.05it/s][A
+ 22%|██▏       | 55/250 [00:26<01:39,  1.97it/s][A
+ 22%|██▏       | 56/250 [00:27<01:38,  1.97it/s][A
+ 23%|██▎       | 57/250 [00:27<01:34,  2.04it/s][A
+ 23%|██▎       | 58/250 [00:28<01:36,  1.99it/s][A
+ 24%|██▎       | 59/250 [00:29<01:46,  1.79it/s][A
+ 24%|██▍       | 60/250 [00:29<01:44,  1.82it/s][A
+ 24%|██▍       | 61/250 [00:30<01:43,  1.83it/s][A
+ 25%|██▍       | 62/250 [00:30<01:34,  2.00it/s][A
+ 25%|██▌       | 63/250 [00:31<01:30,  2.06it/s][A
+ 26%|██▌       | 64/250 [00:31<01:35,  1.95it/s][A
+ 26%|██▌       | 65/250 [00:32<01:31,  2.02it/s][A
+ 26%|██▋       | 66/250 [00:32<01:35,  1.92it/s][A
+ 27%|██▋       | 67/250 [00:33<01:29,  2.03it/s][A
+ 27%|██▋       | 68/250 [00:33<01:32,  1.97it/s][A
+ 28%|██▊       | 69/250 [00:33<01:24,  2.13it/s][A
+ 28%|██▊       | 70/250 [00:34<01:27,  2.06it/s][A
+ 28%|██▊       | 71/250 [00:35<01:30,  1.98it/s][A
+ 29%|██▉       | 72/250 [00:35<01:29,  2.00it/s][A
+ 29%|██▉       | 73/250 [00:36<01:26,  2.04it/s][A
+ 30%|██▉       | 74/250 [00:36<01:21,  2.16it/s][A
+ 30%|███       | 75/250 [00:36<01:20,  2.17it/s][A
+ 30%|███       | 76/250 [00:37<01:25,  2.04it/s][A
+ 31%|███       | 77/250 [00:37<01:26,  1.99it/s][A
+ 31%|███       | 78/250 [00:38<01:24,  2.03it/s][A
+ 32%|███▏      | 79/250 [00:38<01:23,  2.04it/s][A
+ 32%|███▏      | 80/250 [00:39<01:28,  1.93it/s][A
+ 32%|███▏      | 81/250 [00:40<01:30,  1.86it/s][A
+ 33%|███▎      | 82/250 [00:40<01:32,  1.82it/s][A
+ 33%|███▎      | 83/250 [00:41<01:32,  1.81it/s][A
+ 34%|███▎      | 84/250 [00:41<01:25,  1.94it/s][A
+ 34%|███▍      | 85/250 [00:42<01:19,  2.08it/s][A
+ 34%|███▍      | 86/250 [00:42<01:21,  2.01it/s][A
+ 35%|███▍      | 87/250 [00:43<01:24,  1.93it/s][A
+ 35%|███▌      | 88/250 [00:43<01:24,  1.91it/s][A
+ 36%|███▌      | 89/250 [00:44<01:26,  1.86it/s][A
+ 36%|███▌      | 90/250 [00:44<01:20,  1.99it/s][A
+ 36%|███▋      | 91/250 [00:45<01:15,  2.09it/s][A
+ 37%|███▋      | 92/250 [00:45<01:16,  2.06it/s][A
+ 37%|███▋      | 93/250 [00:46<01:15,  2.08it/s][A
+ 38%|███▊      | 94/250 [00:46<01:14,  2.09it/s][A
+ 38%|███▊      | 95/250 [00:47<01:15,  2.06it/s][A
+ 38%|███▊      | 96/250 [00:47<01:15,  2.04it/s][A
+ 39%|███▉      | 97/250 [00:48<01:17,  1.98it/s][A
+ 39%|███▉      | 98/250 [00:48<01:15,  2.01it/s][A
+ 40%|███▉      | 99/250 [00:49<01:18,  1.92it/s][A
+ 40%|████      | 100/250 [00:49<01:14,  2.01it/s][A
+ 40%|████      | 101/250 [00:50<01:17,  1.92it/s][A
+ 41%|████      | 102/250 [00:50<01:20,  1.85it/s][A
+ 41%|████      | 103/250 [00:51<01:15,  1.96it/s][A
+ 42%|████▏     | 104/250 [00:51<01:11,  2.05it/s][A
+ 42%|████▏     | 105/250 [00:52<01:07,  2.15it/s][A
+ 42%|████▏     | 106/250 [00:52<01:09,  2.08it/s][A
+ 43%|████▎     | 107/250 [00:53<01:12,  1.96it/s][A
+ 43%|████▎     | 108/250 [00:53<01:15,  1.87it/s][A
+ 44%|████▎     | 109/250 [00:54<01:12,  1.95it/s][A
+ 44%|████▍     | 110/250 [00:54<01:08,  2.05it/s][A
+ 44%|████▍     | 111/250 [00:55<01:07,  2.07it/s][A
+ 45%|████▍     | 112/250 [00:55<01:08,  2.00it/s][A
+ 45%|████▌     | 113/250 [00:56<01:09,  1.97it/s][A
+ 46%|████▌     | 114/250 [00:56<01:06,  2.05it/s][A
+ 46%|████▌     | 115/250 [00:57<01:03,  2.13it/s][A
+ 46%|████▋     | 116/250 [00:57<01:04,  2.07it/s][A
+ 47%|████▋     | 117/250 [00:58<01:08,  1.94it/s][A
+ 47%|████▋     | 118/250 [00:58<01:08,  1.94it/s][A
+ 48%|████▊     | 119/250 [00:59<01:08,  1.91it/s][A
+ 48%|████▊     | 120/250 [00:59<01:06,  1.94it/s][A
+ 48%|████▊     | 121/250 [01:00<01:07,  1.91it/s][A
+ 49%|████▉     | 122/250 [01:00<01:08,  1.86it/s][A
+ 49%|████▉     | 123/250 [01:01<01:09,  1.83it/s][A
+ 50%|████▉     | 124/250 [01:01<01:08,  1.84it/s][A
+ 50%|█████     | 125/250 [01:02<01:05,  1.92it/s][A
+ 50%|█████     | 126/250 [01:02<01:05,  1.89it/s][A
+ 51%|█████     | 127/250 [01:03<01:07,  1.82it/s][A
+ 51%|█████     | 128/250 [01:04<01:09,  1.75it/s][A
+ 52%|█████▏    | 129/250 [01:04<01:05,  1.83it/s][A
+ 52%|█████▏    | 130/250 [01:05<01:01,  1.94it/s][A
+ 52%|█████▏    | 131/250 [01:05<00:59,  2.00it/s][A
+ 53%|█████▎    | 132/250 [01:06<01:03,  1.87it/s][A
+ 53%|█████▎    | 133/250 [01:06<01:02,  1.88it/s][A
+ 54%|█████▎    | 134/250 [01:07<01:00,  1.91it/s][A
+ 54%|█████▍    | 135/250 [01:07<00:59,  1.92it/s][A
+ 54%|█████▍    | 136/250 [01:08<01:00,  1.89it/s][A
+ 55%|█████▍    | 137/250 [01:08<00:59,  1.91it/s][A
+ 55%|█████▌    | 138/250 [01:09<01:01,  1.81it/s][A
+ 56%|█████▌    | 139/250 [01:09<00:54,  2.02it/s][A
+ 56%|█████▌    | 140/250 [01:10<00:52,  2.10it/s][A
+ 56%|█████▋    | 141/250 [01:10<00:55,  1.97it/s][A
+ 57%|█████▋    | 142/250 [01:11<00:57,  1.89it/s][A
+ 57%|█████▋    | 143/250 [01:11<00:55,  1.94it/s][A
+ 58%|█████▊    | 144/250 [01:12<00:54,  1.96it/s][A
+ 58%|█████▊    | 145/250 [01:12<00:55,  1.88it/s][A
+ 58%|█████▊    | 146/250 [01:13<00:53,  1.94it/s][A
+ 59%|█████▉    | 147/250 [01:13<00:52,  1.97it/s][A
+ 59%|█████▉    | 148/250 [01:14<00:48,  2.09it/s][A
+ 60%|█████▉    | 149/250 [01:14<00:47,  2.14it/s][A
+ 60%|██████    | 150/250 [01:15<00:48,  2.08it/s][A
+ 60%|██████    | 151/250 [01:15<00:47,  2.06it/s][A
+ 61%|██████    | 152/250 [01:16<00:47,  2.05it/s][A
+ 61%|██████    | 153/250 [01:16<00:49,  1.97it/s][A
+ 62%|██████▏   | 154/250 [01:17<00:49,  1.96it/s][A
+ 62%|██████▏   | 155/250 [01:17<00:49,  1.91it/s][A
+ 62%|██████▏   | 156/250 [01:18<00:46,  2.02it/s][A
+ 63%|██████▎   | 157/250 [01:18<00:48,  1.93it/s][A
+ 63%|██████▎   | 158/250 [01:19<00:49,  1.87it/s][A
+ 64%|██████▎   | 159/250 [01:19<00:47,  1.90it/s][A
+ 64%|██████▍   | 160/250 [01:20<00:48,  1.84it/s][A
+ 64%|██████▍   | 161/250 [01:20<00:44,  1.98it/s][A
+ 65%|██████▍   | 162/250 [01:21<00:44,  1.98it/s][A
+ 65%|██████▌   | 163/250 [01:21<00:43,  2.01it/s][A
+ 66%|██████▌   | 164/250 [01:22<00:38,  2.24it/s][A
+ 66%|██████▌   | 165/250 [01:22<00:38,  2.23it/s][A
+ 66%|██████▋   | 166/250 [01:23<00:37,  2.24it/s][A
+ 67%|██████▋   | 167/250 [01:23<00:37,  2.21it/s][A
+ 67%|██████▋   | 168/250 [01:24<00:37,  2.19it/s][A
+ 68%|██████▊   | 169/250 [01:24<00:40,  2.02it/s][A
+ 68%|██████▊   | 170/250 [01:25<00:39,  2.04it/s][A
+ 68%|██████▊   | 171/250 [01:25<00:40,  1.93it/s][A
+ 69%|██████▉   | 172/250 [01:26<00:41,  1.87it/s][A
+ 69%|██████▉   | 173/250 [01:26<00:41,  1.87it/s][A
+ 70%|██████▉   | 174/250 [01:27<00:39,  1.93it/s][A
+ 70%|███████   | 175/250 [01:27<00:40,  1.86it/s][A
+ 70%|███████   | 176/250 [01:28<00:38,  1.93it/s][A
+ 71%|███████   | 177/250 [01:28<00:39,  1.86it/s][A
+ 71%|███████   | 178/250 [01:29<00:38,  1.87it/s][A
+ 72%|███████▏  | 179/250 [01:30<00:38,  1.82it/s][A
+ 72%|███████▏  | 180/250 [01:30<00:36,  1.93it/s][A
+ 72%|███████▏  | 181/250 [01:30<00:35,  1.94it/s][A
+ 73%|███████▎  | 182/250 [01:31<00:34,  1.94it/s][A
+ 73%|███████▎  | 183/250 [01:31<00:33,  2.00it/s][A
+ 74%|███████▎  | 184/250 [01:32<00:34,  1.93it/s][A
+ 74%|███████▍  | 185/250 [01:32<00:32,  2.01it/s][A
+ 74%|███████▍  | 186/250 [01:33<00:32,  1.99it/s][A
+ 75%|███████▍  | 187/250 [01:33<00:31,  1.99it/s][A
+ 75%|███████▌  | 188/250 [01:34<00:30,  2.05it/s][A
+ 76%|███████▌  | 189/250 [01:34<00:28,  2.16it/s][A
+ 76%|███████▌  | 190/250 [01:35<00:28,  2.14it/s][A
+ 76%|███████▋  | 191/250 [01:35<00:29,  2.02it/s][A
+ 77%|███████▋  | 192/250 [01:36<00:27,  2.09it/s][A
+ 77%|███████▋  | 193/250 [01:36<00:26,  2.18it/s][A
+ 78%|███████▊  | 194/250 [01:37<00:27,  2.06it/s][A
+ 78%|███████▊  | 195/250 [01:37<00:24,  2.26it/s][A
+ 78%|███████▊  | 196/250 [01:38<00:25,  2.13it/s][A
+ 79%|███████▉  | 197/250 [01:38<00:24,  2.16it/s][A
+ 79%|███████▉  | 198/250 [01:39<00:26,  1.99it/s][A
+ 80%|███████▉  | 199/250 [01:39<00:26,  1.91it/s][A
+ 80%|████████  | 200/250 [01:40<00:25,  1.98it/s][A
+ 80%|████████  | 201/250 [01:40<00:27,  1.81it/s][A
+ 81%|████████  | 202/250 [01:41<00:24,  2.00it/s][A
+ 81%|████████  | 203/250 [01:41<00:23,  1.97it/s][A
+ 82%|████████▏ | 204/250 [01:42<00:21,  2.12it/s][A
+ 82%|████████▏ | 205/250 [01:42<00:21,  2.11it/s][A
+ 82%|████████▏ | 206/250 [01:43<00:22,  1.97it/s][A
+ 83%|████████▎ | 207/250 [01:43<00:21,  2.01it/s][A
+ 83%|████████▎ | 208/250 [01:44<00:21,  1.99it/s][A
+ 84%|████████▎ | 209/250 [01:44<00:20,  1.98it/s][A
+ 84%|████████▍ | 210/250 [01:45<00:20,  1.92it/s][A
+ 84%|████████▍ | 211/250 [01:45<00:20,  1.86it/s][A
+ 85%|████████▍ | 212/250 [01:46<00:17,  2.11it/s][A
+ 85%|████████▌ | 213/250 [01:46<00:17,  2.13it/s][A
+ 86%|████████▌ | 214/250 [01:47<00:16,  2.19it/s][A
+ 86%|████████▌ | 215/250 [01:47<00:15,  2.20it/s][A
+ 86%|████████▋ | 216/250 [01:48<00:16,  2.11it/s][A
+ 87%|████████▋ | 217/250 [01:48<00:15,  2.16it/s][A
+ 87%|████████▋ | 218/250 [01:48<00:14,  2.20it/s][A
+ 88%|████████▊ | 219/250 [01:49<00:15,  2.02it/s][A
+ 88%|████████▊ | 220/250 [01:50<00:15,  1.97it/s][A
+ 88%|████████▊ | 221/250 [01:50<00:15,  1.93it/s][A
+ 89%|████████▉ | 222/250 [01:51<00:14,  1.96it/s][A
+ 89%|████████▉ | 223/250 [01:51<00:14,  1.89it/s][A
+ 90%|████████▉ | 224/250 [01:52<00:14,  1.85it/s][A
+ 90%|█████████ | 225/250 [01:52<00:12,  1.94it/s][A
+ 90%|█████████ | 226/250 [01:53<00:11,  2.02it/s][A
+ 91%|█████████ | 227/250 [01:53<00:11,  1.94it/s][A
+ 91%|█████████ | 228/250 [01:54<00:11,  2.00it/s][A
+ 92%|█████████▏| 229/250 [01:54<00:11,  1.91it/s][A
+ 92%|█████████▏| 230/250 [01:55<00:10,  1.91it/s][A
+ 92%|█████████▏| 231/250 [01:55<00:09,  1.98it/s][A
+ 93%|█████████▎| 232/250 [01:56<00:09,  1.99it/s][A
+ 93%|█████████▎| 233/250 [01:56<00:08,  2.05it/s][A
+ 94%|█████████▎| 234/250 [01:57<00:07,  2.10it/s][A
+ 94%|█████████▍| 235/250 [01:57<00:07,  1.96it/s][A
+ 94%|█████████▍| 236/250 [01:58<00:06,  2.03it/s][A
+ 95%|█████████▍| 237/250 [01:58<00:06,  2.08it/s][A
+ 95%|█████████▌| 238/250 [01:59<00:05,  2.06it/s][A
+ 96%|█████████▌| 239/250 [01:59<00:05,  2.09it/s][A
+ 96%|█████████▌| 240/250 [02:00<00:05,  1.97it/s][A
+ 96%|█████████▋| 241/250 [02:00<00:04,  2.03it/s][A
+ 97%|█████████▋| 242/250 [02:01<00:04,  1.93it/s][A
+ 97%|█████████▋| 243/250 [02:01<00:03,  1.99it/s][A
+ 98%|█████████▊| 244/250 [02:02<00:03,  1.97it/s][A
+ 98%|█████████▊| 245/250 [02:02<00:02,  2.03it/s][A
+ 98%|█████████▊| 246/250 [02:03<00:02,  1.93it/s][A
+ 99%|█████████▉| 247/250 [02:03<00:01,  2.05it/s][A
+ 99%|█████████▉| 248/250 [02:04<00:00,  2.14it/s][A
+100%|█████████▉| 249/250 [02:04<00:00,  2.08it/s][A
+100%|██████████| 250/250 [02:04<00:00,  2.53it/s][A                                                          
+                                                 [A{'eval_loss': 0.34525325894355774, 'eval_runtime': 125.6214, 'eval_samples_per_second': 3.98, 'eval_steps_per_second': 1.99, 'epoch': 0.56}
+ 19%|█▊        | 1400/7500 [5:05:46<365:29:37, 215.70s/it]
+100%|██████████| 250/250 [02:04<00:00,  2.53it/s][A
+                                                 [A 19%|█▊        | 1401/7500 [5:05:50<321:54:04, 190.01s/it] 19%|█▊        | 1402/7500 [5:05:55<227:44:57, 134.45s/it] 19%|█▊        | 1403/7500 [5:05:59<161:27:59, 95.34s/it]  19%|█▊        | 1404/7500 [5:06:04<115:25:15, 68.16s/it] 19%|█▊        | 1405/7500 [5:06:08<82:54:03, 48.97s/it]  19%|█▊        | 1406/7500 [5:06:13<60:18:21, 35.63s/it] 19%|█▉        | 1407/7500 [5:06:17<44:27:48, 26.27s/it] 19%|█▉        | 1408/7500 [5:06:22<33:29:08, 19.79s/it] 19%|█▉        | 1409/7500 [5:06:26<25:46:03, 15.23s/it] 19%|█▉        | 1410/7500 [5:06:31<20:38:39, 12.20s/it]                                                        {'loss': 0.2274, 'grad_norm': 1.6581617593765259, 'learning_rate': 4.744644440409461e-05, 'epoch': 0.56}
+ 19%|█▉        | 1410/7500 [5:06:31<20:38:39, 12.20s/it] 19%|█▉        | 1411/7500 [5:06:36<16:49:13,  9.94s/it] 19%|█▉        | 1412/7500 [5:06:40<13:57:28,  8.25s/it] 19%|█▉        | 1413/7500 [5:06:45<12:06:37,  7.16s/it] 19%|█▉        | 1414/7500 [5:06:49<10:42:13,  6.33s/it] 19%|█▉        | 1415/7500 [5:06:54<9:51:36,  5.83s/it]  19%|█▉        | 1416/7500 [5:06:58<8:59:59,  5.33s/it] 19%|█▉        | 1417/7500 [5:07:03<8:39:32,  5.12s/it] 19%|█▉        | 1418/7500 [5:07:07<8:19:36,  4.93s/it] 19%|█▉        | 1419/7500 [5:07:12<8:09:59,  4.83s/it] 19%|█▉        | 1420/7500 [5:07:16<7:56:02,  4.70s/it]                                                       {'loss': 0.3248, 'grad_norm': 1.8751556873321533, 'learning_rate': 4.739769310140223e-05, 'epoch': 0.57}
+ 19%|█▉        | 1420/7500 [5:07:16<7:56:02,  4.70s/it] 19%|█▉        | 1421/7500 [5:07:21<7:45:45,  4.60s/it] 19%|█▉        | 1422/7500 [5:07:25<7:36:00,  4.50s/it] 19%|█▉        | 1423/7500 [5:07:29<7:37:08,  4.51s/it] 19%|█▉        | 1424/7500 [5:07:34<7:39:30,  4.54s/it] 19%|█▉        | 1425/7500 [5:07:39<7:37:31,  4.52s/it] 19%|█▉        | 1426/7500 [5:07:43<7:44:46,  4.59s/it] 19%|█▉        | 1427/7500 [5:07:48<7:41:04,  4.56s/it] 19%|█▉        | 1428/7500 [5:07:53<7:50:42,  4.65s/it] 19%|█▉        | 1429/7500 [5:07:57<7:41:59,  4.57s/it] 19%|█▉        | 1430/7500 [5:08:02<7:48:01,  4.63s/it]                                                       {'loss': 0.2996, 'grad_norm': 1.727489709854126, 'learning_rate': 4.734850635442591e-05, 'epoch': 0.57}
+ 19%|█▉        | 1430/7500 [5:08:02<7:48:01,  4.63s/it] 19%|█▉        | 1431/7500 [5:08:06<7:48:35,  4.63s/it] 19%|█▉        | 1432/7500 [5:08:12<8:01:59,  4.77s/it] 19%|█▉        | 1433/7500 [5:08:16<7:40:14,  4.55s/it] 19%|█▉        | 1434/7500 [5:08:20<7:37:54,  4.53s/it] 19%|█▉        | 1435/7500 [5:08:24<7:24:10,  4.39s/it] 19%|█▉        | 1436/7500 [5:08:29<7:36:11,  4.51s/it] 19%|█▉        | 1437/7500 [5:08:33<7:28:41,  4.44s/it] 19%|█▉        | 1438/7500 [5:08:38<7:28:40,  4.44s/it] 19%|█▉        | 1439/7500 [5:08:42<7:37:43,  4.53s/it] 19%|█▉        | 1440/7500 [5:08:47<7:38:35,  4.54s/it]                                                       {'loss': 0.302, 'grad_norm': 2.2671878337860107, 'learning_rate': 4.7298885119428773e-05, 'epoch': 0.58}
+ 19%|█▉        | 1440/7500 [5:08:47<7:38:35,  4.54s/it] 19%|█▉        | 1441/7500 [5:08:51<7:31:15,  4.47s/it] 19%|█▉        | 1442/7500 [5:08:55<7:24:13,  4.40s/it] 19%|█▉        | 1443/7500 [5:09:00<7:29:57,  4.46s/it] 19%|█▉        | 1444/7500 [5:09:04<7:28:50,  4.45s/it] 19%|█▉        | 1445/7500 [5:09:09<7:37:47,  4.54s/it] 19%|█▉        | 1446/7500 [5:09:14<7:36:09,  4.52s/it] 19%|█▉        | 1447/7500 [5:09:18<7:39:33,  4.56s/it] 19%|█▉        | 1448/7500 [5:09:23<7:29:42,  4.46s/it] 19%|█▉        | 1449/7500 [5:09:27<7:26:56,  4.43s/it] 19%|█▉        | 1450/7500 [5:09:31<7:24:42,  4.41s/it]                                                       {'loss': 0.3181, 'grad_norm': 2.811638116836548, 'learning_rate': 4.7248830361121014e-05, 'epoch': 0.58}
+ 19%|█▉        | 1450/7500 [5:09:31<7:24:42,  4.41s/it] 19%|█▉        | 1451/7500 [5:09:36<7:26:05,  4.42s/it] 19%|█▉        | 1452/7500 [5:09:40<7:29:35,  4.46s/it] 19%|█▉        | 1453/7500 [5:09:45<7:27:49,  4.44s/it] 19%|█▉        | 1454/7500 [5:09:50<7:37:49,  4.54s/it] 19%|█▉        | 1455/7500 [5:09:54<7:32:08,  4.49s/it] 19%|█▉        | 1456/7500 [5:09:59<7:45:19,  4.62s/it] 19%|█▉        | 1457/7500 [5:10:03<7:31:33,  4.48s/it] 19%|█▉        | 1458/7500 [5:10:08<7:42:05,  4.59s/it] 19%|█▉        | 1459/7500 [5:10:12<7:29:51,  4.47s/it] 19%|█▉        | 1460/7500 [5:10:17<7:39:48,  4.57s/it]                                                       {'loss': 0.317, 'grad_norm': 2.010298013687134, 'learning_rate': 4.719834305264118e-05, 'epoch': 0.58}
+ 19%|█▉        | 1460/7500 [5:10:17<7:39:48,  4.57s/it] 19%|█▉        | 1461/7500 [5:10:21<7:36:46,  4.54s/it] 19%|█▉        | 1462/7500 [5:10:25<7:25:00,  4.42s/it] 20%|█▉        | 1463/7500 [5:10:30<7:33:10,  4.50s/it] 20%|█▉        | 1464/7500 [5:10:34<7:21:32,  4.39s/it] 20%|█▉        | 1465/7500 [5:10:39<7:31:18,  4.49s/it] 20%|█▉        | 1466/7500 [5:10:44<7:35:39,  4.53s/it] 20%|█▉        | 1467/7500 [5:10:48<7:41:29,  4.59s/it] 20%|█▉        | 1468/7500 [5:10:53<7:42:18,  4.60s/it] 20%|█▉        | 1469/7500 [5:10:57<7:32:43,  4.50s/it] 20%|█▉        | 1470/7500 [5:11:02<7:29:28,  4.47s/it]                                                       {'loss': 0.3092, 'grad_norm': 1.8219311237335205, 'learning_rate': 4.714742417553724e-05, 'epoch': 0.59}
+ 20%|█▉        | 1470/7500 [5:11:02<7:29:28,  4.47s/it] 20%|█▉        | 1471/7500 [5:11:06<7:26:01,  4.44s/it] 20%|█▉        | 1472/7500 [5:11:11<7:39:06,  4.57s/it] 20%|█▉        | 1473/7500 [5:11:15<7:42:05,  4.60s/it] 20%|█▉        | 1474/7500 [5:11:20<7:33:07,  4.51s/it] 20%|█▉        | 1475/7500 [5:11:24<7:24:54,  4.43s/it] 20%|█▉        | 1476/7500 [5:11:29<7:40:54,  4.59s/it] 20%|█▉        | 1477/7500 [5:11:34<7:55:04,  4.73s/it] 20%|█▉        | 1478/7500 [5:11:39<7:55:02,  4.73s/it] 20%|█▉        | 1479/7500 [5:11:43<7:45:13,  4.64s/it] 20%|█▉        | 1480/7500 [5:11:48<7:49:04,  4.68s/it]                                                       {'loss': 0.2976, 'grad_norm': 1.0563747882843018, 'learning_rate': 4.709607471974745e-05, 'epoch': 0.59}
+ 20%|█▉        | 1480/7500 [5:11:48<7:49:04,  4.68s/it] 20%|█▉        | 1481/7500 [5:11:53<7:45:51,  4.64s/it] 20%|█▉        | 1482/7500 [5:11:57<7:43:11,  4.62s/it] 20%|█▉        | 1483/7500 [5:12:01<7:31:48,  4.51s/it] 20%|█▉        | 1484/7500 [5:12:06<7:30:54,  4.50s/it] 20%|█▉        | 1485/7500 [5:12:10<7:31:43,  4.51s/it] 20%|█▉        | 1486/7500 [5:12:15<7:30:06,  4.49s/it] 20%|█▉        | 1487/7500 [5:12:20<7:36:26,  4.55s/it] 20%|█▉        | 1488/7500 [5:12:24<7:36:36,  4.56s/it] 20%|█▉        | 1489/7500 [5:12:28<7:29:34,  4.49s/it] 20%|█▉        | 1490/7500 [5:12:33<7:27:28,  4.47s/it]                                                       {'loss': 0.2271, 'grad_norm': 1.3734277486801147, 'learning_rate': 4.7044295683581215e-05, 'epoch': 0.6}
+ 20%|█▉        | 1490/7500 [5:12:33<7:27:28,  4.47s/it] 20%|█▉        | 1491/7500 [5:12:37<7:33:08,  4.52s/it] 20%|█▉        | 1492/7500 [5:12:42<7:22:42,  4.42s/it] 20%|█▉        | 1493/7500 [5:12:46<7:29:36,  4.49s/it] 20%|█▉        | 1494/7500 [5:12:51<7:34:50,  4.54s/it] 20%|█▉        | 1495/7500 [5:12:56<7:46:23,  4.66s/it] 20%|█▉        | 1496/7500 [5:13:00<7:43:53,  4.64s/it] 20%|█▉        | 1497/7500 [5:13:05<7:33:07,  4.53s/it] 20%|█▉        | 1498/7500 [5:13:10<7:40:25,  4.60s/it] 20%|█▉        | 1499/7500 [5:13:14<7:50:17,  4.70s/it]
+--- Step 1500: Running Validation WER Evaluation ---
+
+Evaluating WER:   0%|          | 0/50 [00:00<?, ?it/s][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:   2%|▏         | 1/50 [00:04<04:04,  5.00s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:   4%|▍         | 2/50 [00:24<10:43, 13.40s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:   6%|▌         | 3/50 [00:46<13:41, 17.47s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:   8%|▊         | 4/50 [00:59<12:07, 15.82s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  10%|█         | 5/50 [01:25<14:24, 19.22s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  12%|█▏        | 6/50 [01:36<12:04, 16.46s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  14%|█▍        | 7/50 [01:56<12:37, 17.63s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  16%|█▌        | 8/50 [01:59<09:12, 13.15s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  18%|█▊        | 9/50 [02:19<10:20, 15.13s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  20%|██        | 10/50 [02:37<10:43, 16.10s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  22%|██▏       | 11/50 [03:24<16:40, 25.64s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  24%|██▍       | 12/50 [03:35<13:16, 20.95s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  26%|██▌       | 13/50 [03:42<10:20, 16.77s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  28%|██▊       | 14/50 [03:54<09:11, 15.32s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  30%|███       | 15/50 [04:01<07:33, 12.96s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  32%|███▏      | 16/50 [04:07<06:02, 10.66s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  34%|███▍      | 17/50 [04:14<05:20,  9.72s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  36%|███▌      | 18/50 [04:26<05:36, 10.50s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  38%|███▊      | 19/50 [04:45<06:40, 12.91s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  40%|████      | 20/50 [04:57<06:23, 12.79s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  42%|████▏     | 21/50 [05:08<05:49, 12.05s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  44%|████▍     | 22/50 [05:24<06:12, 13.29s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  46%|████▌     | 23/50 [05:30<05:01, 11.18s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  48%|████▊     | 24/50 [05:39<04:30, 10.40s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  50%|█████     | 25/50 [05:58<05:23, 12.94s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  52%|█████▏    | 26/50 [06:13<05:25, 13.57s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  54%|█████▍    | 27/50 [06:30<05:35, 14.57s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  56%|█████▌    | 28/50 [06:48<05:44, 15.66s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  58%|█████▊    | 29/50 [06:59<05:01, 14.37s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  60%|██████    | 30/50 [07:16<05:05, 15.25s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  62%|██████▏   | 31/50 [07:44<05:57, 18.80s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  64%|██████▍   | 32/50 [07:52<04:41, 15.64s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  66%|██████▌   | 33/50 [08:04<04:05, 14.47s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  68%|██████▊   | 34/50 [08:11<03:18, 12.43s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  70%|███████   | 35/50 [08:34<03:52, 15.51s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  72%|███████▏  | 36/50 [08:44<03:16, 14.03s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  74%|███████▍  | 37/50 [09:00<03:07, 14.44s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  76%|███████▌  | 38/50 [09:17<03:02, 15.20s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  78%|███████▊  | 39/50 [09:26<02:26, 13.30s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  80%|████████  | 40/50 [09:29<01:42, 10.27s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+Evaluating WER:  82%|████████▏ | 41/50 [09:50<02:00, 13.39s/it][AThe following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
