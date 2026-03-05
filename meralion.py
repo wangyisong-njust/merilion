@@ -64,13 +64,22 @@ def main(args):
     processor = model.processor
 
     # Remove accelerate dispatch hooks for pruning compatibility.
-    # Model is loaded with device_map="auto" (for finetune), but pruning's
-    # dependency graph tracing needs direct .to("cuda") without dispatch hooks.
+    print(f"[DEBUG] hasattr hf_device_map: {hasattr(model.model, 'hf_device_map')}")
+    print(f"[DEBUG] hf_device_map: {getattr(model.model, 'hf_device_map', 'NOT SET')}")
     if hasattr(model.model, 'hf_device_map'):
         from accelerate.hooks import remove_hook_from_submodules
         remove_hook_from_submodules(model.model)
         model.model = model.model.to('cuda')
         print("[FIX] Removed accelerate dispatch hooks, model moved to CUDA for pruning")
+    else:
+        print("[DEBUG] No hf_device_map found, checking model device...")
+        # Check where model params actually are
+        first_param = next(model.model.parameters())
+        print(f"[DEBUG] First param device: {first_param.device}, dtype: {first_param.dtype}")
+
+    # Check embed_tokens device specifically (this is where the error occurs)
+    embed = model.model.text_decoder.base_model.embed_tokens
+    print(f"[DEBUG] embed_tokens weight device: {embed.weight.device}")
 
     print(model.model)
 
@@ -310,7 +319,12 @@ def main(args):
             },
             "root_module_types": None,
             "root_instances": root_instances,
-            "forward_fn": lambda model, example_inputs: model(**example_inputs).logits
+            "forward_fn": lambda model, example_inputs: (
+                print(f"[DEBUG forward_fn] input keys: {list(example_inputs.keys()) if hasattr(example_inputs, 'keys') else type(example_inputs)}") or
+                print(f"[DEBUG forward_fn] input types/devices: { {k: (type(v).__name__, v.device if hasattr(v, 'device') else 'N/A') for k, v in example_inputs.items()} if hasattr(example_inputs, 'items') else 'not dict'}") or
+                print(f"[DEBUG forward_fn] embed weight device: {model.text_decoder.base_model.embed_tokens.weight.device}") or
+                model(**example_inputs).logits
+            )
         }
         logger.log("Pruning Text Attention (ratio={}) Layer = {}".format(text_attn_ratio, list(range(args.block_attention_layer_start, args.block_attention_layer_end))))
         logger.log("Pruning Text MLP (ratio={}) Layer = {}".format(text_mlp_ratio, list(range(args.block_mlp_layer_start, args.block_mlp_layer_end))))
