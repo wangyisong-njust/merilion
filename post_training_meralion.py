@@ -333,7 +333,8 @@ def main(args):
         ds_list = [p1.shuffle(seed=42).select(range(10000)),
                    p3.shuffle(seed=42).select(range(10000))]
         _train = concatenate_datasets(ds_list).shuffle(seed=42)
-        _eval = Dataset("imda_part3_30s_asr_test", nsamples).raw_data.shuffle(seed=42).select(range(500))
+        # Load eval from local disk (avoid HuggingFace download which fails without internet)
+        _eval = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART3_conv_en_30_ASR").shuffle(seed=42).select(range(500))
 
         # Save cache
         os.makedirs(CACHE_DIR, exist_ok=True)
