@@ -335,8 +335,8 @@ def main(args):
         ds_list = [p1.shuffle(seed=42).select(range(10000)),
                    p3.shuffle(seed=42).select(range(10000))]
         _train = concatenate_datasets(ds_list).shuffle(seed=42)
-        # Load eval from local disk (avoid HuggingFace download which fails without internet)
-        _eval = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART3_conv_en_30_ASR").shuffle(seed=42).select(range(500))
+        # Eval from PART1 (matches baseline evaluation for fair WER comparison)
+        _eval = p1.shuffle(seed=42).select(range(10000, 10500))  # 500 samples after training split
 
         # Save cache
         os.makedirs(CACHE_DIR, exist_ok=True)
@@ -816,71 +816,76 @@ def main(args):
     # Save final model (best WER version)
     trainer.save_model(args.output_dir)
 
-    # eval with test dataset
+    # Final WER evaluation on PART1 test set (local, no internet needed)
     peft_model.eval()
-    model.model = peft_model
-    nsamples = -1
-    dataset = Dataset(DATASET_ID_TEST, nsamples)
-    model.dataset_name = dataset.dataset_name
-    file_save_folder = 'audiobench_log_for_all_models'
-    batch_size = 1
-    model_name = args.base_model
-    dataset_name = DATASET_ID_TEST
-    metrics = "wer"
+    wer_metric = evaluate.load("wer")
 
-    def do_model_prediction(input_data, model, batch_size):
+    print("\n" + "="*50)
+    print("Final WER Evaluation on IMDA PART1")
+    print("="*50)
 
-        if batch_size not in [1, -1]:
-            raise NotImplementedError("Batch size {} not implemented yet".format(batch_size))
-        
-        if batch_size == -1:
-            model_predictions = model.generate(input_data)
-        
-        else:
-            model_predictions = []
-            for inputs in tqdm.tqdm(input_data, leave=False):
-                outputs = model.generate(inputs)
-                if isinstance(outputs, list):
-                    model_predictions.extend(outputs)
-                else:
-                    model_predictions.append(outputs)
-                    
-        return model_predictions
+    test_data = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR")
+    # Use samples 10500+ to avoid overlap with train (0-10000) and val (10000-10500)
+    test_subset = test_data.shuffle(seed=42).select(range(10500, 11000))
 
-    # Infer with model
+    predictions = []
+    references = []
+
     st = time.time()
-    model_predictions           = do_model_prediction(dataset.input_data, model, batch_size=batch_size)
+    with torch.no_grad():
+        for sample in tqdm.tqdm(test_subset, desc="Final WER eval"):
+            audio_array = sample["context"]["audio"]["array"]
+            instruction = sample["instruction"]["text"] if isinstance(sample["instruction"], dict) else sample["instruction"]
+            ref = sample["other_attributes"]["Transcription"]
+
+            audio_array = np.asarray(audio_array, dtype=np.float32)
+            if audio_array.ndim == 2:
+                audio_array = audio_array.mean(axis=-1)
+            if len(audio_array) / 16000 < 1:
+                audio_array = np.pad(audio_array, (0, 16000), 'constant')
+
+            prompt = "Instruction: {instruction} \nFollow the text instruction based on the following audio: <SpeechHere>"
+            conversation = [{"role": "user", "content": prompt.format(instruction=instruction)}]
+            chat_prompt = processor.tokenizer.apply_chat_template(conversation, tokenize=False, add_generation_prompt=True)
+
+            inputs = processor(text=chat_prompt, audios=audio_array, return_tensors="pt")
+            device = next(peft_model.parameters()).device
+            for k in inputs:
+                if isinstance(inputs[k], torch.Tensor):
+                    inputs[k] = inputs[k].to(device)
+                    if inputs[k].dtype == torch.float32:
+                        inputs[k] = inputs[k].to(torch.bfloat16)
+
+            model_outputs = peft_model.generate(**inputs, max_new_tokens=256, do_sample=False, num_beams=1)
+            input_len = inputs['input_ids'].shape[1]
+            generated_ids = model_outputs[:, input_len:]
+            pred = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+            pred = pred.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
+
+            predictions.append(pred)
+            references.append(ref)
+
     et = time.time()
-    print("50 samples took:", et-st, "s")
-    data_with_model_predictions = dataset.dataset_processor.format_model_predictions(dataset.input_data, model_predictions)
-    # input("inference ended")
+    final_wer = wer_metric.compute(predictions=predictions, references=references)
+    print(f"\n500 samples took: {et-st:.1f}s")
+    print(f"Final Test WER (IMDA PART1): {final_wer:.4f}")
+    print("="*50)
 
-    # Save the result with predictions
-    model_name = args.wandb_project
-    os.makedirs(f'{file_save_folder}/{model_name}', exist_ok=True)
-    with open(f'{file_save_folder}/{model_name}/{dataset_name}.json', 'w') as f:
-        json.dump(data_with_model_predictions, f, indent=4, ensure_ascii=False)
-    
-    data_with_model_predictions = json.load(open(f'{file_save_folder}/{model_name}/{dataset_name}.json'))
-    results = dataset.dataset_processor.compute_score(data_with_model_predictions, metrics=metrics)
-    with open(f'{file_save_folder}/{model_name}/{dataset_name}_{metrics}_score.json', 'w') as f:
-        json.dump(results, f, indent=4, ensure_ascii=False)
+    # Save results
+    results_dir = os.path.join(args.output_dir, "final_eval")
+    os.makedirs(results_dir, exist_ok=True)
+    with open(os.path.join(results_dir, "final_wer.json"), 'w') as f:
+        json.dump({
+            "wer": final_wer,
+            "num_samples": len(predictions),
+            "dataset": "IMDA_PART1_mono_en_30_ASR",
+            "base_model": args.base_model,
+        }, f, indent=2)
 
-    # Take only the first 100 samples for record.
-    if 'details' in results:
-        results['details'] = results['details'][:20]
-
-    # Print the result with metrics
-    print('=  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =')
-    print('Dataset name: {}'.format(dataset_name.upper()))
-    print('Model name: {}'.format(model_name.upper()))
-    print(json.dumps({metrics: results[metrics]}, indent=4, ensure_ascii=False))
-    print('=  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =')
-
-    # Save the scores
-    with open(f'{file_save_folder}/{model_name}/{dataset_name}_{metrics}_score.json', 'w') as f:
-        json.dump(results, f, indent=4, ensure_ascii=False)
-    # input("Eval complete")
+    # Save per-sample details
+    details = [{"prediction": p, "reference": r} for p, r in zip(predictions[:20], references[:20])]
+    with open(os.path.join(results_dir, "final_wer_samples.json"), 'w') as f:
+        json.dump(details, f, indent=2, ensure_ascii=False)
 
     from LLMPruner.evaluator.ppl import PPLMetric
     model.half()

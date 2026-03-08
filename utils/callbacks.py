@@ -1,116 +1,128 @@
 import torch
+import numpy as np
 from transformers import TrainerCallback
 import evaluate
 import tqdm
 import json
 import os
 
+
 class WEREvalCallback(TrainerCallback):
+    """
+    WER evaluation callback that runs inference directly (no audiobench dependency).
+    Ensures consistent dtype handling and reference format.
+    """
     def __init__(self, eval_dataset, processor, model_wrapper, log_file, eval_steps=100, num_samples=50):
         self.eval_dataset = eval_dataset
         self.processor = processor
-        self.model_wrapper = model_wrapper # This is the 'Model' object from audiobench
+        self.model_wrapper = model_wrapper
         self.log_file = log_file
         self.eval_steps = eval_steps
         self.num_samples = num_samples
         self.wer_metric = evaluate.load("wer")
         self.best_wer = float('inf')
 
+    def _do_inference(self, model, audio_array, instruction):
+        """Run inference directly, bypassing audiobench to avoid dtype/device bugs."""
+        # Ensure audio is 1D float32 numpy
+        if not isinstance(audio_array, np.ndarray):
+            audio_array = np.asarray(audio_array, dtype=np.float32)
+        if audio_array.ndim == 2:
+            audio_array = audio_array.mean(axis=-1) if audio_array.shape[-1] < audio_array.shape[0] else audio_array.mean(axis=0)
+        audio_array = audio_array.astype(np.float32, copy=False)
+
+        prompt = "Instruction: {instruction} \nFollow the text instruction based on the following audio: <SpeechHere>"
+        conversation = [{"role": "user", "content": prompt.format(instruction=instruction)}]
+        chat_prompt = self.processor.tokenizer.apply_chat_template(
+            conversation, tokenize=False, add_generation_prompt=True
+        )
+
+        inputs = self.processor(text=chat_prompt, audios=audio_array, return_tensors="pt")
+        # Move all tensors to model device with correct dtype
+        device = next(model.parameters()).device
+        for k in inputs:
+            if isinstance(inputs[k], torch.Tensor):
+                inputs[k] = inputs[k].to(device)
+                if inputs[k].dtype == torch.float32:
+                    inputs[k] = inputs[k].to(torch.bfloat16)
+
+        model_outputs = model.generate(**inputs, max_new_tokens=256, do_sample=False, num_beams=1)
+        input_len = inputs['input_ids'].shape[1]
+        generated_ids = model_outputs[:, input_len:]
+        response = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        # Strip speaker tags to match reference format
+        response = response.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
+        return response
+
     def on_step_end(self, args, state, control, **kwargs):
         if state.global_step > 0 and state.global_step % self.eval_steps == 0:
             print(f"\n--- Step {state.global_step}: Running Validation WER Evaluation ---")
-            
-            # Use the current PEFT model for inference
+
             current_model = kwargs['model']
             current_model.eval()
-            
-            # Temporarily replace the model in the wrapper to use its generate method
-            original_model = self.model_wrapper.model
-            self.model_wrapper.model = current_model
-            
+
             predictions = []
             references = []
-            
-            # Select a subset for quick evaluation
-            eval_subset = self.eval_dataset.shuffle(seed=42).select(range(min(self.num_samples, len(self.eval_dataset))))
-            
-            # Prepare data
-            input_data = []
-            for sample in eval_subset:
-                # Must match preprocess_keep_raw logic exactly
-                if 'context' in sample:
-                    ctx = sample['context']
-                    if 'audio' in ctx:
-                        # Official IMDA format: context.audio.array
-                        audio_array = ctx['audio']['array']
-                        sr = ctx['audio']['sampling_rate']
+
+            eval_subset = self.eval_dataset.shuffle(seed=42).select(
+                range(min(self.num_samples, len(self.eval_dataset)))
+            )
+
+            with torch.no_grad():
+                for sample in tqdm.tqdm(eval_subset, desc="Evaluating WER"):
+                    # Extract audio
+                    if 'context' in sample:
+                        ctx = sample['context']
+                        if 'audio' in ctx:
+                            audio_array = ctx['audio']['array']
+                        else:
+                            audio_array = ctx['array']
                     else:
-                        # Alternative format: context.array
-                        audio_array = ctx['array']
-                        sr = ctx['sampling_rate']
-                else:
-                    audio_array = sample['audio_array']
-                    sr = sample['sampling_rate']
+                        audio_array = sample['audio_array']
 
-                instruction = sample['instruction']['text'] if isinstance(sample['instruction'], dict) else sample['instruction']
+                    instruction = sample['instruction']['text'] if isinstance(sample['instruction'], dict) else sample['instruction']
 
-                # Match answer extraction from preprocess_keep_raw
-                if 'other_attributes' in sample:
-                    oa = sample['other_attributes']
-                    if oa.get('partition') == 'PART1':
-                        ref = "<Speaker1>: " + oa['Transcription']
-                    elif oa.get('partition') == 'PART3':
-                        ref = oa['transcription']
+                    # Extract reference — always use RAW transcription without <Speaker1>: prefix
+                    # (generate() strips it, so reference must match)
+                    if 'other_attributes' in sample:
+                        oa = sample['other_attributes']
+                        if oa.get('partition') == 'PART1':
+                            ref = oa['Transcription']
+                        elif oa.get('partition') == 'PART3':
+                            ref = oa['transcription']
+                        else:
+                            ref = sample.get('answer', "Unknown")
                     else:
                         ref = sample.get('answer', "Unknown")
-                else:
-                    ref = sample.get('answer', "Unknown")
-                
-                input_data.append({
-                    "audio": {"array": audio_array, "sampling_rate": sr},
-                    "instruction": instruction,
-                    "task_type": "ASR",
-                    "reference": ref
-                })
-                references.append(ref)
 
-            # Run inference
-            with torch.no_grad():
-                for item in tqdm.tqdm(input_data, desc="Evaluating WER"):
-                    pred = self.model_wrapper.generate(item)
+                    pred = self._do_inference(current_model, audio_array, instruction)
                     predictions.append(pred)
+                    references.append(ref)
 
             wer = self.wer_metric.compute(predictions=predictions, references=references)
             print(f"Step {state.global_step} Validation WER: {wer:.4f}")
-            
-            # Log results
+
             os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
             with open(self.log_file, "a") as f:
                 f.write(json.dumps({"step": state.global_step, "wer": wer}) + "\n")
-            
-            # Save logic to save disk space
+
             output_dir = args.output_dir
-            
-            # 1. Always save latest for resumption (overwrite previous latest)
+
             latest_dir = os.path.join(output_dir, "latest_model")
             print(f"Saving latest model to {latest_dir}...")
             current_model.save_pretrained(latest_dir)
             self.processor.save_pretrained(latest_dir)
 
-            # 2. Only save best model if WER improves
             if wer < self.best_wer:
                 self.best_wer = wer
                 best_dir = os.path.join(output_dir, "best_model")
                 print(f"New Best WER: {wer:.4f}! Saving best model to {best_dir}...")
                 current_model.save_pretrained(best_dir)
                 self.processor.save_pretrained(best_dir)
-                
-                # Also write a simple txt to track which step this was
+
                 with open(os.path.join(best_dir, "best_step.txt"), "w") as f:
                     f.write(f"Step: {state.global_step}\nWER: {wer:.4f}")
-            
-            # Restore model and training state
-            self.model_wrapper.model = original_model
+
             current_model.train()
 
         return control
