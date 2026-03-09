@@ -623,7 +623,7 @@ def main(args):
             warmup_ratio=0.05,
             logging_steps=10,
             eval_strategy="steps",
-            eval_steps=100,
+            eval_steps=400,
             save_strategy="no",
 
             # Precision
