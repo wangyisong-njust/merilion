@@ -23,11 +23,13 @@ logging.basicConfig(
 
 
 def meralion_2_pruned_model_loader(self):
-    model_path = self.model_name
+    # Strip "-pruned" suffix to get actual model directory name
+    actual_name = self.model_name.replace("-pruned", "")
+    model_path = actual_name
     if not os.path.exists(model_path):
         possible_paths = [
-            os.path.join("/home/jinchao/runtao/LLM-Pruner/meralion_checkpoints", self.model_name),
-            os.path.join("/home/jinchao/runtao/LLM_base_model", self.model_name),
+            os.path.join("/home/jinchao/runtao/LLM-Pruner/meralion_checkpoints", actual_name),
+            os.path.join("/home/jinchao/runtao/LLM_base_model", actual_name),
         ]
         for p in possible_paths:
             if os.path.exists(p):
