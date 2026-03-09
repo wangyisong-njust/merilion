@@ -107,11 +107,10 @@ def merge_base_and_lora_weight(args):
     
     if args.save_path is not None:
         os.makedirs(args.save_path, exist_ok=True)
-        # torch.save(model.base_model.model, args.save_path)
         print(model)
-        # if hasattr(model, 'base_model'):
-        #     model.base_model.save_pretrained(args.save_path)
-        # else:
+        # Fix generation_config conflict: use_cache=False + cache_implementation="hybrid"
+        if hasattr(model, 'generation_config'):
+            model.generation_config.use_cache = True
         model.save_pretrained(args.save_path)
         processor.save_pretrained(args.save_path)
     
