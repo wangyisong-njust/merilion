@@ -1,10 +1,32 @@
 import torch
 import numpy as np
+import re
 from transformers import TrainerCallback
 import evaluate
 import tqdm
 import json
 import os
+from jiwer import wer as jiwer_wer
+
+# Lightweight text normalization (matches vllm_inference preprocess_text_asr logic)
+def _normalize_text_for_wer(text):
+    """Normalize text for WER: lowercase, remove punctuation/brackets, strip speaker tags."""
+    if not isinstance(text, str):
+        text = str(text)
+    # Strip speaker tags
+    text = text.replace("<Speaker1>:", "").replace("<Speaker2>:", "")
+    # Lowercase
+    text = text.lower()
+    # Remove content in brackets
+    text = re.sub(r'\[.*?\]', ' ', text)
+    text = re.sub(r'\(.*?\)', ' ', text)
+    text = re.sub(r'\{.*?\}', ' ', text)
+    text = re.sub(r'<.*?>', ' ', text)
+    # Remove punctuation
+    text = re.sub(r"[^\w\s']", ' ', text)
+    # Collapse whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
 
 
 class WEREvalCallback(TrainerCallback):
@@ -96,9 +118,15 @@ class WEREvalCallback(TrainerCallback):
                         ref = sample.get('answer', "Unknown")
 
                     pred = self._do_inference(current_model, audio_array, instruction)
-                    predictions.append(pred)
-                    references.append(ref)
+                    predictions.append(_normalize_text_for_wer(pred))
+                    references.append(_normalize_text_for_wer(ref))
 
+            # Filter out empty pairs
+            valid = [(p, r) for p, r in zip(predictions, references) if r.strip()]
+            if valid:
+                predictions, references = zip(*valid)
+                predictions = list(predictions)
+                references = list(references)
             wer = self.wer_metric.compute(predictions=predictions, references=references)
             print(f"Step {state.global_step} Validation WER: {wer:.4f}")
 
