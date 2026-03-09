@@ -137,8 +137,8 @@ class Dataset(object):
         elif self.dataset_name == 'muchomusic_test': 
             self.raw_data = load_dataset("AudioLLMs/mu_chomusic_test")['test']
 
-        elif self.dataset_name == 'imda_part1_asr_test': 
-            self.raw_data = load_dataset('MERaLiON/Multitask-National-Speech-Corpus-v1', data_dir='ASR-PART1-Test')['train']
+        elif self.dataset_name == 'imda_part1_asr_test':
+            self.raw_data = load_from_disk('/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR')
 
         elif self.dataset_name == 'imda_part2_asr_test': 
             self.raw_data = load_dataset('MERaLiON/Multitask-National-Speech-Corpus-v1', data_dir='ASR-PART2-Test')['train']
