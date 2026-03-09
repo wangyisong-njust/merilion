@@ -138,7 +138,10 @@ class Dataset(object):
             self.raw_data = load_dataset("AudioLLMs/mu_chomusic_test")['test']
 
         elif self.dataset_name == 'imda_part1_asr_test':
-            self.raw_data = load_from_disk('/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR')
+            # Full dataset has 2.2M samples. Training used shuffle(seed=42) indices 0-10000,
+            # val 10000-10500, callback test 10500-11000. We use 11000-16000 as eval test set.
+            _full = load_from_disk('/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR')
+            self.raw_data = _full.shuffle(seed=42).select(range(11000, 16000))
 
         elif self.dataset_name == 'imda_part2_asr_test': 
             self.raw_data = load_dataset('MERaLiON/Multitask-National-Speech-Corpus-v1', data_dir='ASR-PART2-Test')['train']
