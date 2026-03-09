@@ -43,7 +43,7 @@ def meralion_2_pruned_model_loader(self):
         model_path,
         use_safetensors=True,
         trust_remote_code=True,
-        attn_implementation="flash_attention_2",
+        attn_implementation="sdpa",
         device_map="cuda",
         torch_dtype=torch.bfloat16,
     )
