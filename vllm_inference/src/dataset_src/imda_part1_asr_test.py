@@ -24,8 +24,20 @@ class imda_part1_asr_test_dataset(object):
 
         input_data = []
         for sample in self.raw_data:
-            audio       = sample['context']
-            reference   = sample['answer']
+            # Local dataset has nested structure: context={text, audio={array, sampling_rate}}
+            # Flatten to match expected format: audio={array, sampling_rate}
+            context = sample['context']
+            if isinstance(context, dict) and 'audio' in context:
+                audio = context['audio']  # {path, array, sampling_rate}
+            else:
+                audio = context
+
+            answer = sample['answer']
+            if isinstance(answer, dict) and 'text' in answer:
+                reference = answer['text']  # strip nested structure
+            else:
+                reference = answer
+
             instruction = random.choice(self.prompt)
             input_data.append({
                                 "audio"      : audio,
@@ -61,7 +73,11 @@ class imda_part1_asr_test_dataset(object):
         references  = []
         for item in data_with_model_predictions:
             model_prediction = preprocess_text_asr(item["model_prediction"])
-            answer           = preprocess_text_asr(item["reference"])
+            ref_text = item["reference"]
+            # Strip <Speaker1>: prefix from local dataset references
+            if isinstance(ref_text, str):
+                ref_text = ref_text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
+            answer = preprocess_text_asr(ref_text)
 
             if len(model_prediction) == 0: model_prediction = "empty"
             if len(answer) == 0: answer = "empty"
