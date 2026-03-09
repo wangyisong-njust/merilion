@@ -444,7 +444,7 @@ def main(args):
         processor=processor,
         model_wrapper=model,
         log_file=os.path.join(args.output_dir, "validation_wer.jsonl"),
-        eval_steps=100,
+        eval_steps=400,
         num_samples=50
     )
     # test_ds  = test_dataset.map(preprocess_keep_raw,  remove_columns=test_dataset.column_names)
