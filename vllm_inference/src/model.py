@@ -62,6 +62,10 @@ class Model(object):
             from model_src.meralion_2 import meralion_2_model_loader
             meralion_2_model_loader(self)
 
+        elif 'MERaLiON-2-3B' in self.model_name and 'pruned' in self.model_name:
+            from model_src.meralion_2_pruned import meralion_2_pruned_model_loader
+            meralion_2_pruned_model_loader(self)
+
         elif 'MERaLiON-2-3B' in self.model_name:
             from model_src.meralion_2_vllm import meralion_2_model_loader
             meralion_2_model_loader(self)
@@ -145,6 +149,10 @@ class Model(object):
                 from model_src.meralion_2 import meralion_2_model_generation
                 return meralion_2_model_generation(self, input)
             
+            elif 'MERaLiON-2-3B' in self.model_name and 'pruned' in self.model_name:
+                from model_src.meralion_2_pruned import meralion_2_pruned_model_generation
+                return meralion_2_pruned_model_generation(self, input)
+
             elif 'MERaLiON-2-3B' in self.model_name:
                 from model_src.meralion_2_vllm import meralion_2_model_generation
                 return meralion_2_model_generation(self, input)
