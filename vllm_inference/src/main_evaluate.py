@@ -106,15 +106,70 @@ def main(
         
         torch.cuda.synchronize()
         end = time.time()
-        print("Inference took:", (end - start), "s")
-        
+        inference_time = end - start
+        num_samples = len(dataset.input_data)
+        print("Inference took:", inference_time, "s")
+        print(f"Throughput: {num_samples / inference_time:.2f} samples/sec")
+        print(f"Avg latency: {inference_time / num_samples:.3f} sec/sample")
+
+        # RTF (Real-Time Factor) for ASR: processing_time / total_audio_duration
+        total_audio_duration = 0
+        for sample in dataset.input_data:
+            audio = sample.get("audio", {})
+            if isinstance(audio, dict) and "array" in audio and "sampling_rate" in audio:
+                total_audio_duration += len(audio["array"]) / audio["sampling_rate"]
+        if total_audio_duration > 0:
+            rtf = inference_time / total_audio_duration
+            print(f"Total audio duration: {total_audio_duration:.1f} s")
+            print(f"RTF (Real-Time Factor): {rtf:.4f}  (<1 = faster than real-time)")
+
+        # Model size on disk
+        model_path = getattr(model, 'model_name', model_name)
+        possible_paths = [
+            model_path,
+            os.path.join("/home/jinchao/runtao/LLM-Pruner/meralion_checkpoints", model_name),
+            os.path.join("/home/jinchao/runtao/LLM_base_model", model_name),
+        ]
+        for p in possible_paths:
+            if os.path.exists(p) and os.path.isdir(p):
+                total_size = sum(
+                    os.path.getsize(os.path.join(p, f))
+                    for f in os.listdir(p)
+                    if f.endswith(('.safetensors', '.bin'))
+                )
+                print(f"Model file size: {total_size / 1024**3:.2f} GiB")
+                break
+
+        # Parameter count
+        param_count = sum(
+            os.path.getsize(os.path.join(p, f))
+            for f in os.listdir(p)
+            if f.endswith(('.safetensors', '.bin'))
+        ) if os.path.exists(p) else 0
+
+        # Save speed metrics alongside results
+        speed_metrics = {
+            "inference_time_s": round(inference_time, 2),
+            "num_samples": num_samples,
+            "throughput_samples_per_sec": round(num_samples / inference_time, 4),
+            "avg_latency_sec": round(inference_time / num_samples, 4),
+            "model_name": model_name,
+        }
+        if total_audio_duration > 0:
+            speed_metrics["total_audio_duration_s"] = round(total_audio_duration, 2)
+            speed_metrics["rtf"] = round(rtf, 4)
+
         data_with_model_predictions = dataset.dataset_processor.format_model_predictions(dataset.input_data, model_predictions)
 
         # Save the result with predictions
         os.makedirs(f'{file_save_folder}/{model_name}', exist_ok=True)
         with open(f'{file_save_folder}/{model_name}/{dataset_name}.json', 'w') as f:
             json.dump(data_with_model_predictions, f, indent=4, ensure_ascii=False)
-        # input("Eval complete")
+
+        # Save speed metrics
+        with open(f'{file_save_folder}/{model_name}/{dataset_name}_speed_metrics.json', 'w') as f:
+            json.dump(speed_metrics, f, indent=2)
+        print(f"Speed metrics saved to {file_save_folder}/{model_name}/{dataset_name}_speed_metrics.json")
 
     data_with_model_predictions = json.load(open(f'{file_save_folder}/{model_name}/{dataset_name}.json'))
 

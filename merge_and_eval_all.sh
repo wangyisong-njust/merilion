@@ -125,13 +125,30 @@ echo "All experiments complete!"
 echo "=========================================="
 echo ""
 echo "Results summary:"
+printf "%-25s %-10s %-15s %-12s %-8s\n" "Experiment" "WER" "Throughput" "Latency" "RTF"
+printf "%-25s %-10s %-15s %-12s %-8s\n" "----------" "---" "----------" "-------" "---"
 for ENTRY in "${EXPERIMENTS[@]}"; do
     NAME="${ENTRY%%:*}"
-    SCORE_FILE="${VLLM_DIR}/log_for_all_models/MERaLiON-2-3B-${NAME}-merged/imda_part1_asr_test_wer_score.json"
-    if [ -f "$SCORE_FILE" ]; then
+    MODEL_DIR="${VLLM_DIR}/log_for_all_models/MERaLiON-2-3B-${NAME}-merged"
+    SCORE_FILE="${MODEL_DIR}/imda_part1_asr_test_wer_score.json"
+    SPEED_FILE="${MODEL_DIR}/imda_part1_asr_test_speed_metrics.json"
+    if [ -f "$SCORE_FILE" ] && [ -f "$SPEED_FILE" ]; then
+        ROW=$(python3 -c "
+import json
+s = json.load(open('${SCORE_FILE}'))
+m = json.load(open('${SPEED_FILE}'))
+wer = f\"{s['wer']:.5f}\"
+tp = f\"{m['throughput_samples_per_sec']:.2f} s/s\"
+lat = f\"{m['avg_latency_sec']:.3f} s\"
+rtf = f\"{m.get('rtf', 'N/A')}\"
+print(f'${NAME}|{wer}|{tp}|{lat}|{rtf}')
+")
+        IFS='|' read -r c1 c2 c3 c4 c5 <<< "$ROW"
+        printf "%-25s %-10s %-15s %-12s %-8s\n" "$c1" "$c2" "$c3" "$c4" "$c5"
+    elif [ -f "$SCORE_FILE" ]; then
         WER=$(python3 -c "import json; print(f'{json.load(open(\"${SCORE_FILE}\"))[\"wer\"]:.5f}')")
-        echo "  ${NAME}: WER = ${WER}"
+        printf "%-25s %-10s %-15s %-12s %-8s\n" "$NAME" "$WER" "N/A" "N/A" "N/A"
     else
-        echo "  ${NAME}: (no result)"
+        printf "%-25s %-10s %-15s %-12s %-8s\n" "$NAME" "(no result)" "" "" ""
     fi
 done
