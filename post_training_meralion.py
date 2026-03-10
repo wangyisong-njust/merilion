@@ -888,9 +888,9 @@ def main(args):
         json.dump(details, f, indent=2, ensure_ascii=False)
 
     from LLMPruner.evaluator.ppl import PPLMetric
-    model.half()
-    # ppl = PPLMetric(model, processor.tokenizer, ['wikitext2', 'ptb'], args.max_seq_len, device="cuda")
-    ppl = PPLMetric(model, processor.tokenizer, ["c4"], args.max_seq_len, device="cuda") 
+    model.model.half()
+    # ppl = PPLMetric(model.model, processor.tokenizer, ['wikitext2', 'ptb'], args.max_seq_len, device="cuda")
+    ppl = PPLMetric(model.model, processor.tokenizer, ["c4"], args.max_seq_len, device="cuda")
     print("PPL after pruning: {}".format(ppl))
     print("Memory Requirement: {} MiB\n".format(torch.cuda.memory_allocated()/1024/1024))
 
