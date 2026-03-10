@@ -108,11 +108,14 @@ def fix_config_for_vllm(save_path):
     changed = False
 
     # --- Fix text_config (Gemma2 text decoder) ---
+    # IMPORTANT: key matching must use 'text_decoder' prefix to avoid mixing up
+    # with speech_encoder keys (e.g., Whisper's k_proj has d_model=1280 which
+    # would be wrongly interpreted as 5 KV heads if matched for text decoder).
     text_config = config.get("text_config", {})
 
     # MLP: intermediate_size from gate_proj [intermediate_size, hidden_size]
     for key, shape in weight_shapes.items():
-        if '.layers.0.mlp.gate_proj.weight' in key:
+        if 'text_decoder' in key and '.layers.0.mlp.gate_proj.weight' in key:
             actual = shape[0]
             orig = text_config.get('intermediate_size')
             if orig and actual != orig:
@@ -124,7 +127,7 @@ def fix_config_for_vllm(save_path):
     # Attention: num_attention_heads from q_proj [num_heads*head_dim, hidden_size]
     head_dim = text_config.get('head_dim', 256)
     for key, shape in weight_shapes.items():
-        if '.layers.0.self_attn.q_proj.weight' in key:
+        if 'text_decoder' in key and '.layers.0.self_attn.q_proj.weight' in key:
             actual_q = shape[0]
             if actual_q % head_dim == 0:
                 actual_heads = actual_q // head_dim
@@ -139,7 +142,7 @@ def fix_config_for_vllm(save_path):
 
     # KV heads from k_proj [num_kv_heads*head_dim, hidden_size]
     for key, shape in weight_shapes.items():
-        if '.layers.0.self_attn.k_proj.weight' in key:
+        if 'text_decoder' in key and '.layers.0.self_attn.k_proj.weight' in key:
             actual_k = shape[0]
             if actual_k % head_dim == 0:
                 actual_kv = actual_k // head_dim
@@ -165,7 +168,7 @@ def fix_config_for_vllm(save_path):
 
     # Whisper MLP: encoder_ffn_dim from fc1 [encoder_ffn_dim, d_model]
     for key, shape in weight_shapes.items():
-        if '.encoder.layers.0.fc1.weight' in key:
+        if 'speech_encoder' in key and '.encoder.layers.0.fc1.weight' in key:
             actual_ffn = shape[0]
             orig_ffn = speech_config.get('encoder_ffn_dim')
             if orig_ffn and actual_ffn != orig_ffn:
@@ -176,7 +179,7 @@ def fix_config_for_vllm(save_path):
 
     # Whisper attention: d_model from q_proj [d_model, d_model]
     for key, shape in weight_shapes.items():
-        if '.encoder.layers.0.self_attn.q_proj.weight' in key:
+        if 'speech_encoder' in key and '.encoder.layers.0.self_attn.q_proj.weight' in key:
             actual_d = shape[0]
             orig_d = speech_config.get('d_model')
             if orig_d and actual_d != orig_d:
