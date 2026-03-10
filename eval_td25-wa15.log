@@ -1,0 +1,1260 @@
+[td25-wa15] Merging...
+/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+The following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+The following generation flags are not valid and may be ignored: ['cache_implementation']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Gemma2Config {
+  "_attn_implementation_autoset": true,
+  "architectures": [
+    "Gemma2ForCausalLM"
+  ],
+  "attention_bias": false,
+  "attention_dropout": 0.0,
+  "attn_logit_softcapping": 50.0,
+  "bos_token_id": 2,
+  "cache_implementation": "hybrid",
+  "eos_token_id": 1,
+  "final_logit_softcapping": 30.0,
+  "head_dim": 256,
+  "hidden_act": "gelu_pytorch_tanh",
+  "hidden_activation": "gelu_pytorch_tanh",
+  "hidden_size": 2304,
+  "initializer_range": 0.02,
+  "intermediate_size": 9216,
+  "max_position_embeddings": 8192,
+  "midblock_end": 23,
+  "midblock_ratio": 0.75,
+  "midblock_start": 4,
+  "model_type": "gemma2",
+  "num_attention_heads": 8,
+  "num_hidden_layers": 26,
+  "num_key_value_heads": 4,
+  "pad_token_id": 0,
+  "query_pre_attn_scalar": 256,
+  "rms_norm_eps": 1e-06,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "text_mlp_midblock_ratio": 0.75,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.54.0",
+  "use_cache": false,
+  "vocab_size": 256000
+}
+
+Loading state dict from meralion_checkpoints/MERaLiON-2-3B-td25-wa15 to detect pruned shapes...
+Resizing speech_encoder.layers.4 Attn: 1280->1088
+Resizing speech_encoder.layers.5 Attn: 1280->1088
+Resizing speech_encoder.layers.6 Attn: 1280->1088
+Resizing speech_encoder.layers.7 Attn: 1280->1088
+Resizing speech_encoder.layers.8 Attn: 1280->1088
+Resizing speech_encoder.layers.9 Attn: 1280->1088
+Resizing speech_encoder.layers.10 Attn: 1280->1088
+Resizing speech_encoder.layers.11 Attn: 1280->1088
+Resizing speech_encoder.layers.12 Attn: 1280->1088
+Resizing speech_encoder.layers.13 Attn: 1280->1088
+Resizing speech_encoder.layers.14 Attn: 1280->1088
+Resizing speech_encoder.layers.15 Attn: 1280->1088
+Resizing speech_encoder.layers.16 Attn: 1280->1088
+Resizing speech_encoder.layers.17 Attn: 1280->1088
+Resizing speech_encoder.layers.18 Attn: 1280->1088
+Resizing speech_encoder.layers.19 Attn: 1280->1088
+Resizing speech_encoder.layers.20 Attn: 1280->1088
+Resizing speech_encoder.layers.21 Attn: 1280->1088
+Resizing speech_encoder.layers.22 Attn: 1280->1088
+Resizing speech_encoder.layers.23 Attn: 1280->1088
+Resizing speech_encoder.layers.24 Attn: 1280->1088
+Resizing speech_encoder.layers.25 Attn: 1280->1088
+Resizing speech_encoder.layers.26 Attn: 1280->1088
+Resizing speech_encoder.layers.27 Attn: 1280->1088
+Loading weights into resized layers...
+Load state dict result: _IncompatibleKeys(missing_keys=['text_decoder.lm_head.weight'], unexpected_keys=[])
+Tying lm_head weights to embed_tokens...
+MERaLiON2ForConditionalGeneration(
+  (speech_encoder): WhisperEncoder(
+    (conv1): Conv1d(128, 1280, kernel_size=(3,), stride=(1,), padding=(1,))
+    (conv2): Conv1d(1280, 1280, kernel_size=(3,), stride=(2,), padding=(1,))
+    (embed_positions): Embedding(1500, 1280)
+    (layers): ModuleList(
+      (0-3): 4 x WhisperEncoderLayer(
+        (self_attn): WhisperSdpaAttention(
+          (k_proj): Linear(in_features=1280, out_features=1280, bias=False)
+          (v_proj): Linear(in_features=1280, out_features=1280, bias=True)
+          (q_proj): Linear(in_features=1280, out_features=1280, bias=True)
+          (out_proj): Linear(in_features=1280, out_features=1280, bias=True)
+        )
+        (self_attn_layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+        (activation_fn): GELUActivation()
+        (fc1): Linear(in_features=1280, out_features=5120, bias=True)
+        (fc2): Linear(in_features=5120, out_features=1280, bias=True)
+        (final_layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+      )
+      (4-27): 24 x WhisperEncoderLayer(
+        (self_attn): WhisperSdpaAttention(
+          (k_proj): Linear(in_features=1280, out_features=1088, bias=False)
+          (v_proj): Linear(in_features=1280, out_features=1088, bias=True)
+          (q_proj): Linear(in_features=1280, out_features=1088, bias=True)
+          (out_proj): Linear(in_features=1088, out_features=1280, bias=True)
+        )
+        (self_attn_layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+        (activation_fn): GELUActivation()
+        (fc1): Linear(in_features=1280, out_features=5120, bias=True)
+        (fc2): Linear(in_features=5120, out_features=1280, bias=True)
+        (final_layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+      )
+      (28-31): 4 x WhisperEncoderLayer(
+        (self_attn): WhisperSdpaAttention(
+          (k_proj): Linear(in_features=1280, out_features=1280, bias=False)
+          (v_proj): Linear(in_features=1280, out_features=1280, bias=True)
+          (q_proj): Linear(in_features=1280, out_features=1280, bias=True)
+          (out_proj): Linear(in_features=1280, out_features=1280, bias=True)
+        )
+        (self_attn_layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+        (activation_fn): GELUActivation()
+        (fc1): Linear(in_features=1280, out_features=5120, bias=True)
+        (fc2): Linear(in_features=5120, out_features=1280, bias=True)
+        (final_layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+    (layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+  )
+  (ln_speech): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+  (speech_audio_adapter): MERaLiON2SpeechAudioAdaperLarge(
+    (mlp_adapter): Sequential(
+      (0): Linear(in_features=19200, out_features=6400, bias=True)
+      (1): SiLU()
+      (2): Dropout(p=0.01, inplace=False)
+    )
+    (gate_proj): Linear(in_features=6400, out_features=6400, bias=True)
+    (pool_proj): Linear(in_features=6400, out_features=6400, bias=True)
+    (act_fn): SiLU()
+    (out_proj): Linear(in_features=6400, out_features=2304, bias=True)
+  )
+  (text_decoder): Gemma2ForCausalLM(
+    (model): Gemma2Model(
+      (embed_tokens): Embedding(256000, 2304, padding_idx=0)
+      (layers): ModuleList(
+        (0-3): 4 x Gemma2DecoderLayer(
+          (self_attn): Gemma2Attention(
+            (q_proj): Linear(in_features=2304, out_features=2048, bias=False)
+            (k_proj): Linear(in_features=2304, out_features=1024, bias=False)
+            (v_proj): Linear(in_features=2304, out_features=1024, bias=False)
+            (o_proj): Linear(in_features=2048, out_features=2304, bias=False)
+          )
+          (mlp): Gemma2MLP(
+            (gate_proj): Linear(in_features=2304, out_features=9216, bias=False)
+            (up_proj): Linear(in_features=2304, out_features=9216, bias=False)
+            (down_proj): Linear(in_features=9216, out_features=2304, bias=False)
+            (act_fn): PytorchGELUTanh()
+          )
+          (input_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (post_attention_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (pre_feedforward_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (post_feedforward_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+        )
+        (4-22): 19 x Gemma2DecoderLayer(
+          (self_attn): Gemma2Attention(
+            (q_proj): Linear(in_features=2304, out_features=1536, bias=False)
+            (k_proj): Linear(in_features=2304, out_features=768, bias=False)
+            (v_proj): Linear(in_features=2304, out_features=768, bias=False)
+            (o_proj): Linear(in_features=1536, out_features=2304, bias=False)
+          )
+          (mlp): Gemma2MLP(
+            (gate_proj): Linear(in_features=2304, out_features=6912, bias=False)
+            (up_proj): Linear(in_features=2304, out_features=6912, bias=False)
+            (down_proj): Linear(in_features=6912, out_features=2304, bias=False)
+            (act_fn): PytorchGELUTanh()
+          )
+          (input_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (post_attention_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (pre_feedforward_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (post_feedforward_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+        )
+        (23-25): 3 x Gemma2DecoderLayer(
+          (self_attn): Gemma2Attention(
+            (q_proj): Linear(in_features=2304, out_features=2048, bias=False)
+            (k_proj): Linear(in_features=2304, out_features=1024, bias=False)
+            (v_proj): Linear(in_features=2304, out_features=1024, bias=False)
+            (o_proj): Linear(in_features=2048, out_features=2304, bias=False)
+          )
+          (mlp): Gemma2MLP(
+            (gate_proj): Linear(in_features=2304, out_features=9216, bias=False)
+            (up_proj): Linear(in_features=2304, out_features=9216, bias=False)
+            (down_proj): Linear(in_features=9216, out_features=2304, bias=False)
+            (act_fn): PytorchGELUTanh()
+          )
+          (input_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (post_attention_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (pre_feedforward_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (post_feedforward_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+        )
+      )
+      (norm): Gemma2RMSNorm((2304,), eps=1e-06)
+      (rotary_emb): Gemma2RotaryEmbedding()
+    )
+    (lm_head): Linear(in_features=2304, out_features=256000, bias=False)
+  )
+)
+Copied modeling_gemma2.py
+Copied blockwise_kv_cache_old.py
+Copied modeling_meralion2.py
+Copied blockwise_kv_cache.py
+Copied modeling_whisper.py
+Copied configuration_gemma2.py
+Copied config_template.json
+Copied configuration_meralion2.py
+Copied configuration_whisper.py
+[td25-wa15] Merge complete
+[td25-wa15] Running WER evaluation...
+/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+03/09/2026 08:05:58 - INFO - __main__ - = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+03/09/2026 08:05:58 - INFO - __main__ - Dataset name: imda_part1_asr_test
+03/09/2026 08:05:58 - INFO - __main__ - Model name: MERaLiON-2-3B-td25-wa15-merged
+03/09/2026 08:05:58 - INFO - __main__ - Batch size: 1
+03/09/2026 08:05:58 - INFO - __main__ - Overwrite: True
+03/09/2026 08:05:58 - INFO - __main__ - Metrics: wer
+03/09/2026 08:05:58 - INFO - __main__ - Number of samples: -1
+03/09/2026 08:05:58 - INFO - __main__ - = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+03/09/2026 08:05:58 - INFO - dataset - Loading dataset: imda_part1_asr_test
+03/09/2026 08:05:59 - INFO - dataset - Loaded 5000 samples for evaluation
+03/09/2026 08:05:59 - INFO - dataset - = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
+03/09/2026 08:05:59 - INFO - root - Number of samples: 5000
+03/09/2026 08:06:54 - INFO - root - 
+=  =  =  Dataset Sample  =  =  =
+03/09/2026 08:06:54 - INFO - root - {'audio': {'path': None, 'array': array([-4.57763672e-04, -1.52587891e-04,  3.05175781e-05, ...,
+       -3.05175781e-04, -3.66210938e-04, -2.74658203e-04]), 'sampling_rate': 16000}, 'instruction': 'Please help me transcribe the speech into text.', 'reference': '<Speaker1>: The mischief in this case seems to be of insensitivity and poor taste.', 'task_type': 'ASR'}
+03/09/2026 08:06:54 - INFO - root - =  =  =  =  =  =  =  =  =  =  =  =
+
+03/09/2026 08:06:54 - INFO - __main__ - Overwrite is enabled or the results are not found. Try to infer with the model: MERaLiON-2-3B-td25-wa15-merged.
+INFO 03-09 08:06:57 [importing.py:53] Triton module has been replaced with a placeholder.
+INFO 03-09 08:06:57 [__init__.py:239] Automatically detected platform cuda.
+03/09/2026 08:06:58 - INFO - model_src.meralion_2_vllm - Loading model from: /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-td25-wa15-merged
+INFO 03-09 08:06:58 [__init__.py:30] Available plugins for group vllm.general_plugins:
+INFO 03-09 08:06:58 [__init__.py:32] name=register_dummy_model, value=vllm_plugin_meralion2:register
+INFO 03-09 08:06:58 [__init__.py:34] all available plugins for group vllm.general_plugins will be loaded.
+INFO 03-09 08:06:58 [__init__.py:36] set environment variable VLLM_PLUGINS to control which plugins to load.
+INFO 03-09 08:06:58 [__init__.py:44] plugin register_dummy_model loaded.
+INFO 03-09 08:07:00 [config.py:717] This model supports multiple tasks: {'embed', 'generate', 'score', 'classify', 'reward'}. Defaulting to 'generate'.
+INFO 03-09 08:07:00 [llm_engine.py:240] Initializing a V0 LLM engine (v0.8.5) with config: model='/home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-td25-wa15-merged', speculative_config=None, tokenizer='/home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-td25-wa15-merged', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config=None, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=8192, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto,  device_config=cuda, decoding_config=DecodingConfig(guided_decoding_backend='xgrammar', reasoning_backend=None), observability_config=ObservabilityConfig(show_hidden_metrics=False, otlp_traces_endpoint=None, collect_model_forward_time=False, collect_model_execute_time=False), seed=None, served_model_name=/home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-td25-wa15-merged, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=None, chunked_prefill_enabled=False, use_async_output_proc=True, disable_mm_preprocessor_cache=False, mm_processor_kwargs=None, pooler_config=None, compilation_config={"splitting_ops":[],"compile_sizes":[],"cudagraph_capture_sizes":[256,248,240,232,224,216,208,200,192,184,176,168,160,152,144,136,128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],"max_capture_size":256}, use_cached_outputs=False, 
+INFO 03-09 08:07:01 [cuda.py:292] Using Flash Attention backend.
+INFO 03-09 08:07:02 [parallel_state.py:1004] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0
+INFO 03-09 08:07:02 [model_runner.py:1108] Starting to load model /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-td25-wa15-merged...
+INFO 03-09 08:07:02 [config.py:3614] cudagraph sizes specified by model runner [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256] is overridden by config [256, 128, 2, 1, 4, 136, 8, 144, 16, 152, 24, 160, 32, 168, 40, 176, 48, 184, 56, 192, 64, 200, 72, 208, 80, 216, 88, 120, 224, 96, 232, 104, 240, 112, 248]
+Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:00<00:00, 83.41it/s]
+
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/home/jinchao/runtao/LLM-Pruner/vllm_inference/src/main_evaluate.py", line 141, in <module>
+[rank0]:     fire.Fire(main)
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/fire/core.py", line 135, in Fire
+[rank0]:     component_trace = _Fire(component, args, parsed_flag_args, context, name)
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/fire/core.py", line 468, in _Fire
+[rank0]:     component, remaining_args = _CallAndUpdateTrace(
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/fire/core.py", line 684, in _CallAndUpdateTrace
+[rank0]:     component = fn(*varargs, **kwargs)
+[rank0]:   File "/home/jinchao/runtao/LLM-Pruner/vllm_inference/src/main_evaluate.py", line 96, in main
+[rank0]:     model = Model(model_name)
+[rank0]:   File "/home/jinchao/runtao/LLM-Pruner/vllm_inference/src/model.py", line 26, in __init__
+[rank0]:     self.load_model()
+[rank0]:   File "/home/jinchao/runtao/LLM-Pruner/vllm_inference/src/model.py", line 67, in load_model
+[rank0]:     meralion_2_model_loader(self)
+[rank0]:   File "/home/jinchao/runtao/LLM-Pruner/vllm_inference/src/model_src/meralion_2_vllm.py", line 301, in meralion_2_model_loader
+[rank0]:     self.model = LLM(model=model_path,
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/utils.py", line 1161, in inner
+[rank0]:     return fn(*args, **kwargs)
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/entrypoints/llm.py", line 247, in __init__
+[rank0]:     self.llm_engine = LLMEngine.from_engine_args(
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/engine/llm_engine.py", line 510, in from_engine_args
+[rank0]:     return engine_cls.from_vllm_config(
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/engine/llm_engine.py", line 486, in from_vllm_config
+[rank0]:     return cls(
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/engine/llm_engine.py", line 275, in __init__
+[rank0]:     self.model_executor = executor_class(vllm_config=vllm_config)
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/executor/executor_base.py", line 52, in __init__
+[rank0]:     self._init_executor()
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/executor/uniproc_executor.py", line 47, in _init_executor
+[rank0]:     self.collective_rpc("load_model")
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/executor/uniproc_executor.py", line 56, in collective_rpc
+[rank0]:     answer = run_method(self.driver_worker, method, args, kwargs)
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/utils.py", line 2456, in run_method
+[rank0]:     return func(*args, **kwargs)
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/worker/worker.py", line 203, in load_model
+[rank0]:     self.model_runner.load_model()
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/worker/model_runner.py", line 1111, in load_model
+[rank0]:     self.model = get_model(vllm_config=self.vllm_config)
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/model_executor/model_loader/__init__.py", line 14, in get_model
+[rank0]:     return loader.load_model(vllm_config=vllm_config)
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/model_executor/model_loader/loader.py", line 455, in load_model
+[rank0]:     loaded_weights = model.load_weights(
+[rank0]:   File "/home/jinchao/runtao/meralion_test/vllm_plugin_meralion2/src/vllm_plugin_meralion2/vllm085.py", line 415, in load_weights
+[rank0]:     return loader.load_weights(weights_list)
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/model_executor/models/utils.py", line 261, in load_weights
+[rank0]:     autoloaded_weights = set(self._load_module("", self.module, weights))
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/model_executor/models/utils.py", line 222, in _load_module
+[rank0]:     yield from self._load_module(prefix,
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/model_executor/models/utils.py", line 222, in _load_module
+[rank0]:     yield from self._load_module(prefix,
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/model_executor/models/utils.py", line 222, in _load_module
+[rank0]:     yield from self._load_module(prefix,
+[rank0]:   [Previous line repeated 2 more times]
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/model_executor/models/utils.py", line 231, in _load_module
+[rank0]:     yield from self._load_param(prefix, child_params[child_prefix],
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/model_executor/models/utils.py", line 154, in _load_param
+[rank0]:     weight_loader(param, weight_data)
+[rank0]:   File "/home/jinchao/miniconda3/envs/audiobench_quant/lib/python3.10/site-packages/vllm/model_executor/model_loader/weight_utils.py", line 583, in default_weight_loader
+[rank0]:     assert param.size() == loaded_weight.size(), (
+[rank0]: AssertionError: Attempted to load weight (torch.Size([1088, 1280])) into parameter (torch.Size([1280, 1280]))
+[rank0]:[W309 08:07:04.289280780 ProcessGroupNCCL.cpp:1496] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[td25-wa15] Eval complete

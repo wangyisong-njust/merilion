@@ -1,0 +1,33 @@
+nohup: ignoring input
+[GPU 0] Launching v2-TextAttn-25 -> eval_v2-TextAttn-25.log
+[GPU 1] Launching v2-TextMLP-25 -> eval_v2-TextMLP-25.log
+[GPU 2] Launching v2-TextBoth-25 -> eval_v2-TextBoth-25.log
+[GPU 3] Launching v2-td25-wa10 -> eval_v2-td25-wa10.log
+[GPU 4] Launching v2-td25-wa15 -> eval_v2-td25-wa15.log
+[GPU 5] Launching v2-td25-wa10-wm10 -> eval_v2-td25-wa10-wm10.log
+[GPU 6] Launching v2-ta125-tm15 -> eval_v2-ta125-tm15.log
+[GPU 7] Launching v2-ta25-tm35 -> eval_v2-ta25-tm35.log
+
+==========================================
+All 8 experiments launched on GPU 0-7
+==========================================
+Logs: eval_v2-*.log
+Monitor: tail -f eval_v2-*.log
+
+Waiting for all experiments to complete...
+
+==========================================
+All experiments complete!
+==========================================
+
+Results summary:
+Experiment                WER        Throughput      Latency      RTF     
+----------                ---        ----------      -------      ---     
+v2-TextAttn-25            0.03419    2.30 s/s        0.435 s      0.082   
+v2-TextMLP-25             0.03549    2.25 s/s        0.445 s      0.0838  
+v2-TextBoth-25            0.03459    2.13 s/s        0.470 s      0.0886  
+v2-td25-wa10              (no result)                                      
+v2-td25-wa15              (no result)                                      
+v2-td25-wa10-wm10         (no result)                                      
+v2-ta125-tm15             0.03016    2.04 s/s        0.491 s      0.0926  
+v2-ta25-tm35              0.03628    2.15 s/s        0.466 s      0.0878  
