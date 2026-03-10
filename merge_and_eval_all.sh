@@ -82,6 +82,9 @@ for ENTRY in "${EXPERIMENTS[@]}"; do
             echo "[${NAME}] Merge complete"
         fi
 
+        # Step 1.5: Fix config.json for vLLM (idempotent, always run)
+        $PYTHON_PATH merge_meralion.py --fix_config "$MERGED_OUTPUT"
+
         # Step 2: vLLM eval
         echo "[${NAME}] Running vLLM eval..."
         cd $VLLM_DIR
