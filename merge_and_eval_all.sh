@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# Merge LoRA + Evaluate WER for all 8 pruned+finetuned models
+# Merge LoRA + Evaluate WER for all 8 v2 pruned+finetuned models
 # ============================================================
 # Usage: bash merge_and_eval_all.sh [gpu_id]
 #   gpu_id: GPU to use for merge+eval (default: 0)
@@ -22,16 +22,16 @@ VLLM_DIR="${WORKDIR}/vllm_inference"
 
 cd $WORKDIR
 
-# All 8 experiment names
+# All 8 v2 experiment names
 EXPERIMENTS=(
-    "TextAttn-25"
-    "TextMLP-25"
-    "TextBoth-25"
-    "td25-wa10"
-    "td25-wa15"
-    "td25-wa10-wm10"
-    "ta125-tm15"
-    "ta25-tm35"
+    "v2-TextAttn-25"
+    "v2-TextMLP-25"
+    "v2-TextBoth-25"
+    "v2-td25-wa10"
+    "v2-td25-wa15"
+    "v2-td25-wa10-wm10"
+    "v2-ta125-tm15"
+    "v2-ta25-tm35"
 )
 
 echo "=========================================="
