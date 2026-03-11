@@ -26,8 +26,8 @@ CHECKPOINT_DIR="${WORKDIR}/meralion_checkpoints"
 cd $WORKDIR
 
 # Models to quantize (must already be merged + config fixed)
+# v2-TextBoth-25 W8A16/W4A16 already done, skip
 MODELS=(
-    "MERaLiON-2-3B-v2-TextBoth-25-merged"
     "MERaLiON-2-3B-v2-ta25-tm35-merged"
 )
 
