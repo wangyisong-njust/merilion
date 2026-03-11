@@ -144,10 +144,11 @@ wer = f\"{s['wer']:.5f}\"
 tp = f\"{m['throughput_samples_per_sec']:.2f} s/s\"
 lat = f\"{m['avg_latency_sec']:.3f} s\"
 rtf = f\"{m.get('rtf', 'N/A')}\"
-print(f'Baseline (no prune)|{wer}|{tp}|{lat}|{rtf}')
+sz = f\"{m['model_size_gib']} GiB\" if 'model_size_gib' in m else 'N/A'
+print(f'Baseline (no prune)|{wer}|{tp}|{lat}|{rtf}|{sz}')
 ")
-    IFS='|' read -r c1 c2 c3 c4 c5 <<< "$ROW"
-    printf "%-25s %-10s %-15s %-12s %-8s\n" "$c1" "$c2" "$c3" "$c4" "$c5"
+    IFS='|' read -r c1 c2 c3 c4 c5 c6 <<< "$ROW"
+    printf "%-25s %-10s %-15s %-12s %-8s %-10s\n" "$c1" "$c2" "$c3" "$c4" "$c5" "$c6"
 fi
 
 # Pruned models
@@ -164,14 +165,15 @@ wer = f\"{s['wer']:.5f}\"
 tp = f\"{m['throughput_samples_per_sec']:.2f} s/s\"
 lat = f\"{m['avg_latency_sec']:.3f} s\"
 rtf = f\"{m.get('rtf', 'N/A')}\"
-print(f'${NAME}|{wer}|{tp}|{lat}|{rtf}')
+sz = f\"{m['model_size_gib']} GiB\" if 'model_size_gib' in m else 'N/A'
+print(f'${NAME}|{wer}|{tp}|{lat}|{rtf}|{sz}')
 ")
-        IFS='|' read -r c1 c2 c3 c4 c5 <<< "$ROW"
-        printf "%-25s %-10s %-15s %-12s %-8s\n" "$c1" "$c2" "$c3" "$c4" "$c5"
+        IFS='|' read -r c1 c2 c3 c4 c5 c6 <<< "$ROW"
+        printf "%-25s %-10s %-15s %-12s %-8s %-10s\n" "$c1" "$c2" "$c3" "$c4" "$c5" "$c6"
     elif [ -f "$SCORE_FILE" ]; then
         WER=$(python3 -c "import json; print(f'{json.load(open(\"${SCORE_FILE}\"))[\"wer\"]:.5f}')")
-        printf "%-25s %-10s %-15s %-12s %-8s\n" "$NAME" "$WER" "N/A" "N/A" "N/A"
+        printf "%-25s %-10s %-15s %-12s %-8s %-10s\n" "$NAME" "$WER" "N/A" "N/A" "N/A" "N/A"
     else
-        printf "%-25s %-10s %-15s %-12s %-8s\n" "$NAME" "(no result)" "" "" ""
+        printf "%-25s %-10s %-15s %-12s %-8s %-10s\n" "$NAME" "(no result)" "" "" "" ""
     fi
 done

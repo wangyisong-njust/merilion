@@ -124,6 +124,7 @@ def main(
             print(f"RTF (Real-Time Factor): {rtf:.4f}  (<1 = faster than real-time)")
 
         # Model size on disk
+        model_size_gib = None
         model_path = getattr(model, 'model_name', model_name)
         possible_paths = [
             model_path,
@@ -137,15 +138,9 @@ def main(
                     for f in os.listdir(p)
                     if f.endswith(('.safetensors', '.bin'))
                 )
-                print(f"Model file size: {total_size / 1024**3:.2f} GiB")
+                model_size_gib = round(total_size / 1024**3, 2)
+                print(f"Model file size: {model_size_gib} GiB")
                 break
-
-        # Parameter count
-        param_count = sum(
-            os.path.getsize(os.path.join(p, f))
-            for f in os.listdir(p)
-            if f.endswith(('.safetensors', '.bin'))
-        ) if os.path.exists(p) else 0
 
         # Save speed metrics alongside results
         speed_metrics = {
@@ -158,6 +153,8 @@ def main(
         if total_audio_duration > 0:
             speed_metrics["total_audio_duration_s"] = round(total_audio_duration, 2)
             speed_metrics["rtf"] = round(rtf, 4)
+        if model_size_gib is not None:
+            speed_metrics["model_size_gib"] = model_size_gib
 
         data_with_model_predictions = dataset.dataset_processor.format_model_predictions(dataset.input_data, model_predictions)
 
