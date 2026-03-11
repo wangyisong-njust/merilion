@@ -55,18 +55,22 @@ for MODEL_NAME in "${MODELS[@]}"; do
         echo "=========================================="
 
         # Quantize (skip if already done)
+        # Must cd to vllm_inference/ so meralion2_bl_llmcompressor module is importable
         if [ -d "$QUANT_DIR" ] && [ "$(ls ${QUANT_DIR}/*.safetensors 2>/dev/null | wc -l)" -gt 0 ]; then
             echo "[${MODEL_NAME}] ${SCHEME} quantized model exists, skipping quantization"
         else
+            cd $VLLM_DIR
             $PYTHON_PATH $QUANT_SCRIPT \
                 --model_path "$MODEL_PATH" \
                 --scheme "$SCHEME" \
                 --save_dir "$QUANT_DIR"
             if [ $? -ne 0 ]; then
                 echo "[${MODEL_NAME}] ERROR: ${SCHEME} quantization failed"
+                cd $WORKDIR
                 continue
             fi
             echo "[${MODEL_NAME}] ${SCHEME} quantization complete"
+            cd $WORKDIR
         fi
 
         # vLLM eval
