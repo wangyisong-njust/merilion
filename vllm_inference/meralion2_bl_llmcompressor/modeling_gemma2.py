@@ -81,9 +81,9 @@ class Gemma2MLP(nn.Module):
         self.config = config
         self.hidden_size = config.hidden_size
 
-        self.midblock_start = config.midblock_start
-        self.midblock_end = config.midblock_end
-        self.ratio = config.midblock_ratio if self.midblock_start <= layer_idx < self.midblock_end else 1.0
+        self.midblock_start = getattr(config, 'midblock_start', -1)
+        self.midblock_end = getattr(config, 'midblock_end', -1)
+        self.ratio = getattr(config, 'midblock_ratio', 1.0) if self.midblock_start <= layer_idx < self.midblock_end else 1.0
 
         self.intermediate_size = int(config.intermediate_size * self.ratio)
         self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
@@ -186,9 +186,9 @@ class Gemma2Attention(nn.Module):
         self.layer_idx = layer_idx
         self.head_dim = getattr(config, "head_dim", config.hidden_size // config.num_attention_heads)
 
-        self.midblock_start = config.midblock_start
-        self.midblock_end = config.midblock_end
-        self.ratio = config.midblock_ratio if self.midblock_start <= layer_idx < self.midblock_end else 1.0
+        self.midblock_start = getattr(config, 'midblock_start', -1)
+        self.midblock_end = getattr(config, 'midblock_end', -1)
+        self.ratio = getattr(config, 'midblock_ratio', 1.0) if self.midblock_start <= layer_idx < self.midblock_end else 1.0
         # self.ratio = 1.0
 
         self.num_attention_heads = int(config.num_attention_heads * self.ratio)

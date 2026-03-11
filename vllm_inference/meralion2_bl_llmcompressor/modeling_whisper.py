@@ -586,9 +586,9 @@ class WhisperEncoderLayer(nn.Module):
         super().__init__()
         self.embed_dim = config.d_model
 
-        self.midblock_start = config.whisper_midblock_start
-        self.midblock_end = config.whisper_midblock_end
-        self.ratio = config.midblock_ratio if self.midblock_start <= layer_idx < self.midblock_end else 1.0
+        self.midblock_start = getattr(config, 'whisper_midblock_start', -1)
+        self.midblock_end = getattr(config, 'whisper_midblock_end', -1)
+        self.ratio = getattr(config, 'midblock_ratio', 1.0) if self.midblock_start <= layer_idx < self.midblock_end else 1.0
 
         self.encoder_ffn_dim = int(config.encoder_ffn_dim * self.ratio)
 
