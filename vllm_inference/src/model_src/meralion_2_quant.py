@@ -45,6 +45,60 @@ logging.basicConfig(
 # Default repo_id (used as fallback when not running standalone)
 repo_id = "/home/jinchao/runtao/LLM-Pruner/MERaLiON-2-3B-0_25-4-23-both-tuned-r16-a16-5e-6-bs8-imda1m3c-merged"
 
+def align_mlp_dims(model, alignment=128):
+    """
+    Pad MLP intermediate_size to a multiple of `alignment` for vLLM quantized kernel compatibility.
+
+    vLLM's quantized kernels (Marlin, AllSpark) require weight dimensions to be divisible by
+    16/64/128. Pruned models may have non-aligned intermediate_size (e.g. 5990).
+
+    Zero-padding is mathematically equivalent because:
+      output = down_proj(act(gate_proj(x)) * up_proj(x))
+    Extra gate/up dims produce zeros, multiplied by zero columns in down_proj → zero contribution.
+    """
+    # Find actual intermediate_size from the first gate_proj
+    actual_intermediate = None
+    for name, module in model.named_modules():
+        if 'text_decoder' in name and 'gate_proj' in name and isinstance(module, torch.nn.Linear):
+            actual_intermediate = module.out_features
+            break
+
+    if actual_intermediate is None:
+        logger.info("No text_decoder MLP found, skipping alignment")
+        return
+
+    aligned = ((actual_intermediate + alignment - 1) // alignment) * alignment
+    if aligned == actual_intermediate:
+        logger.info(f"MLP intermediate_size {actual_intermediate} already aligned to {alignment}")
+        return
+
+    pad_size = aligned - actual_intermediate
+    logger.info(f"Padding MLP intermediate_size: {actual_intermediate} -> {aligned} (+{pad_size})")
+
+    for name, module in model.named_modules():
+        if 'text_decoder' not in name or '.mlp.' not in name:
+            continue
+        if not isinstance(module, torch.nn.Linear):
+            continue
+
+        w = module.weight.data
+        if 'gate_proj' in name or 'up_proj' in name:
+            # (intermediate_size, hidden_size) → pad rows
+            pad = torch.zeros(pad_size, w.shape[1], dtype=w.dtype, device=w.device)
+            module.weight = torch.nn.Parameter(torch.cat([w, pad], dim=0))
+            module.out_features = aligned
+        elif 'down_proj' in name:
+            # (hidden_size, intermediate_size) → pad columns
+            pad = torch.zeros(w.shape[0], pad_size, dtype=w.dtype, device=w.device)
+            module.weight = torch.nn.Parameter(torch.cat([w, pad], dim=1))
+            module.in_features = aligned
+
+    # Update config
+    if hasattr(model.config, 'text_config'):
+        model.config.text_config.intermediate_size = aligned
+        logger.info(f"Updated config.text_config.intermediate_size = {aligned}")
+
+
 def quantize_model(model_path, scheme="W8A16", save_dir=None):
     """
     Standalone quantization function.
@@ -71,6 +125,9 @@ def quantize_model(model_path, scheme="W8A16", save_dir=None):
     )
     model.cuda()
     model.eval()
+
+    # Pad MLP dims to multiples of 128 for quantized kernel compatibility
+    align_mlp_dims(model, alignment=128)
 
     recipe = QuantizationModifier(
         targets="Linear",
