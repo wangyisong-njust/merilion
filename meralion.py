@@ -573,6 +573,83 @@ def main(args):
             # Example
             copy_files_only("./meralion2_bl", args.save_model_path)
             print("\n\nPruned model has been saved!\n\n")
+
+            # --- WER evaluation immediately after pruning (before finetuning) ---
+            # Aligned with post_training_meralion.py final WER evaluation:
+            # same dataset, same samples, same prompt, same metric, same post-processing
+            # Disabled by default; use --post_prune_eval to enable
+            if args.post_prune_eval:
+                import evaluate as hf_evaluate
+                from datasets import load_from_disk
+
+                logger.log("\n==================WER Evaluation After Pruning (Before Finetuning)================\n")
+                model.model.eval()
+                wer_metric = hf_evaluate.load("wer")
+
+                test_data = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR")
+                test_subset = test_data.shuffle(seed=42).select(range(10500, 11000))
+
+                predictions = []
+                references = []
+
+                st = time.time()
+                with torch.no_grad():
+                    for sample in tqdm(test_subset, desc="Post-prune WER eval"):
+                        audio_array = sample["context"]["audio"]["array"]
+                        instruction = sample["instruction"]["text"] if isinstance(sample["instruction"], dict) else sample["instruction"]
+                        ref = sample["other_attributes"]["Transcription"]
+
+                        audio_array = np.asarray(audio_array, dtype=np.float32)
+                        if audio_array.ndim == 2:
+                            audio_array = audio_array.mean(axis=-1)
+                        if len(audio_array) / 16000 < 1:
+                            audio_array = np.pad(audio_array, (0, 16000), 'constant')
+
+                        prompt = "Instruction: {instruction} \nFollow the text instruction based on the following audio: <SpeechHere>"
+                        conversation = [{"role": "user", "content": prompt.format(instruction=instruction)}]
+                        chat_prompt = processor.tokenizer.apply_chat_template(conversation, tokenize=False, add_generation_prompt=True)
+
+                        inputs = processor(text=chat_prompt, audios=audio_array, return_tensors="pt")
+                        dev = next(model.model.parameters()).device
+                        for k in inputs:
+                            if isinstance(inputs[k], torch.Tensor):
+                                inputs[k] = inputs[k].to(dev)
+                                if inputs[k].dtype == torch.float32:
+                                    inputs[k] = inputs[k].to(torch.bfloat16)
+
+                        model_outputs = model.model.generate(**inputs, max_new_tokens=256, do_sample=False, num_beams=1)
+                        input_len = inputs['input_ids'].shape[1]
+                        generated_ids = model_outputs[:, input_len:]
+                        pred = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+                        pred = pred.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
+
+                        predictions.append(pred)
+                        references.append(ref)
+
+                et = time.time()
+                post_prune_wer = wer_metric.compute(predictions=predictions, references=references)
+                logger.log("500 samples took: {:.1f}s".format(et - st))
+                logger.log("Post-prune WER (before finetuning): {:.4f}".format(post_prune_wer))
+                print("\n[POST-PRUNE EVAL] WER = {:.4f} (500 samples, {:.1f}s)\n".format(post_prune_wer, et - st))
+
+                # Save results
+                eval_save_name = os.path.basename(args.save_model_path)
+                eval_save_dir = f'audiobench_log_for_all_models/{eval_save_name}-pruned-only'
+                os.makedirs(eval_save_dir, exist_ok=True)
+                with open(f'{eval_save_dir}/post_prune_wer.json', 'w') as f:
+                    json.dump({
+                        "wer": post_prune_wer,
+                        "num_samples": len(predictions),
+                        "dataset": "IMDA_PART1_mono_en_30_ASR",
+                        "base_model": args.base_model,
+                        "pruned_model": args.save_model_path,
+                    }, f, indent=2)
+                # Save per-sample details
+                details = [{"prediction": p, "reference": r} for p, r in zip(predictions[:20], references[:20])]
+                with open(f'{eval_save_dir}/post_prune_wer_samples.json', 'w') as f:
+                    json.dump(details, f, indent=2, ensure_ascii=False)
+                logger.log("Results saved to: {}".format(eval_save_dir))
+
             exit()
     
     # if args.eval_device != "cpu":
@@ -732,6 +809,7 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, default=42, help='seed')
     parser.add_argument('--save_model', action='store_true', help='if save model')
     parser.add_argument('--save_model_path', type=str, default=None, help=' ')
+    parser.add_argument('--post_prune_eval', action='store_true', help='run WER evaluation after pruning (before finetuning)')
     args = parser.parse_args()
 
     torch_version = float('.'.join(torch.__version__.split('.')[:2]))
