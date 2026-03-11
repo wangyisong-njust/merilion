@@ -54,11 +54,13 @@ for MODEL_NAME in "${MODELS[@]}"; do
         echo "[${MODEL_NAME}] Quantizing with ${SCHEME}..."
         echo "=========================================="
 
-        # Quantize (skip if already done)
+        # Quantize — delete old unaligned quantized models and re-quantize with align_mlp_dims
         # Must cd to vllm_inference/ so meralion2_bl_llmcompressor module is importable
-        if [ -d "$QUANT_DIR" ] && [ "$(ls ${QUANT_DIR}/*.safetensors 2>/dev/null | wc -l)" -gt 0 ]; then
-            echo "[${MODEL_NAME}] ${SCHEME} quantized model exists, skipping quantization"
-        else
+        if [ -d "$QUANT_DIR" ]; then
+            echo "[${MODEL_NAME}] Removing old ${SCHEME} quantized model (may have unaligned dims)"
+            rm -rf "$QUANT_DIR"
+        fi
+        {
             cd $VLLM_DIR
             $PYTHON_PATH $QUANT_SCRIPT \
                 --model_path "$MODEL_PATH" \
@@ -71,7 +73,7 @@ for MODEL_NAME in "${MODELS[@]}"; do
             fi
             echo "[${MODEL_NAME}] ${SCHEME} quantization complete"
             cd $WORKDIR
-        fi
+        }
 
         # vLLM eval
         echo "[${MODEL_NAME}-${SCHEME}] Running vLLM eval..."
