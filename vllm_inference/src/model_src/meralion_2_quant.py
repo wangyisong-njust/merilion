@@ -1,5 +1,6 @@
 import os
 import re
+import argparse
 
 # add parent directory to sys.path
 import sys
@@ -25,8 +26,6 @@ from datasets import load_dataset, load_from_disk
 from llmcompressor import oneshot
 from llmcompressor.modifiers.awq import AWQModifier, AWQ_MAPPING_REGISTRY
 from llmcompressor.modifiers.quantization import GPTQModifier, QuantizationModifier
-from dataset import Dataset
-from dataset_src.prompts.prompts import asr_instructions
 import random
 
 import pdb
@@ -43,23 +42,54 @@ logging.basicConfig(
 )
 # =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =  =
 
-# Select one
-# QUANT_TYPE = "GPTQ"
-QUANT_TYPE = "RTN"
-
-repo_id = "/home/jinchao/runtao/LLM_base_model/MERaLiON-2-10B-ASR"
-# repo_id = "/home/jinchao/runtao/LLM-Pruner/MERaLiON-2-10B-ASR-0_5-5-40-tuned-r32-full_gemma2-imda2-5e-5-merged"
-# repo_id = "/home/jinchao/runtao/LLM-Pruner/MERaLiON-2-10B-ASR-0_25-7-35-tuned-r32-full_gemma2-mix-5e-5-grad_accu_2-merged"
-repo_id = "/home/jinchao/runtao/LLM-Pruner/MERaLiON-2-10B-ASR-0_25-7-35-tuned-r32-full_gemma2-mix-5e-5-grad_accu_2-merged-new"
-# repo_id = "/home/jinchao/runtao/LLM-Pruner/MERaLiON-2-10B-ASR-0_5-5-40-tuned-r32-full_gemma2-mix-5e-5-grad_accu_2-merged"
-
-
-repo_id = "/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
-repo_id = "/home/jinchao/runtao/LLM-Pruner/MERaLiON-2-3B-0_25-3-23-tuned-r32-full_gemma2-mix-1e-5-grad_accu_2-dropout01-merged"
-repo_id = "/home/jinchao/runtao/LLM-Pruner/MERaLiON-2-3B-0_5-3-23-tuned-r16-full_gemma2-mix-1e-5-grad_accu_2-dropout01-merged"
-
-
+# Default repo_id (used as fallback when not running standalone)
 repo_id = "/home/jinchao/runtao/LLM-Pruner/MERaLiON-2-3B-0_25-4-23-both-tuned-r16-a16-5e-6-bs8-imda1m3c-merged"
+
+def quantize_model(model_path, scheme="W8A16", save_dir=None):
+    """
+    Standalone quantization function.
+    Args:
+        model_path: path to merged model (pruned or unpruned)
+        scheme: "W4A16" or "W8A16"
+        save_dir: output directory (auto-generated if None)
+    """
+    if save_dir is None:
+        model_name = os.path.basename(model_path.rstrip("/"))
+        save_dir = os.path.join(os.path.dirname(model_path), f"{model_name}-{scheme}-RTN")
+
+    logger.info(f"Quantizing: {model_path}")
+    logger.info(f"Scheme: {scheme} (RTN)")
+    logger.info(f"Save to: {save_dir}")
+
+    processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+    model = MERaLiON2ForConditionalGeneration.from_pretrained(
+        model_path,
+        use_safetensors=True,
+        trust_remote_code=True,
+        torch_dtype=torch.float16,
+        low_cpu_mem_usage=False,
+    )
+    model.cuda()
+    model.eval()
+
+    recipe = QuantizationModifier(
+        targets="Linear",
+        scheme=scheme,
+        ignore=[
+            r"re:^speech_encoder\.",
+            "ln_speech",
+            r"re:^speech_audio_adapter\.",
+            "text_decoder.lm_head",
+        ],
+    )
+
+    oneshot(model=model, recipe=recipe, trust_remote_code_model=True)
+
+    model.save_pretrained(save_dir, save_compressed=True)
+    processor.save_pretrained(save_dir)
+    logger.info(f"Quantized model saved to: {save_dir}")
+    return save_dir
+
 
 def meralion_2_model_loader(self):
 
@@ -392,28 +422,13 @@ def meralion_2_model_loader(self):
 
         oneshot(model=self.model, recipe=recipe, trust_remote_code_model=True)
 
-    # SAVE_DIR = MODEL_ID.rstrip("/").split("/")[-1] + "-W4A16-G128"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-10B-ASR-W4A16-G256-damp05-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-10B-ASR-0_25-7-35-W8A16-RTN-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-10B-ASR-0_5-5-40-tuned-r32-full_gemma2-imda2-5e-5-merged-W8A16-RTN-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-10B-ASR-0_25-7-35-tuned-r32-full_gemma2-mix-5e-5-grad_accu_2-merged-W4A16-RTN-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-10B-ASR-0_5-5-40-tuned-r32-full_gemma2-mix-5e-5-grad_accu_2-merged-W8A16-RTN-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-10B-ASR-W4A16-RTN-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-10B-ASR-0_25-7-35-tuned-r32-full_gemma2-mix-5e-5-grad_accu_2-merged-new-W8A16-RTN-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-3B-W8A16-RTN-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-3B-W4A16-RTN-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-3B-0_25-3-23-tuned-r32-full_gemma2-mix-1e-5-grad_accu_2-dropout01-merged-W8A16-RTN-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-3B-0_25-3-23-tuned-r32-full_gemma2-mix-1e-5-grad_accu_2-dropout01-merged-W4A16-RTN-textonly"
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-3B-0_5-3-23-tuned-r16-full_gemma2-mix-1e-5-grad_accu_2-dropout01-merged-W8A16-RTN-textonly"
-    # SAVE_DIR = "./saved_meralion/MERaLiON-2-3B-0_5-3-23-tuned-r16-full_gemma2-mix-1e-5-grad_accu_2-dropout01-merged-W4A16-RTN-textonly"
-    
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-3B-0_25-4-23-both-tuned-r16-a16-5e-6-bs8-imda1m3c-merged-W4A16-RTN-textonly"
-
-    SAVE_DIR = "./saved_meralion/MERaLiON-2-3B-0_25-4-23-both-tuned-r16-a16-5e-6-bs8-imda1m3c-merged-W4A16-GPTQ"
+    # Save quantized model
+    model_name = os.path.basename(repo_id.rstrip("/"))
+    SAVE_DIR = f"./saved_meralion/{model_name}-{QUANT_TYPE}-quantized"
     self.model.save_pretrained(SAVE_DIR, save_compressed=True)
     self.processor.save_pretrained(SAVE_DIR)
-    
-    input("Quantization completed")
+
+    logger.info(f"Quantization completed, saved to: {SAVE_DIR}")
     self.model.to("cuda")
 
     logger.info("Model loaded: {}".format(repo_id))
@@ -483,3 +498,17 @@ def meralion_2_model_generation(self, input):
 
     return output
 
+
+# =  =  =  =  =  =  =  =  =  =  =  Standalone CLI  =  =  =  =  =  =  =  =  =  =  =  =  =
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Quantize MERaLiON-2 model (RTN)")
+    parser.add_argument("--model_path", type=str, required=True,
+                        help="Path to merged model to quantize")
+    parser.add_argument("--scheme", type=str, default="W8A16",
+                        choices=["W4A16", "W8A16"],
+                        help="Quantization scheme (default: W8A16)")
+    parser.add_argument("--save_dir", type=str, default=None,
+                        help="Output directory (default: auto-generated from model name + scheme)")
+    args = parser.parse_args()
+
+    quantize_model(args.model_path, args.scheme, args.save_dir)
