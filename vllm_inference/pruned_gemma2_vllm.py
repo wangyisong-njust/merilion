@@ -164,7 +164,7 @@ class PrunedGemma2Attention(nn.Module):
             is_neox_style=True,
         )
 
-        self.attn = Attention(
+        attn_kwargs = dict(
             num_heads=self.num_heads,
             head_size=self.head_dim,
             scale=self.scaling,
@@ -172,9 +172,14 @@ class PrunedGemma2Attention(nn.Module):
             cache_config=cache_config,
             quant_config=quant_config,
             prefix=f"{prefix}.attn",
-            per_layer_sliding_window=sliding_window,
-            logits_soft_cap=config.attn_logit_softcapping,
         )
+        import inspect
+        _attn_sig = inspect.signature(Attention.__init__).parameters
+        if 'per_layer_sliding_window' in _attn_sig:
+            attn_kwargs['per_layer_sliding_window'] = sliding_window
+        if 'logits_soft_cap' in _attn_sig:
+            attn_kwargs['logits_soft_cap'] = config.attn_logit_softcapping
+        self.attn = Attention(**attn_kwargs)
 
     def forward(
         self,

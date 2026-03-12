@@ -29,8 +29,12 @@ from vllm.logger import init_logger
 from vllm.model_executor.layers.logits_processor import LogitsProcessor
 from vllm.model_executor.layers.sampler import SamplerOutput, get_sampler
 from vllm.model_executor.layers.vocab_parallel_embedding import ParallelLMHead
-from vllm.model_executor.model_loader.weight_utils import (
-    default_weight_loader, maybe_remap_kv_scale_name)
+from vllm.model_executor.model_loader.weight_utils import default_weight_loader
+try:
+    from vllm.model_executor.model_loader.weight_utils import maybe_remap_kv_scale_name
+except ImportError:
+    def maybe_remap_kv_scale_name(name, params_dict):
+        return name  # no-op on older vLLM versions
 from vllm.model_executor.sampling_metadata import SamplingMetadata
 from vllm.multimodal import MULTIMODAL_REGISTRY, MultiModalKwargs
 try:
@@ -42,7 +46,16 @@ except ImportError:
 from vllm.sequence import IntermediateTensors, SequenceData
 from transformers.models.whisper.modeling_whisper import WhisperEncoder
 
-from vllm.model_executor.models.interfaces import SupportsMultiModal, SupportsLoRA, SupportsPP
+try:
+    from vllm.model_executor.models.interfaces import SupportsMultiModal, SupportsLoRA, SupportsPP
+except ImportError:
+    # Older vLLM: define stub mixins so the class definition doesn't fail
+    class SupportsMultiModal:
+        pass
+    class SupportsLoRA:
+        pass
+    class SupportsPP:
+        pass
 from vllm.model_executor.models.utils import maybe_prefix
 
 from pruned_gemma2_vllm import PrunedGemma2Model, is_pruned_model
@@ -231,17 +244,18 @@ def input_mapper_for_meralion(ctx: InputContext, multi_modal_data):
     return MultiModalKwargs(batch_data)
 
 
-def _maybe_register_dummy_data(registry, fn):
-    """Decorator factory that applies register_dummy_data only if the method exists."""
-    if hasattr(registry, 'register_dummy_data'):
-        return registry.register_dummy_data(fn)
-    return lambda cls: cls  # no-op for older vLLM versions
+def _maybe_apply(registry, method_name, *args):
+    """Apply registry.method_name(*args) as a decorator if the method exists, else no-op."""
+    method = getattr(registry, method_name, None)
+    if method is not None:
+        return method(*args)
+    return lambda cls: cls
 
 
-@_maybe_register_dummy_data(INPUT_REGISTRY, dummy_data_for_meralion)
-@INPUT_REGISTRY.register_input_processor(input_processor_for_meralion)
-@MULTIMODAL_REGISTRY.register_input_mapper("audio", input_mapper_for_meralion)
-@MULTIMODAL_REGISTRY.register_max_multimodal_tokens("audio", get_max_meralion_audio_tokens)
+@_maybe_apply(INPUT_REGISTRY, 'register_dummy_data', dummy_data_for_meralion)
+@_maybe_apply(INPUT_REGISTRY, 'register_input_processor', input_processor_for_meralion)
+@_maybe_apply(MULTIMODAL_REGISTRY, 'register_input_mapper', "audio", input_mapper_for_meralion)
+@_maybe_apply(MULTIMODAL_REGISTRY, 'register_max_multimodal_tokens', "audio", get_max_meralion_audio_tokens)
 class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
                                               SupportsLoRA, SupportsPP):
     """MERaLiON2 model for vLLM with support for non-uniform (pruned) layer dimensions.
