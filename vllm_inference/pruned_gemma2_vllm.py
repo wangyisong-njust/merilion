@@ -154,7 +154,8 @@ class PrunedGemma2Attention(nn.Module):
 
         # Gemma2: even layers use sliding window, odd layers use global attention
         is_sliding = not bool(layer_idx % 2)
-        sliding_window = config.sliding_window if is_sliding else None
+        _sw = getattr(config, 'sliding_window', None) or getattr(config, 'sliding_window_size', None)
+        sliding_window = _sw if is_sliding else None
 
         self.rotary_emb = get_rope(
             head_size=self.head_dim,
