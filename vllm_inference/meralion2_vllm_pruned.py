@@ -231,7 +231,14 @@ def input_mapper_for_meralion(ctx: InputContext, multi_modal_data):
     return MultiModalKwargs(batch_data)
 
 
-@INPUT_REGISTRY.register_dummy_data(dummy_data_for_meralion)
+def _maybe_register_dummy_data(registry, fn):
+    """Decorator factory that applies register_dummy_data only if the method exists."""
+    if hasattr(registry, 'register_dummy_data'):
+        return registry.register_dummy_data(fn)
+    return lambda cls: cls  # no-op for older vLLM versions
+
+
+@_maybe_register_dummy_data(INPUT_REGISTRY, dummy_data_for_meralion)
 @INPUT_REGISTRY.register_input_processor(input_processor_for_meralion)
 @MULTIMODAL_REGISTRY.register_input_mapper("audio", input_mapper_for_meralion)
 @MULTIMODAL_REGISTRY.register_max_multimodal_tokens("audio", get_max_meralion_audio_tokens)
