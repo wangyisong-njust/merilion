@@ -16,6 +16,10 @@ import argparse
 
 import numpy as np
 
+# Force vLLM V0 engine — our multimodal registration uses the V0 decorator API
+# which is incompatible with the V1 engine's processor factory system.
+os.environ.setdefault("VLLM_USE_V1", "0")
+
 # Add vllm_inference to path for PrunedGemma2Model
 script_dir = os.path.dirname(os.path.abspath(__file__))
 vllm_dir = os.path.join(script_dir, "vllm_inference")
