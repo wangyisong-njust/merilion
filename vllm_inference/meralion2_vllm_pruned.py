@@ -501,12 +501,19 @@ def _register_processor_factory():
             _max_chunks = MAX_NUMBER_CHUNKS
             _chunk_size = FEATURE_CHUNK_SIZE
             _sr = DEFAULT_SAMPLE_RATE
+            _info = self.info  # our _ProcessingInfo instance
             try:
                 from vllm.multimodal.profiling import BaseDummyInputsBuilder as _DBase
             except ImportError:
                 _DBase = object
 
             class _DummyInputsBuilder(_DBase):
+                def __init__(self_):
+                    try:
+                        super().__init__(_info)
+                    except Exception:
+                        pass
+
                 def get_dummy_processor_inputs(self_, seq_len, mm_counts):
                     num_audios = (mm_counts or {}).get("audio", 1)
                     dummy_audio = np.zeros(_max_chunks * _chunk_size, dtype=np.float32)
