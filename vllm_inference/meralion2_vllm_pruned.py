@@ -444,3 +444,64 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
                 param = params_dict[name]
                 weight_loader = getattr(param, "weight_loader", default_weight_loader)
                 weight_loader(param, loaded_weight)
+
+
+# ---------------------------------------------------------------------------
+# Newer vLLM (0.7+) requires _processor_factories for max-token allocation
+# even when using V0 engine. Register a minimal stub processor factory so
+# profile_run / _dummy_run can compute the encoder budget.
+# ---------------------------------------------------------------------------
+def _register_processor_factory():
+    if not hasattr(MULTIMODAL_REGISTRY, '_processor_factories'):
+        return  # Old vLLM — already covered by _maybe_apply decorators above
+
+    _max_audio_tokens = MAX_NUMBER_CHUNKS * OUTPUT_CHUNK_SIZE
+
+    # Subclass BaseMultiModalProcessor if importable, else fall back to object
+    try:
+        from vllm.multimodal.processing import BaseMultiModalProcessor as _Base
+    except ImportError:
+        _Base = object
+
+    class _MERaLiONProcessor(_Base):
+        def __init__(self, ctx):
+            try:
+                super().__init__(ctx)
+            except Exception:
+                self.ctx = ctx
+
+        # Required abstract methods (stub — real processing done by input_processor_for_meralion)
+        def _get_mm_fields_config(self, hf_inputs, hf_processor_mm_kwargs):
+            return {}
+
+        def _get_prompt_replacements(self, mm_items, hf_processor_mm_kwargs, out_mm_kwargs):
+            return []
+
+        # Max-token query methods — vLLM may call any of these spellings
+        def get_supported_mm_limits(self):
+            return {"audio": 1}
+
+        def get_max_mm_tokens_per_item(self, *args, **kwargs):
+            return _max_audio_tokens
+
+        def get_max_tokens_per_item_by_modality(self, *args, **kwargs):
+            return {"audio": _max_audio_tokens}
+
+    # Prefer the official register_processor API; fall back to direct dict assignment
+    _reg = getattr(MULTIMODAL_REGISTRY, 'register_processor', None)
+    if _reg is not None:
+        try:
+            _reg(_MERaLiONProcessor)(MERaLiON2PrunedForConditionalGeneration)
+            return
+        except Exception as e:
+            logger.warning(f"register_processor failed ({e}), trying direct assignment")
+
+    try:
+        MULTIMODAL_REGISTRY._processor_factories[
+            MERaLiON2PrunedForConditionalGeneration
+        ] = _MERaLiONProcessor
+    except Exception as e:
+        logger.warning(f"Could not register processor factory: {e}")
+
+
+_register_processor_factory()
