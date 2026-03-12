@@ -469,6 +469,13 @@ def _register_processor_factory():
                 super().__init__(ctx)
             except Exception:
                 self.ctx = ctx
+            # BaseMultiModalProcessor.__init__ sets data_parser via _get_data_parser();
+            # if super().__init__ failed (wrong signature), set it manually.
+            if not hasattr(self, 'data_parser'):
+                try:
+                    self.data_parser = self._get_data_parser()
+                except Exception:
+                    pass
 
         # Required abstract methods (stub — real processing done by input_processor_for_meralion)
         def _get_mm_fields_config(self, hf_inputs, hf_processor_mm_kwargs):
