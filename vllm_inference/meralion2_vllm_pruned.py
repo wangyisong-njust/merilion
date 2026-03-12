@@ -495,6 +495,23 @@ def _register_processor_factory():
         def get_max_tokens_per_item_by_modality(self, *args, **kwargs):
             return {"audio": _max_audio_tokens}
 
+        # vLLM 0.7+ profiling accesses processor.info.get_allowed_mm_limits()
+        @property
+        def info(self):
+            _max = _max_audio_tokens
+
+            class _ProcessingInfo:
+                def get_allowed_mm_limits(self_):
+                    return {"audio": 1}
+
+                def get_supported_mm_limits(self_):
+                    return {"audio": None}
+
+                def get_max_tokens_per_item(self_, *args, **kwargs):
+                    return {"audio": _max}
+
+            return _ProcessingInfo()
+
     # Prefer the official register_processor API; fall back to direct dict assignment
     _reg = getattr(MULTIMODAL_REGISTRY, 'register_processor', None)
     if _reg is not None:
