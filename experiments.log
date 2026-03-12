@@ -1,0 +1,27 @@
+nohup: ignoring input
+Cleaning HF cache...
+[GPU 0] v3-ta35-tm45
+[GPU 1] v3-TextBoth-50
+[GPU 2] v3-WhisperFFN-25
+[GPU 3] v3-WhisperFFN-50
+[GPU 4] v3-tb25-wf25
+[GPU 5] v3-tb25-wf50
+[GPU 6] v3-ta35-tm45-wf25
+[GPU 7] v3-tb50-wf50
+
+==========================================
+All 8 v3 experiments submitted to GPU 0-7
+==========================================
+
+实验概览 (v3: 更激进 text + Whisper FFN 剪枝):
+  GPU 0: v3-ta35-tm45          — Text Attn 35% + MLP 45%
+  GPU 1: v3-TextBoth-50        — Text Attn+MLP 各 50% (极限)
+  GPU 2: v3-WhisperFFN-25      — 仅 Whisper FFN 25%
+  GPU 3: v3-WhisperFFN-50      — 仅 Whisper FFN 50%
+  GPU 4: v3-tb25-wf25          — Text 25% + Whisper FFN 25%
+  GPU 5: v3-tb25-wf50          — Text 25% + Whisper FFN 50%
+  GPU 6: v3-ta35-tm45-wf25     — Text 激进 + Whisper FFN 25%
+  GPU 7: v3-tb50-wf50          — 全部 50% (极限)
+
+监控: tail -f tune_v3-*.log
+WER:  grep 'Validation WER' tune_v3-*.log

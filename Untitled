@@ -1,0 +1,2 @@
+  du -sh /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/*/
+  du -sh /home/jinchao/runtao/LLM-Pruner/meralion_tune_log/*/

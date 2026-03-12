@@ -1,0 +1,89 @@
+2026-03-11 09:02:34.007 | DEBUG    | llmcompressor.core.lifecycle:reset:61 - Resetting compression lifecycle
+2026-03-11 09:02:34.008 | INFO     | llmcompressor.core.lifecycle:reset:73 - Compression lifecycle reset
+2026-03-11 09:02:34.008 | DEBUG    | llmcompressor.core.state:update:182 - Updating state with provided parameters: {'model': MERaLiON2ForConditionalGeneration(
+  (speech_encoder): WhisperEncoder(
+    (conv1): Conv1d(128, 1280, kernel_size=(3,), stride=(1,), padding=(1,))
+    (conv2): Conv1d(1280, 1280, kernel_size=(3,), stride=(2,), padding=(1,))
+    (embed_positions): Embedding(1500, 1280)
+    (layers): ModuleList(
+      (0-31): 32 x WhisperEncoderLayer(
+        (self_attn): WhisperSdpaAttention(
+          (k_proj): Linear(in_features=1280, out_features=1280, bias=False)
+          (v_proj): Linear(in_features=1280, out_features=1280, bias=True)
+          (q_proj): Linear(in_features=1280, out_features=1280, bias=True)
+          (out_proj): Linear(in_features=1280, out_features=1280, bias=True)
+        )
+        (self_attn_layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+        (activation_fn): GELUActivation()
+        (fc1): Linear(in_features=1280, out_features=5120, bias=True)
+        (fc2): Linear(in_features=5120, out_features=1280, bias=True)
+        (final_layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+    (layer_norm): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+  )
+  (ln_speech): LayerNorm((1280,), eps=1e-05, elementwise_affine=True)
+  (speech_audio_adapter): MERaLiON2SpeechAudioAdaperLarge(
+    (mlp_adapter): Sequential(
+      (0): Linear(in_features=19200, out_features=6400, bias=True)
+      (1): SiLU()
+      (2): Dropout(p=0.01, inplace=False)
+    )
+    (gate_proj): Linear(in_features=6400, out_features=6400, bias=True)
+    (pool_proj): Linear(in_features=6400, out_features=6400, bias=True)
+    (act_fn): SiLU()
+    (out_proj): Linear(in_features=6400, out_features=2304, bias=True)
+  )
+  (text_decoder): Gemma2ForCausalLM(
+    (model): Gemma2Model(
+      (embed_tokens): Embedding(256000, 2304, padding_idx=0)
+      (layers): ModuleList(
+        (0-25): 26 x Gemma2DecoderLayer(
+          (self_attn): Gemma2Attention(
+            (q_proj): Linear(in_features=2304, out_features=1536, bias=False)
+            (k_proj): Linear(in_features=2304, out_features=768, bias=False)
+            (v_proj): Linear(in_features=2304, out_features=768, bias=False)
+            (o_proj): Linear(in_features=1536, out_features=2304, bias=False)
+          )
+          (mlp): Gemma2MLP(
+            (gate_proj): Linear(in_features=2304, out_features=6912, bias=False)
+            (up_proj): Linear(in_features=2304, out_features=6912, bias=False)
+            (down_proj): Linear(in_features=6912, out_features=2304, bias=False)
+            (act_fn): PytorchGELUTanh()
+          )
+          (input_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (post_attention_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (pre_feedforward_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+          (post_feedforward_layernorm): Gemma2RMSNorm((2304,), eps=1e-06)
+        )
+      )
+      (norm): Gemma2RMSNorm((2304,), eps=1e-06)
+      (rotary_emb): Gemma2RotaryEmbedding()
+    )
+    (lm_head): Linear(in_features=2304, out_features=256000, bias=False)
+  )
+), 'teacher_model': None, 'optimizer': None, 'attach_optim_callbacks': True, 'train_data': None, 'val_data': None, 'test_data': None, 'calib_data': None, 'copy_data': True, 'start': -1, 'steps_per_epoch': None, 'batches_per_step': None, 'loggers': None, 'model_log_cadence': None, 'kwargs': {}}
+2026-03-11 09:02:34.013 | DEBUG    | llmcompressor.core.lifecycle:initialize:94 - Initializing compression lifecycle
+2026-03-11 09:02:34.013 | INFO     | llmcompressor.recipe.recipe:from_modifiers:59 - Creating recipe from modifiers
+2026-03-11 09:02:34.125 | DEBUG    | llmcompressor.core.lifecycle:initialize:103 - Initialized modifier: modifiers=[QuantizationModifier(config_groups=None, targets=['Linear'], ignore=['re:^speech_encoder\\.', 'ln_speech', 're:^speech_audio_adapter\\.', 'text_decoder.lm_head'], scheme='W4A16', kv_cache_scheme=None, index=0, group='default', start=None, end=None, update=None, initialized_=True, finalized_=False, started_=False, ended_=False)] index=0 group='default' applied=False
+2026-03-11 09:02:34.125 | INFO     | llmcompressor.core.lifecycle:initialize:108 - Compression lifecycle initialized for 1 modifiers
+2026-03-11 09:02:34.125 | INFO     | llmcompressor.pipelines.independent.pipeline:IndependentPipeline:47 - Inferred `DataFreePipeline` for `QuantizationModifier`
+2026-03-11 09:02:34.125 | DEBUG    | llmcompressor.core.lifecycle:event:191 - Handling event: EventType.CALIBRATION_EPOCH_START
+2026-03-11 09:02:35.656 | DEBUG    | llmcompressor.core.lifecycle:event:201 - Updated event with modifier: modifiers=[QuantizationModifier(config_groups=None, targets=['Linear'], ignore=['re:^speech_encoder\\.', 'ln_speech', 're:^speech_audio_adapter\\.', 'text_decoder.lm_head'], scheme='W4A16', kv_cache_scheme=None, index=0, group='default', start=None, end=None, update=None, initialized_=True, finalized_=False, started_=True, ended_=False)] index=0 group='QuantizationModifier' applied=False
+2026-03-11 09:02:35.656 | DEBUG    | llmcompressor.core.lifecycle:event:191 - Handling event: EventType.CALIBRATION_EPOCH_END
+2026-03-11 09:02:35.674 | DEBUG    | llmcompressor.core.lifecycle:event:201 - Updated event with modifier: modifiers=[QuantizationModifier(config_groups=None, targets=['Linear'], ignore=['re:^speech_encoder\\.', 'ln_speech', 're:^speech_audio_adapter\\.', 'text_decoder.lm_head'], scheme='W4A16', kv_cache_scheme=None, index=0, group='default', start=None, end=None, update=None, initialized_=True, finalized_=False, started_=True, ended_=True)] index=0 group='QuantizationModifier' applied=False
+2026-03-11 09:02:35.674 | DEBUG    | llmcompressor.core.lifecycle:finalize:131 - Finalizing compression lifecycle
+2026-03-11 09:02:35.674 | DEBUG    | llmcompressor.core.lifecycle:finalize:135 - Finalized modifier: modifiers=[QuantizationModifier(config_groups=None, targets=['Linear'], ignore=['re:^speech_encoder\\.', 'ln_speech', 're:^speech_audio_adapter\\.', 'text_decoder.lm_head'], scheme='W4A16', kv_cache_scheme=None, index=0, group='default', start=None, end=None, update=None, initialized_=True, finalized_=None, started_=True, ended_=True)] index=0 group='default' applied=True
+2026-03-11 09:02:35.674 | INFO     | llmcompressor.core.lifecycle:finalize:141 - Compression lifecycle finalized for 1 modifiers
+2026-03-11 09:02:35.678 | WARNING  | llmcompressor.entrypoints.utils:post_process:107 - Optimized model is not saved. To save, please provide`output_dir` as input arg.Ex. `oneshot(..., output_dir=...)`
+2026-03-11 09:02:35.744 | INFO     | llmcompressor.transformers.sparsification.compressed_tensors_utils:get_model_compressor:217 - skip_sparsity_compression_stats set to True. Skipping sparsity compression statistic calculations. No sparsity compressor will be applied.
+2026-03-11 09:02:52.625 | DEBUG    | llmcompressor.transformers.utils.helpers:infer_recipe_from_model_path:105 - No recipe found in the model_path: /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged
+2026-03-11 09:02:52.627 | DEBUG    | llmcompressor.pytorch.model_load.helpers:copy_python_files_from_model_cache:170 - Transferring /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged/modeling_gemma2.py to /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged-W4A16-RTN
+2026-03-11 09:02:52.627 | DEBUG    | llmcompressor.pytorch.model_load.helpers:copy_python_files_from_model_cache:170 - Transferring /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged/processing_meralion2.py to /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged-W4A16-RTN
+2026-03-11 09:02:52.628 | DEBUG    | llmcompressor.pytorch.model_load.helpers:copy_python_files_from_model_cache:170 - Transferring /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged/blockwise_kv_cache_old.py to /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged-W4A16-RTN
+2026-03-11 09:02:52.628 | DEBUG    | llmcompressor.pytorch.model_load.helpers:copy_python_files_from_model_cache:170 - Transferring /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged/modeling_meralion2.py to /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged-W4A16-RTN
+2026-03-11 09:02:52.628 | DEBUG    | llmcompressor.pytorch.model_load.helpers:copy_python_files_from_model_cache:170 - Transferring /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged/blockwise_kv_cache.py to /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged-W4A16-RTN
+2026-03-11 09:02:52.628 | DEBUG    | llmcompressor.pytorch.model_load.helpers:copy_python_files_from_model_cache:170 - Transferring /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged/modeling_whisper.py to /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged-W4A16-RTN
+2026-03-11 09:02:52.628 | DEBUG    | llmcompressor.pytorch.model_load.helpers:copy_python_files_from_model_cache:170 - Transferring /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged/configuration_gemma2.py to /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged-W4A16-RTN
+2026-03-11 09:02:52.628 | DEBUG    | llmcompressor.pytorch.model_load.helpers:copy_python_files_from_model_cache:170 - Transferring /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged/configuration_meralion2.py to /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged-W4A16-RTN
+2026-03-11 09:02:52.629 | DEBUG    | llmcompressor.pytorch.model_load.helpers:copy_python_files_from_model_cache:170 - Transferring /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged/configuration_whisper.py to /home/jinchao/runtao/LLM-Pruner/meralion_checkpoints/MERaLiON-2-3B-v2-TextBoth-25-merged-W4A16-RTN
