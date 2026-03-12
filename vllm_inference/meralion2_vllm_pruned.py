@@ -469,13 +469,17 @@ def _register_processor_factory():
                 super().__init__(ctx)
             except Exception:
                 self.ctx = ctx
-            # BaseMultiModalProcessor.__init__ sets data_parser via _get_data_parser();
-            # if super().__init__ failed (wrong signature), set it manually.
+            # BaseMultiModalProcessor.__init__ sets several attrs; if super().__init__
+            # failed (wrong signature), initialize them all manually here.
             if not hasattr(self, 'data_parser'):
                 try:
                     self.data_parser = self._get_data_parser()
                 except Exception:
                     pass
+            if not hasattr(self, 'cache'):
+                self.cache = None
+            if not hasattr(self, 'enable_sanity_checks'):
+                self.enable_sanity_checks = False
 
         # Provide target_sr so MultiModalDataParser can resample audio without error
         def _get_data_parser(self):
