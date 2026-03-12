@@ -523,7 +523,7 @@ def _register_processor_factory():
                         return _PI(
                             prompt_text="<SpeechHere>" * num_audios,
                             mm_data={"audio": [(dummy_audio, _sr)] * num_audios},
-                            mm_processor_kwargs={},
+                            hf_processor_mm_kwargs={},
                         )
                     except Exception:
                         pass
@@ -531,7 +531,7 @@ def _register_processor_factory():
                     class _PI:
                         prompt_text = "<SpeechHere>" * num_audios
                         mm_data = {"audio": [(dummy_audio, _sr)] * num_audios}
-                        mm_processor_kwargs = {}
+                        hf_processor_mm_kwargs = {}
                     return _PI()
 
             return _DummyInputsBuilder()
