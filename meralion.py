@@ -584,6 +584,15 @@ def main(args):
 
                 logger.log("\n==================WER Evaluation After Pruning (Before Finetuning)================\n")
                 model.model.eval()
+
+                # Fix: HybridCache pre-allocates KV with uniform num_kv_heads from config,
+                # but pruned midblock layers have fewer KV heads → shape mismatch.
+                # Switch to DynamicCache which appends dynamically (no pre-allocation).
+                if hasattr(model.model, 'config'):
+                    model.model.config.cache_implementation = "dynamic"
+                if hasattr(model.model, 'generation_config'):
+                    model.model.generation_config.cache_implementation = "dynamic"
+
                 wer_metric = hf_evaluate.load("wer")
 
                 test_data = load_from_disk("/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR")

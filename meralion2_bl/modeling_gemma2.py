@@ -25,7 +25,7 @@ import torch
 import torch.nn as nn
 
 from transformers.activations import ACT2FN
-from transformers.cache_utils import Cache, HybridCache, StaticCache
+from transformers.cache_utils import Cache, DynamicCache, HybridCache, StaticCache
 from transformers.generation import GenerationMixin
 from transformers.modeling_flash_attention_utils import FlashAttentionKwargs
 from transformers.modeling_outputs import (
@@ -650,15 +650,20 @@ class Gemma2Model(Gemma2PreTrainedModel):
             inputs_embeds = self.embed_tokens(input_ids)
 
         if use_cache and past_key_values is None and not self.training:
-            batch_size, seq_len, _ = inputs_embeds.shape
-            # NOTE: ideally, `HybridCache` should be initialized outside the model with `layer_device_map`
-            past_key_values = HybridCache(
-                self.config,
-                max_batch_size=batch_size,
-                max_cache_len=seq_len,
-                dtype=inputs_embeds.dtype,
-                device=self.device,
-            )
+            # For pruned models with non-uniform num_kv_heads (midblock system),
+            # HybridCache fails because it pre-allocates fixed-shape per-layer caches.
+            # Use DynamicCache which appends dynamically and handles any shape.
+            if getattr(self.config, 'midblock_start', -1) >= 0 and getattr(self.config, 'midblock_ratio', 1.0) < 1.0:
+                past_key_values = DynamicCache()
+            else:
+                batch_size, seq_len, _ = inputs_embeds.shape
+                past_key_values = HybridCache(
+                    self.config,
+                    max_batch_size=batch_size,
+                    max_cache_len=seq_len,
+                    dtype=inputs_embeds.dtype,
+                    device=self.device,
+                )
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
