@@ -477,6 +477,14 @@ def _register_processor_factory():
                 except Exception:
                     pass
 
+        # Provide target_sr so MultiModalDataParser can resample audio without error
+        def _get_data_parser(self):
+            try:
+                from vllm.multimodal.parse import MultiModalDataParser
+                return MultiModalDataParser(target_sr=DEFAULT_SAMPLE_RATE)
+            except Exception:
+                return super()._get_data_parser()
+
         # Required abstract methods (stub — real processing done by input_processor_for_meralion)
         def _get_mm_fields_config(self, hf_inputs, hf_processor_mm_kwargs):
             return {}
