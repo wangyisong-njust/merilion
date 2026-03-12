@@ -5,8 +5,8 @@
 # Strategy: Prune 50% of text decoder layers 4-22 (both attn + MLP)
 # Layers 0-3 and 22-25 remain unpruned (protected head/tail)
 #
-# NOTE: This produces non-uniform layer sizes, so vLLM inference
-#       will NOT work. Use HF inference for evaluation.
+# NOTE: This produces non-uniform layer sizes. Use the custom
+#       PrunedGemma2Model for vLLM inference (see pruned_gemma2_vllm.py).
 # ============================================================
 
 export WANDB_DISABLED=true
@@ -41,12 +41,30 @@ $PYTHON_PATH -u meralion.py \
     $PRUNE_COMMON $TEXT_LAYERS \
     --post_prune_eval \
     --save_ckpt_log_name MERaLiON-2-3B-$NAME \
-    --save_model_path meralion_checkpoints/MERaLiON-2-3B-$NAME && \
-$PYTHON_PATH -u post_training_meralion.py \
-    --base_model meralion_checkpoints/MERaLiON-2-3B-$NAME \
-    --output_dir meralion_tune_log/MERaLiON-2-3B-$NAME-tune \
-    $LORA_ARGS
+    --save_model_path meralion_checkpoints/MERaLiON-2-3B-$NAME
+# && \
+# $PYTHON_PATH -u post_training_meralion.py \
+#     --base_model meralion_checkpoints/MERaLiON-2-3B-$NAME \
+#     --output_dir meralion_tune_log/MERaLiON-2-3B-$NAME-tune \
+#     $LORA_ARGS
 " > tune_${NAME}.log 2>&1 &
+
+# ============================================================
+# vLLM inference test for pruned model (non-uniform layers)
+# ============================================================
+# After pruning completes, test vLLM loading with PrunedGemma2Model:
+#
+#   CUDA_VISIBLE_DEVICES=$GPU $PYTHON_PATH -c "
+#   import sys; sys.path.insert(0, '$WORKDIR/vllm_inference')
+#   from vllm import LLM, ModelRegistry
+#   from meralion2_vllm_pruned import MERaLiON2PrunedForConditionalGeneration
+#   ModelRegistry.register_model('MERaLiON2ForConditionalGeneration',
+#                                MERaLiON2PrunedForConditionalGeneration)
+#   llm = LLM(model='meralion_checkpoints/MERaLiON-2-3B-$NAME',
+#             tokenizer='meralion_checkpoints/MERaLiON-2-3B-$NAME',
+#             limit_mm_per_prompt={'audio': 1}, trust_remote_code=True)
+#   print('vLLM loaded pruned model successfully!')
+#   "
 
 echo ""
 echo "=========================================="
@@ -57,7 +75,7 @@ echo "Config:"
 echo "  Pruning ratio:  0.5 (50%) for both attn and MLP"
 echo "  Layer range:    4-22 (protected: 0-3 head, 22-25 tail)"
 echo "  Post-prune eval: enabled (500 samples, IMDA PART1)"
-echo "  Post-training:  LoRA r=16, lr=5e-5, 3 epochs, 20k samples"
+echo "  Post-training:  COMMENTED OUT (GPUs occupied)"
 echo ""
 echo "Monitor: tail -f tune_${NAME}.log"
 echo "WER:     grep -E 'Post-prune WER|Final Test WER' tune_${NAME}.log"
