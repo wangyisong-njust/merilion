@@ -321,9 +321,14 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
                 text_config.vocab_size, text_config.hidden_size, quant_config=quant_config)
 
         logit_scale = getattr(config, "logit_scale", 1.0)
+        import inspect as _inspect
+        _lp_sig = _inspect.signature(LogitsProcessor.__init__).parameters
+        _lp_kwargs = {}
+        if 'logit_softcapping' in _lp_sig:
+            _lp_kwargs['logit_softcapping'] = getattr(text_config, "final_logit_softcapping", None)
         self.logits_processor = LogitsProcessor(
             self.unpadded_vocab_size, text_config.vocab_size, logit_scale,
-            logit_softcapping=getattr(text_config, "final_logit_softcapping", None),
+            **_lp_kwargs,
         )
         self.sampler = get_sampler()
         self.make_empty_intermediate_tensors = self.model.make_empty_intermediate_tensors
