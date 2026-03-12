@@ -33,7 +33,12 @@ from vllm.model_executor.model_loader.weight_utils import (
     default_weight_loader, maybe_remap_kv_scale_name)
 from vllm.model_executor.sampling_metadata import SamplingMetadata
 from vllm.multimodal import MULTIMODAL_REGISTRY, MultiModalKwargs
-from vllm.multimodal.utils import consecutive_placeholder_ranges
+try:
+    from vllm.multimodal.utils import consecutive_placeholder_ranges
+except ImportError:
+    # Fallback for older vLLM versions
+    def consecutive_placeholder_ranges(num_items, item_size):
+        return [range(i * item_size, (i + 1) * item_size) for i in range(num_items)]
 from vllm.sequence import IntermediateTensors, SequenceData
 from transformers.models.whisper.modeling_whisper import WhisperEncoder
 
