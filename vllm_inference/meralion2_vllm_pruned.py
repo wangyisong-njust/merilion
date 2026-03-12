@@ -495,6 +495,25 @@ def _register_processor_factory():
         def get_max_tokens_per_item_by_modality(self, *args, **kwargs):
             return {"audio": _max_audio_tokens}
 
+        # vLLM 0.7+ profiling calls processor.dummy_inputs.get_dummy_processor_inputs()
+        @property
+        def dummy_inputs(self):
+            _max_chunks = MAX_NUMBER_CHUNKS
+            _chunk_size = FEATURE_CHUNK_SIZE
+            _sr = DEFAULT_SAMPLE_RATE
+            try:
+                from vllm.multimodal.profiling import BaseDummyInputsBuilder as _DBase
+            except ImportError:
+                _DBase = object
+
+            class _DummyInputsBuilder(_DBase):
+                def get_dummy_processor_inputs(self_, seq_len, mm_counts):
+                    num_audios = (mm_counts or {}).get("audio", 1)
+                    dummy_audio = np.zeros(_max_chunks * _chunk_size, dtype=np.float32)
+                    return {"audio": [(dummy_audio, _sr)] * num_audios}
+
+            return _DummyInputsBuilder()
+
         # vLLM 0.7+ profiling accesses processor.info.get_allowed_mm_limits()
         @property
         def info(self):
