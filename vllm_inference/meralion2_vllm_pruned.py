@@ -477,6 +477,9 @@ def _register_processor_factory():
         def _get_prompt_replacements(self, mm_items, hf_processor_mm_kwargs, out_mm_kwargs):
             return []
 
+        def _get_prompt_updates(self, mm_items, hf_processor_mm_kwargs, out_mm_kwargs):
+            return []
+
         # Factory entry point called by create_processor (vLLM 0.7+)
         @classmethod
         def build_processor(cls, ctx, cache=None):
