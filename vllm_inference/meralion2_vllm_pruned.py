@@ -504,6 +504,29 @@ def _register_processor_factory():
         def build_processor(cls, ctx, cache=None):
             return cls(ctx)
 
+        # Override apply() to bypass _cached_apply_hf_processor entirely.
+        # vLLM profiling calls apply() to get mm_placeholders for token counting.
+        # We skip the real HF processor and return a minimal MultiModalInputs dict.
+        def apply(self, prompt, mm_data, hf_processor_mm_kwargs=None):
+            audio_items = (mm_data or {}).get("audio", [])
+            n = max(len(audio_items), 1)
+            placeholders = [
+                {"offset": i * _max_audio_tokens, "length": _max_audio_tokens}
+                for i in range(n)
+            ]
+            try:
+                from vllm.multimodal.inputs import MultiModalKwargs
+                mm_kwargs = MultiModalKwargs({})
+            except Exception:
+                mm_kwargs = {}
+            return {
+                "type": "multimodal",
+                "prompt": prompt if isinstance(prompt, str) else "",
+                "prompt_token_ids": [0] * (n * _max_audio_tokens),
+                "mm_placeholders": {"audio": placeholders},
+                "mm_kwargs": mm_kwargs,
+            }
+
         # Max-token query methods — vLLM may call any of these spellings
         def get_supported_mm_limits(self):
             return {"audio": 1}
