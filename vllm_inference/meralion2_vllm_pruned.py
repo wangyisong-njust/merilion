@@ -447,169 +447,33 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
 
 
 # ---------------------------------------------------------------------------
-# Newer vLLM (0.7+) requires _processor_factories for max-token allocation
-# even when using V0 engine. Register a minimal stub processor factory so
-# profile_run / _dummy_run can compute the encoder budget.
+# Newer vLLM (0.7+) requires _processor_factories for max-token allocation.
+# The pruned model only differs in text-decoder layer dims; all multimodal
+# processing (audio encoding, token counting) is identical to the original
+# MERaLiON-2.  Reuse the plugin's processor classes when available.
 # ---------------------------------------------------------------------------
 def _register_processor_factory():
     if not hasattr(MULTIMODAL_REGISTRY, '_processor_factories'):
         return  # Old vLLM — already covered by _maybe_apply decorators above
 
-    _max_audio_tokens = MAX_NUMBER_CHUNKS * OUTPUT_CHUNK_SIZE
-
-    # Subclass BaseMultiModalProcessor if importable, else fall back to object
+    # Primary path: reuse the proper processor classes from vllm_plugin_meralion2
     try:
-        from vllm.multimodal.processing import BaseMultiModalProcessor as _Base
-    except ImportError:
-        _Base = object
-
-    class _MERaLiONProcessor(_Base):
-        def __init__(self, ctx):
-            try:
-                super().__init__(ctx)
-            except Exception:
-                self.ctx = ctx
-            # BaseMultiModalProcessor.__init__ sets several attrs; if super().__init__
-            # failed (wrong signature), initialize them all manually here.
-            if not hasattr(self, 'data_parser'):
-                try:
-                    self.data_parser = self._get_data_parser()
-                except Exception:
-                    pass
-            if not hasattr(self, 'cache'):
-                self.cache = None
-            if not hasattr(self, 'enable_sanity_checks'):
-                self.enable_sanity_checks = False
-
-        # Provide target_sr so MultiModalDataParser can resample audio without error
-        def _get_data_parser(self):
-            try:
-                from vllm.multimodal.parse import MultiModalDataParser
-                return MultiModalDataParser(target_sr=DEFAULT_SAMPLE_RATE)
-            except Exception:
-                return super()._get_data_parser()
-
-        # Required abstract methods (stub — real processing done by input_processor_for_meralion)
-        def _get_mm_fields_config(self, hf_inputs, hf_processor_mm_kwargs):
-            return {}
-
-        def _get_prompt_replacements(self, mm_items, hf_processor_mm_kwargs, out_mm_kwargs):
-            return []
-
-        def _get_prompt_updates(self, mm_items, hf_processor_mm_kwargs, out_mm_kwargs):
-            return []
-
-        # Factory entry point called by create_processor (vLLM 0.7+)
-        @classmethod
-        def build_processor(cls, ctx, cache=None):
-            return cls(ctx)
-
-        # Override apply() to bypass _cached_apply_hf_processor entirely.
-        # vLLM profiling calls apply() to get mm_placeholders for token counting.
-        # We skip the real HF processor and return a minimal MultiModalInputs dict.
-        def apply(self, prompt, mm_data, hf_processor_mm_kwargs=None):
-            audio_items = (mm_data or {}).get("audio", [])
-            n = max(len(audio_items), 1)
-            placeholders = [
-                {"offset": i * _max_audio_tokens, "length": _max_audio_tokens}
-                for i in range(n)
-            ]
-            try:
-                from vllm.multimodal.inputs import MultiModalKwargs
-                mm_kwargs = MultiModalKwargs({})
-            except Exception:
-                mm_kwargs = {}
-            return {
-                "type": "multimodal",
-                "prompt": prompt if isinstance(prompt, str) else "",
-                "prompt_token_ids": [0] * (n * _max_audio_tokens),
-                "mm_placeholders": {"audio": placeholders},
-                "mm_kwargs": mm_kwargs,
-            }
-
-        # Max-token query methods — vLLM may call any of these spellings
-        def get_supported_mm_limits(self):
-            return {"audio": 1}
-
-        def get_max_mm_tokens_per_item(self, *args, **kwargs):
-            return _max_audio_tokens
-
-        def get_max_tokens_per_item_by_modality(self, *args, **kwargs):
-            return {"audio": _max_audio_tokens}
-
-        # vLLM 0.7+ profiling calls processor.dummy_inputs.get_dummy_processor_inputs()
-        @property
-        def dummy_inputs(self):
-            _max_chunks = MAX_NUMBER_CHUNKS
-            _chunk_size = FEATURE_CHUNK_SIZE
-            _sr = DEFAULT_SAMPLE_RATE
-            _info = self.info  # our _ProcessingInfo instance
-            try:
-                from vllm.multimodal.profiling import BaseDummyInputsBuilder as _DBase
-            except ImportError:
-                _DBase = object
-
-            class _DummyInputsBuilder(_DBase):
-                def __init__(self_):
-                    try:
-                        super().__init__(_info)
-                    except Exception:
-                        pass
-
-                def get_dummy_processor_inputs(self_, seq_len, mm_counts):
-                    num_audios = (mm_counts or {}).get("audio", 1)
-                    dummy_audio = np.zeros(_max_chunks * _chunk_size, dtype=np.float32)
-                    # Build a ProcessorInputs-compatible object (vLLM 0.7+ expects .prompt_text)
-                    try:
-                        from vllm.multimodal.processing import ProcessorInputs as _PI
-                        return _PI(
-                            prompt_text="<SpeechHere>" * num_audios,
-                            mm_data={"audio": [(dummy_audio, _sr)] * num_audios},
-                            hf_processor_mm_kwargs={},
-                        )
-                    except Exception:
-                        pass
-                    # Fallback: plain object with required attributes
-                    class _PI:
-                        prompt_text = "<SpeechHere>" * num_audios
-                        mm_data = {"audio": [(dummy_audio, _sr)] * num_audios}
-                        hf_processor_mm_kwargs = {}
-                    return _PI()
-
-            return _DummyInputsBuilder()
-
-        # vLLM 0.7+ profiling accesses processor.info.get_allowed_mm_limits()
-        @property
-        def info(self):
-            _max = _max_audio_tokens
-
-            class _ProcessingInfo:
-                def get_allowed_mm_limits(self_):
-                    return {"audio": 1}
-
-                def get_supported_mm_limits(self_):
-                    return {"audio": None}
-
-                def get_max_tokens_per_item(self_, *args, **kwargs):
-                    return {"audio": _max}
-
-            return _ProcessingInfo()
-
-    # Prefer the official register_processor API; fall back to direct dict assignment
-    _reg = getattr(MULTIMODAL_REGISTRY, 'register_processor', None)
-    if _reg is not None:
-        try:
-            _reg(_MERaLiONProcessor)(MERaLiON2PrunedForConditionalGeneration)
-            return
-        except Exception as e:
-            logger.warning(f"register_processor failed ({e}), trying direct assignment")
-
-    try:
-        MULTIMODAL_REGISTRY._processor_factories[
-            MERaLiON2PrunedForConditionalGeneration
-        ] = _MERaLiONProcessor
+        from vllm_plugin_meralion2.vllm085 import (
+            MERaLiON2MultiModalProcessor,
+            MERaLiON2ProcessingInfo,
+            MERaLiON2DummyInputsBuilder,
+        )
+        MULTIMODAL_REGISTRY.register_processor(
+            MERaLiON2MultiModalProcessor,
+            info=MERaLiON2ProcessingInfo,
+            dummy_inputs=MERaLiON2DummyInputsBuilder,
+        )(MERaLiON2PrunedForConditionalGeneration)
+        logger.info("Registered MERaLiON2MultiModalProcessor for pruned model "
+                    "(reused from vllm_plugin_meralion2.vllm085)")
+        return
     except Exception as e:
-        logger.warning(f"Could not register processor factory: {e}")
+        logger.warning(f"Could not reuse vllm_plugin_meralion2 processor ({e}); "
+                       "falling back to built-in stub")
 
 
 _register_processor_factory()
