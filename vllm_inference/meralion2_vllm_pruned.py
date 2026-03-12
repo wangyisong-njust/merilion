@@ -517,7 +517,22 @@ def _register_processor_factory():
                 def get_dummy_processor_inputs(self_, seq_len, mm_counts):
                     num_audios = (mm_counts or {}).get("audio", 1)
                     dummy_audio = np.zeros(_max_chunks * _chunk_size, dtype=np.float32)
-                    return {"audio": [(dummy_audio, _sr)] * num_audios}
+                    # Build a ProcessorInputs-compatible object (vLLM 0.7+ expects .prompt_text)
+                    try:
+                        from vllm.multimodal.processing import ProcessorInputs as _PI
+                        return _PI(
+                            prompt_text="<SpeechHere>" * num_audios,
+                            mm_data={"audio": [(dummy_audio, _sr)] * num_audios},
+                            mm_processor_kwargs={},
+                        )
+                    except Exception:
+                        pass
+                    # Fallback: plain object with required attributes
+                    class _PI:
+                        prompt_text = "<SpeechHere>" * num_audios
+                        mm_data = {"audio": [(dummy_audio, _sr)] * num_audios}
+                        mm_processor_kwargs = {}
+                    return _PI()
 
             return _DummyInputsBuilder()
 
