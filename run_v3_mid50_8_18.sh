@@ -5,7 +5,7 @@
 # Strategy: Prune 50% of text decoder layers 4-22 (both attn + MLP)
 # Layers 0-3 and 22-25 remain unpruned (protected head/tail)
 #
-# Pipeline: Prune → vLLM latency benchmark (pruned vs original)
+# Pipeline: Prune → Post-training (LoRA recovery) → vLLM latency benchmark
 # ============================================================
 
 export WANDB_DISABLED=true
@@ -20,6 +20,7 @@ cd $WORKDIR
 
 # Common args
 PRUNE_COMMON="--pruner_type taylor --taylor param_mix --block_wise --num_examples 20 --max_seq_len 256 --save_model"
+LORA_ARGS="--lora_r 16 --lora_alpha 16 --learning_rate 5e-5 --num_epochs 3 --batch_size 8 --micro_batch_size 2"
 
 # Middle-block pruning: layers 4-22 for both attention and MLP
 TEXT_LAYERS="--block_attention_layer_start 8 --block_attention_layer_end 18 --block_mlp_layer_start 8 --block_mlp_layer_end 18"
@@ -30,11 +31,12 @@ TEXT_LAYERS="--block_attention_layer_start 8 --block_attention_layer_end 18 --bl
 GPU=2
 NAME="v3-td50-mid8-18"
 CKPT="meralion_checkpoints/MERaLiON-2-3B-$NAME"
+TUNE_DIR="meralion_tune_log/MERaLiON-2-3B-$NAME-tune"
 ORIGINAL="/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
 DATASET="/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR"
 NUM_BENCH_SAMPLES=50
 
-echo "[GPU $GPU] $NAME — prune + vLLM benchmark"
+echo "[GPU $GPU] $NAME — prune + post-training + vLLM benchmark"
 
 CUDA_VISIBLE_DEVICES=$GPU nohup bash -c "
 echo '========== Step 1: Pruning ==========' && \
@@ -47,9 +49,15 @@ $PYTHON_PATH -u meralion.py \
     --save_ckpt_log_name MERaLiON-2-3B-$NAME \
     --save_model_path $CKPT && \
 echo '' && \
-echo '========== Step 2: vLLM Latency Benchmark ==========' && \
+echo '========== Step 2: Post-training (LoRA recovery) ==========' && \
+$PYTHON_PATH -u post_training_meralion.py \
+    --base_model $CKPT \
+    --output_dir $TUNE_DIR \
+    $LORA_ARGS && \
+echo '' && \
+echo '========== Step 3: vLLM Latency Benchmark ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned $CKPT \
+    --pruned $TUNE_DIR \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
@@ -63,10 +71,11 @@ echo "=========================================="
 echo ""
 echo "Config:"
 echo "  Pruning ratio:  0.5 (50%) for both attn and MLP"
-echo "  Layer range:    4-22 (protected: 0-3 head, 22-25 tail)"
+echo "  Layer range:    8-18 (protected: 0-7 head, 18-25 tail)"
 echo "  Post-prune eval: enabled (500 samples, IMDA PART1)"
-echo "  vLLM benchmark: ${NUM_BENCH_SAMPLES} samples (pruned vs original)"
+echo "  Post-training:  LoRA recovery → $TUNE_DIR"
+echo "  vLLM benchmark: ${NUM_BENCH_SAMPLES} samples (tuned-pruned vs original)"
 echo ""
 echo "Monitor: tail -f tune_${NAME}.log"
 echo "WER:     grep -E 'Post-prune WER|Final Test WER' tune_${NAME}.log"
-echo "Bench:   grep -E 'Speedup|Tokens/sec|Avg per sample' tune_${NAME}.log"
+echo "Bench:   grep -E 'Decode speedup|Prefill speedup|decode.tok' tune_${NAME}.log"
