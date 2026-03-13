@@ -190,15 +190,15 @@ class PrunedGemma2Attention(nn.Module):
         if 'logits_soft_cap' in _attn_sig:
             attn_kwargs['logits_soft_cap'] = config.attn_logit_softcapping
         if 'head_ratio' in _attn_sig:
-            # head_ratio: fraction of max KV cache slots actually used by this
-            # layer.  Full layers = 1.0; midblock-pruned layers = midblock_ratio.
             attn_kwargs['head_ratio'] = num_key_value_heads / config.num_key_value_heads
         self.attn = Attention(**attn_kwargs)
-        # In some vLLM versions head_ratio is an internal attribute (not a ctor
-        # param) but the attention kernel still requires it to be a float.
-        # Override it after construction if it ended up None.
-        if getattr(self.attn, 'head_ratio', 'missing') is None:
-            self.attn.head_ratio = float(num_key_value_heads) / config.num_key_value_heads
+        # Some vLLM builds store head_ratio internally (not a ctor param) but
+        # the attention kernel requires a float, not None.  Force it on all
+        # locations it might live: the Attention object itself and its impl.
+        _hr = float(num_key_value_heads) / config.num_key_value_heads
+        self.attn.head_ratio = _hr
+        if hasattr(self.attn, 'impl') and self.attn.impl is not None:
+            self.attn.impl.head_ratio = _hr
 
     def forward(
         self,
