@@ -35,6 +35,7 @@ except ImportError:
 # vLLM 0.8.5+ removed kv_cache/attn_metadata from Attention.forward();
 # they are now retrieved from the execution context internally.
 _ATTN_FWD_TAKES_KV = 'kv_cache' in inspect.signature(Attention.forward).parameters
+_ATTN_FWD_TAKES_HEAD_RATIO = 'head_ratio' in inspect.signature(Attention.forward).parameters
 from vllm.config import CacheConfig, VllmConfig
 from vllm.distributed import get_tensor_model_parallel_world_size
 from vllm.model_executor.layers.activation import GeluAndMul
@@ -189,16 +190,11 @@ class PrunedGemma2Attention(nn.Module):
             attn_kwargs['per_layer_sliding_window'] = sliding_window
         if 'logits_soft_cap' in _attn_sig:
             attn_kwargs['logits_soft_cap'] = config.attn_logit_softcapping
-        if 'head_ratio' in _attn_sig:
-            attn_kwargs['head_ratio'] = num_key_value_heads / config.num_key_value_heads
         self.attn = Attention(**attn_kwargs)
-        # Some vLLM builds store head_ratio internally (not a ctor param) but
-        # the attention kernel requires a float, not None.  Force it on all
-        # locations it might live: the Attention object itself and its impl.
-        _hr = float(num_key_value_heads) / config.num_key_value_heads
-        self.attn.head_ratio = _hr
-        if hasattr(self.attn, 'impl') and self.attn.impl is not None:
-            self.attn.impl.head_ratio = _hr
+        # Store head_ratio for layers with fewer KV heads than the KV cache.
+        # Full layers = 1.0; midblock-pruned layers = midblock_ratio.
+        # Passed at call time to Attention.forward() in newer vLLM builds.
+        self._head_ratio = float(num_key_value_heads) / config.num_key_value_heads
 
     def forward(
         self,
@@ -212,6 +208,8 @@ class PrunedGemma2Attention(nn.Module):
         q, k = self.rotary_emb(positions, q, k)
         if _ATTN_FWD_TAKES_KV:
             attn_output = self.attn(q, k, v, kv_cache, attn_metadata)
+        elif _ATTN_FWD_TAKES_HEAD_RATIO:
+            attn_output = self.attn(q, k, v, head_ratio=self._head_ratio)
         else:
             attn_output = self.attn(q, k, v)
         output, _ = self.o_proj(attn_output)
