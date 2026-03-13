@@ -22,14 +22,14 @@ cd $WORKDIR
 PRUNE_COMMON="--pruner_type taylor --taylor param_mix --block_wise --num_examples 20 --max_seq_len 256 --save_model"
 LORA_ARGS="--lora_r 16 --lora_alpha 16 --learning_rate 5e-5 --num_epochs 3 --batch_size 8 --micro_batch_size 2"
 
-# Middle-block pruning: layers 4-22 for both attention and MLP
-TEXT_LAYERS="--block_attention_layer_start 8 --block_attention_layer_end 18 --block_mlp_layer_start 8 --block_mlp_layer_end 18"
+# Middle-block pruning: layers 6-20 for both attention and MLP
+TEXT_LAYERS="--block_attention_layer_start 6 --block_attention_layer_end 20 --block_mlp_layer_start 6 --block_mlp_layer_end 20"
 
 # ============================================================
 # GPU 2: Prune + vLLM benchmark
 # ============================================================
 GPU=2
-NAME="v3-td50-mid8-18"
+NAME="v3-td50-mid6-20"
 CKPT="meralion_checkpoints/MERaLiON-2-3B-$NAME"
 TUNE_DIR="meralion_tune_log/MERaLiON-2-3B-$NAME-tune"
 ORIGINAL="/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
@@ -71,7 +71,7 @@ echo "=========================================="
 echo ""
 echo "Config:"
 echo "  Pruning ratio:  0.5 (50%) for both attn and MLP"
-echo "  Layer range:    8-18 (protected: 0-7 head, 18-25 tail)"
+echo "  Layer range:    6-20 (protected: 0-5 head, 20-25 tail)"
 echo "  Post-prune eval: enabled (500 samples, IMDA PART1)"
 echo "  Post-training:  LoRA recovery → $TUNE_DIR"
 echo "  vLLM benchmark: ${NUM_BENCH_SAMPLES} samples (tuned-pruned vs original)"
