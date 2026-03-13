@@ -337,8 +337,11 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
         if not isinstance(mm_input, (torch.Tensor, list)):
             raise ValueError(f"Incorrect type of {name}. Got type: {type(mm_input)}")
         if isinstance(mm_input, torch.Tensor):
-            return torch.concat(list(mm_input))
-        return torch.concat(mm_input)
+            result = torch.concat(list(mm_input))
+        else:
+            result = torch.concat(mm_input)
+        # Flatten any leading batch/chunk dims: [..., mel, time] -> [N, mel, time]
+        return result.view(-1, result.size(-2), result.size(-1))
 
     def _parse_and_validate_audio_input(self, **kwargs):
         input_features = kwargs.pop('input_features', None)
