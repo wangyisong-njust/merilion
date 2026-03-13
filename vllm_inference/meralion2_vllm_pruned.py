@@ -60,12 +60,6 @@ from vllm.model_executor.models.utils import maybe_prefix
 
 from pruned_gemma2_vllm import PrunedGemma2Model, is_pruned_model
 
-# Try importing the standard model as fallback for unpruned models
-try:
-    from vllm.model_executor.models.gemma2 import Gemma2Model
-except ImportError:
-    Gemma2Model = None
-
 # Re-use modules from existing plugin
 try:
     from vllm_plugin_meralion2.transformers_utils.modules import (
@@ -290,27 +284,18 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
 
         self.quant_config = quant_config
 
-        # Text decoder: use pruned model if midblock config is active
+        # Text decoder: always use PrunedGemma2Model, which handles both pruned
+        # (non-uniform layers) and uniform models correctly, and is compatible
+        # with all vLLM versions.
         text_config = config.text_config
         if is_pruned_model(text_config):
             logger.info("Detected midblock pruning config — using PrunedGemma2Model")
-            self.model = PrunedGemma2Model(
-                vllm_config=vllm_config.with_hf_config(text_config),
-                prefix=maybe_prefix(prefix, "model"),
-            )
         else:
-            if Gemma2Model is not None:
-                logger.info("Using standard Gemma2Model (no midblock pruning)")
-                self.model = Gemma2Model(
-                    vllm_config=vllm_config.with_hf_config(text_config),
-                    prefix=maybe_prefix(prefix, "model"),
-                )
-            else:
-                logger.info("Gemma2Model not available, using PrunedGemma2Model for uniform model")
-                self.model = PrunedGemma2Model(
-                    vllm_config=vllm_config.with_hf_config(text_config),
-                    prefix=maybe_prefix(prefix, "model"),
-                )
+            logger.info("No midblock pruning detected — using PrunedGemma2Model with uniform layers")
+        self.model = PrunedGemma2Model(
+            vllm_config=vllm_config.with_hf_config(text_config),
+            prefix=maybe_prefix(prefix, "model"),
+        )
 
         # LM head
         self.unpadded_vocab_size = text_config.vocab_size
