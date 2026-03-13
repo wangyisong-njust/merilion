@@ -189,6 +189,10 @@ class PrunedGemma2Attention(nn.Module):
             attn_kwargs['per_layer_sliding_window'] = sliding_window
         if 'logits_soft_cap' in _attn_sig:
             attn_kwargs['logits_soft_cap'] = config.attn_logit_softcapping
+        if 'head_ratio' in _attn_sig:
+            # head_ratio: fraction of max KV cache slots actually used by this
+            # layer.  Full layers = 1.0; midblock-pruned layers = midblock_ratio.
+            attn_kwargs['head_ratio'] = num_key_value_heads / config.num_key_value_heads
         self.attn = Attention(**attn_kwargs)
 
     def forward(
