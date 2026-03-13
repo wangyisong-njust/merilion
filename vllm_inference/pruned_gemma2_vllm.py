@@ -194,6 +194,11 @@ class PrunedGemma2Attention(nn.Module):
             # layer.  Full layers = 1.0; midblock-pruned layers = midblock_ratio.
             attn_kwargs['head_ratio'] = num_key_value_heads / config.num_key_value_heads
         self.attn = Attention(**attn_kwargs)
+        # In some vLLM versions head_ratio is an internal attribute (not a ctor
+        # param) but the attention kernel still requires it to be a float.
+        # Override it after construction if it ended up None.
+        if getattr(self.attn, 'head_ratio', 'missing') is None:
+            self.attn.head_ratio = float(num_key_value_heads) / config.num_key_value_heads
 
     def forward(
         self,
