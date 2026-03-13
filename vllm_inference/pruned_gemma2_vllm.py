@@ -25,7 +25,16 @@ from typing import Iterable, List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 
-from vllm.attention import Attention, AttentionMetadata
+import inspect
+from vllm.attention import Attention
+try:
+    from vllm.attention import AttentionMetadata
+except ImportError:
+    AttentionMetadata = None  # vLLM 0.8.5+ removed from public API
+
+# vLLM 0.8.5+ removed kv_cache/attn_metadata from Attention.forward();
+# they are now retrieved from the execution context internally.
+_ATTN_FWD_TAKES_KV = 'kv_cache' in inspect.signature(Attention.forward).parameters
 from vllm.config import CacheConfig, VllmConfig
 from vllm.distributed import get_tensor_model_parallel_world_size
 from vllm.model_executor.layers.activation import GeluAndMul
@@ -186,13 +195,16 @@ class PrunedGemma2Attention(nn.Module):
         self,
         positions: torch.Tensor,
         hidden_states: torch.Tensor,
-        kv_cache: torch.Tensor,
-        attn_metadata: AttentionMetadata,
+        kv_cache=None,
+        attn_metadata=None,
     ) -> torch.Tensor:
         qkv, _ = self.qkv_proj(hidden_states)
         q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
         q, k = self.rotary_emb(positions, q, k)
-        attn_output = self.attn(q, k, v, kv_cache, attn_metadata)
+        if _ATTN_FWD_TAKES_KV:
+            attn_output = self.attn(q, k, v, kv_cache, attn_metadata)
+        else:
+            attn_output = self.attn(q, k, v)
         output, _ = self.o_proj(attn_output)
         return output
 
@@ -239,9 +251,9 @@ class PrunedGemma2DecoderLayer(nn.Module):
         self,
         positions: torch.Tensor,
         hidden_states: torch.Tensor,
-        kv_cache: torch.Tensor,
-        attn_metadata: AttentionMetadata,
-        residual: Optional[torch.Tensor],
+        kv_cache=None,
+        attn_metadata=None,
+        residual: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Pre-attention norm (fused add+norm when residual is not None)
         if residual is None:
@@ -319,8 +331,8 @@ class PrunedGemma2Model(nn.Module):
         self,
         input_ids: Optional[torch.Tensor],
         positions: torch.Tensor,
-        kv_caches: List[torch.Tensor],
-        attn_metadata: AttentionMetadata,
+        kv_caches: Optional[List[torch.Tensor]] = None,
+        attn_metadata=None,
         intermediate_tensors: Optional[IntermediateTensors] = None,
         inputs_embeds: Optional[torch.Tensor] = None,
     ) -> Union[torch.Tensor, IntermediateTensors]:
@@ -339,10 +351,11 @@ class PrunedGemma2Model(nn.Module):
         hidden_states = hidden_states * normalizer
 
         for i, layer in enumerate(self.layers):
+            kv = kv_caches[i] if kv_caches is not None else None
             hidden_states, residual = layer(
                 positions,
                 hidden_states,
-                kv_caches[i],
+                kv,
                 attn_metadata,
                 residual,
             )

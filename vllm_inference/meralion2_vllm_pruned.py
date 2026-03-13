@@ -367,24 +367,25 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
         self,
         input_ids: torch.Tensor,
         positions: torch.Tensor,
-        kv_caches: List[torch.Tensor],
-        attn_metadata: AttentionMetadata,
+        kv_caches: Optional[List[torch.Tensor]] = None,
+        attn_metadata=None,
         intermediate_tensors: Optional[IntermediateTensors] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
         **kwargs,
     ) -> Union[torch.Tensor, IntermediateTensors]:
         if intermediate_tensors is not None:
             input_ids = None
             inputs_embeds = None
-        else:
+        elif inputs_embeds is None:
+            # V0 path: compute embeddings here from audio kwargs
             audio_input = self._parse_and_validate_audio_input(**kwargs)
-            if audio_input is None:
-                inputs_embeds = None
-            else:
+            if audio_input is not None:
                 inputs_embeds = self.model.embed_tokens(input_ids)
                 processed_audio = self._process_audio_input(audio_input)
                 mask = (input_ids == self.config.speech_token_index)
                 inputs_embeds[mask, :] = processed_audio
                 input_ids = None
+        # else: inputs_embeds already provided (V1 path)
 
         hidden_states = self.model(
             input_ids=input_ids,
