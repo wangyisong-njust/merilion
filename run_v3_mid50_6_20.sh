@@ -5,7 +5,7 @@
 # Strategy: Prune 50% of text decoder layers 4-22 (both attn + MLP)
 # Layers 0-3 and 22-25 remain unpruned (protected head/tail)
 #
-# Pipeline: Prune → Post-training (LoRA recovery) → vLLM latency benchmark
+# Pipeline: Prune → Post-training (LoRA recovery) → vLLM latency benchmark → vLLM WER eval
 # ============================================================
 
 export WANDB_DISABLED=true
@@ -61,7 +61,15 @@ $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
-    --output vllm_benchmark_${NAME}.json
+    --output vllm_benchmark_${NAME}.json && \
+echo '' && \
+echo '========== Step 4: vLLM WER Evaluation ==========' && \
+$PYTHON_PATH -u vllm_eval_wer.py \
+    --model $TUNE_DIR \
+    --dataset $DATASET \
+    --num_samples 500 \
+    --num_demo 10 \
+    --output vllm_wer_${NAME}.json
 " > tune_${NAME}.log 2>&1 &
 
 echo ""
@@ -77,5 +85,5 @@ echo "  Post-training:  LoRA recovery → $TUNE_DIR"
 echo "  vLLM benchmark: ${NUM_BENCH_SAMPLES} samples (tuned-pruned vs original)"
 echo ""
 echo "Monitor: tail -f tune_${NAME}.log"
-echo "WER:     grep -E 'Post-prune WER|Final Test WER' tune_${NAME}.log"
+echo "WER:     grep -E 'Post-prune WER|Final Test WER|WER:' tune_${NAME}.log"
 echo "Bench:   grep -E 'Decode speedup|Prefill speedup|decode.tok' tune_${NAME}.log"
