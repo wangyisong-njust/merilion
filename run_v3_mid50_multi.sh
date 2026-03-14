@@ -3,16 +3,17 @@
 # MERaLiON-2-3B Middle-block pruning v3 — 4 experiments on 8 GPUs
 # ============================================================
 # All configs: text decoder 50% pruning (both attn + MLP), varying
-# the protected head/tail range and optionally adding Whisper FFN pruning.
+# the protected head/tail range and optionally adding Whisper attention pruning.
 #
 # GPU pairs (2 per experiment for post-training via device_map=auto):
 #   GPU 0,1 — v3-td50-mid7-21          Text 50%, layers 7-21
-#   GPU 2,3 — v3-td50-mid6-20-wm15     Text 50%, layers 6-20 + Whisper FFN 15%
+#   GPU 2,3 — v3-td50-mid6-20-wa15     Text 50%, layers 6-20 + Whisper attn 15%
 #   GPU 4,5 — v3-td50-mid5-19          Text 50%, layers 5-19
-#   GPU 6,7 — v3-td50-mid5-19-wm25     Text 50%, layers 5-19 + Whisper FFN 25%
+#   GPU 6,7 — v3-td50-mid5-19-wa25     Text 50%, layers 5-19 + Whisper attn 25%
 #
 # Pipeline per experiment:
-#   Prune → Post-training (LoRA, 2-GPU) → vLLM benchmark → vLLM WER eval
+#   Prune → vLLM benchmark (pruned) → Post-training (LoRA, 2-GPU) → vLLM WER eval
+# (benchmark runs before post-training so we can kill early if vLLM fails)
 # ============================================================
 
 export WANDB_DISABLED=true
@@ -56,21 +57,21 @@ CUDA_VISIBLE_DEVICES=0 $PYTHON_PATH -u meralion.py \
     --save_ckpt_log_name MERaLiON-2-3B-$NAME \
     --save_model_path $CKPT && \
 echo '' && \
-echo '========== Step 2: Post-training (2-GPU via device_map=auto) ==========' && \
-$PYTHON_PATH -u post_training_meralion.py \
-    --base_model $CKPT \
-    --output_dir $TUNE_DIR \
-    $LORA_ARGS && \
-echo '' && \
-echo '========== Step 3: vLLM Latency Benchmark (single GPU) ==========' && \
+echo '========== Step 2: vLLM Latency Benchmark on pruned checkpoint (single GPU) ==========' && \
 CUDA_VISIBLE_DEVICES=0 $PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned $TUNE_DIR \
+    --pruned $CKPT \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
     --output vllm_benchmark_${NAME}.json && \
 echo '' && \
-echo '========== Step 4: vLLM WER Evaluation (single GPU) ==========' && \
+echo '========== Step 3: Post-training (2-GPU via device_map=auto) ==========' && \
+$PYTHON_PATH -u post_training_meralion.py \
+    --base_model $CKPT \
+    --output_dir $TUNE_DIR \
+    $LORA_ARGS && \
+echo '' && \
+echo '========== Step 4: vLLM WER Evaluation on tuned checkpoint (single GPU) ==========' && \
 CUDA_VISIBLE_DEVICES=0 $PYTHON_PATH -u vllm_eval_wer.py \
     --model $TUNE_DIR \
     --dataset $DATASET \
@@ -90,14 +91,14 @@ _run_exp 0 1 \
     ""
 
 # ============================================================
-# GPU 2,3: Text 50% mid6-20 + Whisper FFN 15%
+# GPU 2,3: Text 50% mid6-20 + Whisper attn 15%
 # Protected: layers 0-5 head, 20-25 tail (12 intact layers)
-# Whisper FFN prunes fc1/fc2 intermediate dim; d_model unchanged (vLLM-safe)
+# Note: Whisper attn pruning changes num_heads; verify vLLM compat
 # ============================================================
 _run_exp 2 3 \
-    "v3-td50-mid6-20-wm15" \
+    "v3-td50-mid6-20-wa15" \
     "--block_attention_layer_start 6 --block_attention_layer_end 20 --block_mlp_layer_start 6 --block_mlp_layer_end 20" \
-    "--whisper_attn_pruning_ratio 0.0 --whisper_mlp_pruning_ratio 0.15 $WHISPER_LAYERS"
+    "--whisper_attn_pruning_ratio 0.15 --whisper_mlp_pruning_ratio 0.0 $WHISPER_LAYERS"
 
 # ============================================================
 # GPU 4,5: Text 50% mid5-19
@@ -109,13 +110,14 @@ _run_exp 4 5 \
     ""
 
 # ============================================================
-# GPU 6,7: Text 50% mid5-19 + Whisper FFN 25%
+# GPU 6,7: Text 50% mid5-19 + Whisper attn 25%
 # Protected: layers 0-4 head, 19-25 tail (12 intact layers)
+# Note: Whisper attn pruning changes num_heads; verify vLLM compat
 # ============================================================
 _run_exp 6 7 \
-    "v3-td50-mid5-19-wm25" \
+    "v3-td50-mid5-19-wa25" \
     "--block_attention_layer_start 5 --block_attention_layer_end 19 --block_mlp_layer_start 5 --block_mlp_layer_end 19" \
-    "--whisper_attn_pruning_ratio 0.0 --whisper_mlp_pruning_ratio 0.25 $WHISPER_LAYERS"
+    "--whisper_attn_pruning_ratio 0.25 --whisper_mlp_pruning_ratio 0.0 $WHISPER_LAYERS"
 
 echo ""
 echo "=========================================="
@@ -123,10 +125,10 @@ echo "All 4 experiments submitted (8 GPUs total)"
 echo "=========================================="
 echo ""
 echo "Experiment overview:"
-echo "  GPU 0,1: v3-td50-mid7-21          Text 50%, layers 7-21"
-echo "  GPU 2,3: v3-td50-mid6-20-wm15     Text 50%, layers 6-20 + Whisper FFN 15%"
-echo "  GPU 4,5: v3-td50-mid5-19          Text 50%, layers 5-19"
-echo "  GPU 6,7: v3-td50-mid5-19-wm25     Text 50%, layers 5-19 + Whisper FFN 25%"
+echo "  GPU 0,1: v3-td50-mid7-21         Text 50%, layers 7-21"
+echo "  GPU 2,3: v3-td50-mid6-20-wa15    Text 50%, layers 6-20 + Whisper attn 15%"
+echo "  GPU 4,5: v3-td50-mid5-19         Text 50%, layers 5-19"
+echo "  GPU 6,7: v3-td50-mid5-19-wa25    Text 50%, layers 5-19 + Whisper attn 25%"
 echo ""
 echo "Monitor: tail -f tune_v3-td50-mid*.log"
 echo "WER:     grep -E 'Post-prune WER|Final Test WER|WER:' tune_v3-td50-mid*.log"

@@ -5,7 +5,8 @@
 # Strategy: Prune 50% of text decoder layers 4-22 (both attn + MLP)
 # Layers 0-3 and 22-25 remain unpruned (protected head/tail)
 #
-# Pipeline: Prune → Post-training (LoRA recovery) → vLLM latency benchmark → vLLM WER eval
+# Pipeline: Prune → vLLM benchmark (pruned) → Post-training (LoRA) → vLLM WER eval
+# (benchmark before post-training so we can kill early if vLLM fails)
 # ============================================================
 
 export WANDB_DISABLED=true
@@ -54,21 +55,21 @@ CUDA_VISIBLE_DEVICES=0 $PYTHON_PATH -u meralion.py \
     --save_ckpt_log_name MERaLiON-2-3B-$NAME \
     --save_model_path $CKPT && \
 echo '' && \
-echo '========== Step 2: Post-training (2-GPU via device_map=auto) ==========' && \
-$PYTHON_PATH -u post_training_meralion.py \
-    --base_model $CKPT \
-    --output_dir $TUNE_DIR \
-    $LORA_ARGS && \
-echo '' && \
-echo '========== Step 3: vLLM Latency Benchmark (single GPU) ==========' && \
+echo '========== Step 2: vLLM Latency Benchmark on pruned checkpoint (single GPU) ==========' && \
 CUDA_VISIBLE_DEVICES=0 $PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned $TUNE_DIR \
+    --pruned $CKPT \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
     --output vllm_benchmark_${NAME}.json && \
 echo '' && \
-echo '========== Step 4: vLLM WER Evaluation (single GPU) ==========' && \
+echo '========== Step 3: Post-training (LoRA recovery, 2-GPU) ==========' && \
+$PYTHON_PATH -u post_training_meralion.py \
+    --base_model $CKPT \
+    --output_dir $TUNE_DIR \
+    $LORA_ARGS && \
+echo '' && \
+echo '========== Step 4: vLLM WER Evaluation on tuned checkpoint (single GPU) ==========' && \
 CUDA_VISIBLE_DEVICES=0 $PYTHON_PATH -u vllm_eval_wer.py \
     --model $TUNE_DIR \
     --dataset $DATASET \
