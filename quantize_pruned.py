@@ -20,11 +20,12 @@ Then benchmark / eval the quantized model:
     python vllm_eval_wer.py --model <save_dir> ...
 """
 import os
+import sys
 import argparse
 import logging
 
 import torch
-from transformers import AutoModelForCausalLM, AutoProcessor
+from transformers import AutoProcessor
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -98,11 +99,15 @@ def quantize_pruned(model_path: str, scheme: str = "W8A16", save_dir: str = None
 
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
 
-    # Use AutoModelForCausalLM so the checkpoint's own custom code is loaded —
-    # this correctly handles the non-uniform midblock dimensions.
-    model = AutoModelForCausalLM.from_pretrained(
+    # Load the model class directly from the checkpoint directory.
+    # AutoModelForCausalLM fails because the auto_map registers only
+    # AutoModelForSpeechSeq2Seq, not AutoModelForCausalLM.
+    model_path_abs = os.path.abspath(model_path)
+    if model_path_abs not in sys.path:
+        sys.path.insert(0, model_path_abs)
+    from modeling_meralion2 import MERaLiON2ForConditionalGeneration
+    model = MERaLiON2ForConditionalGeneration.from_pretrained(
         model_path,
-        trust_remote_code=True,
         torch_dtype=torch.float16,
         low_cpu_mem_usage=False,
     )
