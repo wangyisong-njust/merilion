@@ -67,13 +67,26 @@ $PYTHON_PATH -u quantize_pruned.py \
     --model $CKPT \
     --scheme W8A16 && \
 echo '' && \
-echo '========== Step 2c: vLLM Latency Benchmark on quantized checkpoint ==========' && \
+echo '========== Step 2c: vLLM Latency Benchmark on W8A16 quantized checkpoint ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --pruned ${CKPT}-W8A16-RTN \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
     --output vllm_benchmark_${NAME}-W8A16.json && \
+echo '' && \
+echo '========== Step 2d: Quantize pruned checkpoint (W4A16 RTN) ==========' && \
+$PYTHON_PATH -u quantize_pruned.py \
+    --model $CKPT \
+    --scheme W4A16 && \
+echo '' && \
+echo '========== Step 2e: vLLM Latency Benchmark on W4A16 quantized checkpoint ==========' && \
+$PYTHON_PATH -u vllm_benchmark_pruned.py \
+    --pruned ${CKPT}-W4A16-RTN \
+    --original $ORIGINAL \
+    --dataset $DATASET \
+    --num_samples $NUM_BENCH_SAMPLES \
+    --output vllm_benchmark_${NAME}-W4A16.json && \
 echo '' && \
 echo '========== Step 3: Post-training (LoRA recovery, 2-GPU) ==========' && \
 $PYTHON_PATH -u post_training_meralion.py \
