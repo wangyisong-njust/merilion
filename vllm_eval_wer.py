@@ -57,6 +57,8 @@ def main():
     parser.add_argument("--num_demo", type=int, default=10, help="Number of sample outputs to display")
     parser.add_argument("--output", default="wer_results.json", help="Output JSON file")
     args = parser.parse_args()
+    args.model = os.path.abspath(args.model)
+    args.dataset = os.path.abspath(args.dataset)
 
     import torch
     from vllm import LLM, SamplingParams
