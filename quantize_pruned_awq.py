@@ -140,24 +140,38 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
     tokenizer = processor.tokenizer
 
-    # --- Load the model with the correct Auto class ---
-    # Pre-load using AutoModelForSpeechSeq2Seq (which our auto_map registers).
-    # Then register the loaded class with AutoModelForCausalLM so that
-    # AutoAWQForCausalLM.from_pretrained can find it via its internal
-    # AutoModelForCausalLM.from_pretrained(..., trust_remote_code=True) call.
-    logger.info("Pre-loading model via AutoModelForSpeechSeq2Seq...")
+    # --- Register meralion2 with AutoAWQ ---
+    # AutoAWQ checks config.model_type against AWQ_CAUSAL_LM_MODEL_MAP *before*
+    # loading the model. We register a custom subclass of the Gemma2 AWQ class
+    # that routes get_model_layers() to text_decoder.model.layers (where our
+    # Gemma2 decoder layers live). The Gemma2 AWQ class's get_layers_for_scaling
+    # and get_act_order_weights work unchanged since the layer structure is identical.
+    #
+    # We also register with AutoModelForCausalLM so the AWQ from_pretrained call
+    # (which uses AutoModelForCausalLM internally) can load our custom model class.
+    logger.info("Pre-loading model to register with AutoModelForCausalLM...")
     reference_model = AutoModelForSpeechSeq2Seq.from_pretrained(
         model_path, trust_remote_code=True,
         torch_dtype=torch.float16, low_cpu_mem_usage=True,
     )
     model_class = type(reference_model)
     config_class = type(reference_model.config)
-    del reference_model  # free memory before AWQ reloads
+    del reference_model
 
-    logger.info(f"Registering {model_class.__name__} with AutoModelForCausalLM...")
     AutoModelForCausalLM.register(config_class, model_class)
 
-    # Now AutoAWQ can load it via AutoModelForCausalLM.from_pretrained
+    from awq.models.auto import AWQ_CAUSAL_LM_MODEL_MAP
+    from awq.models.gemma2 import Gemma2AWQForCausalLM
+
+    class MERaLiONAWQForCausalLM(Gemma2AWQForCausalLM):
+        """AWQ wrapper for MERaLiON-2: text decoder lives at model.text_decoder.model.layers."""
+
+        @staticmethod
+        def get_model_layers(model):
+            return model.text_decoder.model.layers
+
+    AWQ_CAUSAL_LM_MODEL_MAP["meralion2"] = MERaLiONAWQForCausalLM
+
     logger.info("Loading with AutoAWQForCausalLM...")
     model = AutoAWQForCausalLM.from_pretrained(
         model_path,
