@@ -130,6 +130,11 @@ def quantize_pruned(model_path: str, scheme: str = "W8A16", save_dir: str = None
 
     oneshot(model=model, recipe=recipe, trust_remote_code_model=True)
 
+    # Fix conflicting generation_config: use_cache=False + cache_implementation=hybrid
+    # causes a strict validation error in save_pretrained. Clear cache_implementation.
+    if hasattr(model, "generation_config") and model.generation_config is not None:
+        model.generation_config.cache_implementation = None
+
     model.save_pretrained(save_dir, save_compressed=True)
     processor.save_pretrained(save_dir)
     logger.info(f"Saved to: {save_dir}")
