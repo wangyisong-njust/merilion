@@ -43,37 +43,24 @@ def build_inputs(sample):
     return {"prompt": prompt, "multi_modal_data": {"audio": [(audio_array, sr)]}}
 
 
-def benchmark_model(model_path, label, test_subset, sampling_params, num_samples,
-                    quantization=None):
+def benchmark_model(model_path, label, test_subset, sampling_params, num_samples):
     import torch
     from vllm import LLM
 
     print(f"\n{'=' * 60}")
     print(f"Benchmarking: {label}")
     print(f"Model: {model_path}")
-    if quantization:
-        print(f"Quantization: {quantization}")
     print(f"{'=' * 60}")
 
-    llm_kwargs = dict(
+    # For pre-quantized models (llm-compressor compressed-tensors format),
+    # vLLM auto-detects the quantization scheme from config.json — no flag needed.
+    t0 = time.time()
+    llm = LLM(
         model=model_path,
         tokenizer=model_path,
         limit_mm_per_prompt={"audio": 1},
         trust_remote_code=True,
     )
-    if quantization:
-        if quantization == "bitsandbytes_nf4":
-            # 4-bit NF4 via bitsandbytes
-            llm_kwargs["quantization"] = "bitsandbytes"
-            llm_kwargs["load_format"] = "bitsandbytes"
-            llm_kwargs["bnb_quantization_type"] = "nf4"
-        else:
-            llm_kwargs["quantization"] = quantization
-            if quantization == "bitsandbytes":
-                llm_kwargs["load_format"] = "bitsandbytes"
-
-    t0 = time.time()
-    llm = LLM(**llm_kwargs)
     load_time = time.time() - t0
     print(f"Model loaded in {load_time:.1f}s")
 
@@ -156,8 +143,6 @@ def main():
     parser.add_argument("--dataset", required=True, help="Path to IMDA_PART1_mono_en_30_ASR dataset")
     parser.add_argument("--num_samples", type=int, default=50, help="Number of samples for benchmark")
     parser.add_argument("--output", default="vllm_benchmark_results.json", help="Output JSON file")
-    parser.add_argument("--quantization", default=None,
-                        help="vLLM quantization backend (e.g. bitsandbytes, compressed-tensors)")
     args = parser.parse_args()
 
     # Register pruned model support
@@ -183,14 +168,10 @@ def main():
 
     results = {}
 
-    quant_suffix = f"-{args.quantization}" if args.quantization else ""
-
     # Benchmark pruned model
     if os.path.exists(args.pruned):
-        label = f"pruned{quant_suffix}"
-        results[label] = benchmark_model(
-            args.pruned, label, test_subset, sampling_params, args.num_samples,
-            quantization=args.quantization)
+        results["pruned"] = benchmark_model(
+            args.pruned, "pruned", test_subset, sampling_params, args.num_samples)
     else:
         print(f"ERROR: Pruned model not found: {args.pruned}")
         sys.exit(1)
