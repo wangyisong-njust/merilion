@@ -54,7 +54,7 @@ $PYTHON_PATH -u meralion.py \
     --save_ckpt_log_name MERaLiON-2-3B-$NAME \
     --save_model_path $CKPT && \
 echo '' && \
-echo '========== Step 2a: vLLM Latency Benchmark on pruned checkpoint ==========' && \
+echo '========== Step 2a: vLLM Latency Benchmark — pruned (BF16) ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --pruned $CKPT \
     --original $ORIGINAL \
@@ -62,30 +62,22 @@ $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --num_samples $NUM_BENCH_SAMPLES \
     --output vllm_benchmark_${NAME}.json && \
 echo '' && \
-echo '========== Step 2b: Quantize pruned checkpoint (W8A16 RTN) ==========' && \
-$PYTHON_PATH -u quantize_pruned.py \
-    --model $CKPT \
-    --scheme W8A16 && \
-echo '' && \
-echo '========== Step 2c: vLLM Latency Benchmark on W8A16 quantized checkpoint ==========' && \
+echo '========== Step 2b: vLLM Latency Benchmark — pruned + W8A16 (bitsandbytes INT8) ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned ${CKPT}-W8A16-RTN \
+    --pruned $CKPT \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
+    --quantization bitsandbytes \
     --output vllm_benchmark_${NAME}-W8A16.json && \
 echo '' && \
-echo '========== Step 2d: Quantize pruned checkpoint (W4A16 RTN) ==========' && \
-$PYTHON_PATH -u quantize_pruned.py \
-    --model $CKPT \
-    --scheme W4A16 && \
-echo '' && \
-echo '========== Step 2e: vLLM Latency Benchmark on W4A16 quantized checkpoint ==========' && \
+echo '========== Step 2c: vLLM Latency Benchmark — pruned + W4A16 (bitsandbytes NF4) ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned ${CKPT}-W4A16-RTN \
+    --pruned $CKPT \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
+    --quantization bitsandbytes_nf4 \
     --output vllm_benchmark_${NAME}-W4A16.json && \
 echo '' && \
 echo '========== Step 3: Post-training (LoRA recovery, 2-GPU) ==========' && \
