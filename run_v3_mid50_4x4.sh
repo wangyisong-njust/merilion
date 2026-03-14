@@ -54,13 +54,26 @@ $PYTHON_PATH -u meralion.py \
     --save_ckpt_log_name MERaLiON-2-3B-$NAME \
     --save_model_path $CKPT && \
 echo '' && \
-echo '========== Step 2: vLLM Latency Benchmark on pruned checkpoint ==========' && \
+echo '========== Step 2a: vLLM Latency Benchmark on pruned checkpoint ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --pruned $CKPT \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
     --output vllm_benchmark_${NAME}.json && \
+echo '' && \
+echo '========== Step 2b: Quantize pruned checkpoint (W8A16 RTN) ==========' && \
+$PYTHON_PATH -u quantize_pruned.py \
+    --model $CKPT \
+    --scheme W8A16 && \
+echo '' && \
+echo '========== Step 2c: vLLM Latency Benchmark on quantized checkpoint ==========' && \
+$PYTHON_PATH -u vllm_benchmark_pruned.py \
+    --pruned ${CKPT}-W8A16-RTN \
+    --original $ORIGINAL \
+    --dataset $DATASET \
+    --num_samples $NUM_BENCH_SAMPLES \
+    --output vllm_benchmark_${NAME}-W8A16.json && \
 echo '' && \
 echo '========== Step 3: Post-training (LoRA recovery, 2-GPU) ==========' && \
 $PYTHON_PATH -u post_training_meralion.py \
@@ -124,3 +137,4 @@ echo ""
 echo "Monitor: tail -f tune_v3-td50-mid{4,3}-*.log"
 echo "WER:     grep -E 'Post-prune WER|Final Test WER|WER:' tune_v3-td50-mid{4,3}-*.log"
 echo "Bench:   grep -E 'Decode speedup|Prefill speedup' tune_v3-td50-mid{4,3}-*.log"
+echo "Quant:   ls meralion_checkpoints/MERaLiON-2-3B-v3-td50-mid*-W8A16-RTN/"
