@@ -45,8 +45,8 @@ echo "[GPU $GPU,$GPU2] $NAME — prune + post-training (2-GPU) + vLLM benchmark"
 # - Post-training: device_map="auto" auto-splits model across both GPUs
 # - vLLM steps:  tensor_parallel_size=1 by default → only uses device 0
 CUDA_VISIBLE_DEVICES=$GPU,$GPU2 nohup bash -c "
-echo '========== Step 1: Pruning (single GPU) ==========' && \
-CUDA_VISIBLE_DEVICES=0 $PYTHON_PATH -u meralion.py \
+echo '========== Step 1: Pruning ==========' && \
+$PYTHON_PATH -u meralion.py \
     --base_model $ORIGINAL \
     --pruning_ratio 0.5 \
     --text_attn_pruning_ratio 0.5 --text_mlp_pruning_ratio 0.5 \
@@ -55,8 +55,8 @@ CUDA_VISIBLE_DEVICES=0 $PYTHON_PATH -u meralion.py \
     --save_ckpt_log_name MERaLiON-2-3B-$NAME \
     --save_model_path $CKPT && \
 echo '' && \
-echo '========== Step 2: vLLM Latency Benchmark on pruned checkpoint (single GPU) ==========' && \
-CUDA_VISIBLE_DEVICES=0 $PYTHON_PATH -u vllm_benchmark_pruned.py \
+echo '========== Step 2: vLLM Latency Benchmark on pruned checkpoint ==========' && \
+$PYTHON_PATH -u vllm_benchmark_pruned.py \
     --pruned $CKPT \
     --original $ORIGINAL \
     --dataset $DATASET \
@@ -69,8 +69,8 @@ $PYTHON_PATH -u post_training_meralion.py \
     --output_dir $TUNE_DIR \
     $LORA_ARGS && \
 echo '' && \
-echo '========== Step 4: vLLM WER Evaluation on tuned checkpoint (single GPU) ==========' && \
-CUDA_VISIBLE_DEVICES=0 $PYTHON_PATH -u vllm_eval_wer.py \
+echo '========== Step 4: vLLM WER Evaluation on tuned checkpoint ==========' && \
+$PYTHON_PATH -u vllm_eval_wer.py \
     --model $TUNE_DIR \
     --dataset $DATASET \
     --num_samples 500 \
