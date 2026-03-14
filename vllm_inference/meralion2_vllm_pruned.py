@@ -238,6 +238,47 @@ def input_mapper_for_meralion(ctx: InputContext, multi_modal_data):
     return MultiModalKwargs(batch_data)
 
 
+def _patch_whisper_attn_projections(encoder, pruned_embed_dim: int, d_model: int,
+                                    start: int = 0, end: int = -1):
+    """Patch WhisperEncoder attention Linear layers to their pruned (non-square) shapes.
+
+    After Whisper attention pruning, q/k/v projections have shape
+    [pruned_embed_dim, d_model] and out_proj has shape [d_model, pruned_embed_dim].
+    WhisperEncoder.__init__ creates all of them as [d_model, d_model], so we must
+    replace them before load_weights to avoid shape-mismatch errors.
+    """
+    layers = encoder.layers
+    if end < 0:
+        end = len(layers)
+    for i in range(start, min(end, len(layers))):
+        attn = layers[i].self_attn
+        has_k_bias = (attn.k_proj.bias is not None)
+        attn.q_proj = nn.Linear(d_model, pruned_embed_dim, bias=True)
+        attn.k_proj = nn.Linear(d_model, pruned_embed_dim, bias=has_k_bias)
+        attn.v_proj = nn.Linear(d_model, pruned_embed_dim, bias=True)
+        attn.out_proj = nn.Linear(pruned_embed_dim, d_model, bias=True)
+        attn.embed_dim = pruned_embed_dim
+        attn.head_dim = pruned_embed_dim // attn.num_heads
+
+
+def _patch_whisper_ffn_layers(encoder, pruned_ffn_dim: int, d_model: int,
+                               start: int = 0, end: int = -1):
+    """Patch WhisperEncoder fc1/fc2 layers to their pruned shapes.
+
+    After Whisper FFN (MLP) pruning, fc1 has shape [pruned_ffn_dim, d_model]
+    and fc2 has shape [d_model, pruned_ffn_dim].
+    WhisperEncoder.__init__ creates them as [encoder_ffn_dim, d_model] /
+    [d_model, encoder_ffn_dim] using the original (unpruned) config value.
+    """
+    layers = encoder.layers
+    if end < 0:
+        end = len(layers)
+    for i in range(start, min(end, len(layers))):
+        layer = layers[i]
+        layer.fc1 = nn.Linear(d_model, pruned_ffn_dim, bias=True)
+        layer.fc2 = nn.Linear(pruned_ffn_dim, d_model, bias=True)
+
+
 def _maybe_apply(registry, method_name, *args):
     """Apply registry.method_name(*args) as a decorator if the method exists, else no-op."""
     method = getattr(registry, method_name, None)
@@ -278,6 +319,27 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
         # Speech encoder (Whisper)
         config.speech_config = autoset_attn_implementation_for_whisper(config.speech_config)
         self.speech_encoder = WhisperEncoder(config.speech_config)
+        # If whisper attention or FFN was pruned, the linear layers have non-square
+        # shapes that differ from what WhisperEncoder.__init__ creates. Patch them
+        # now so load_weights sees matching shapes.
+        _ws = getattr(config.speech_config, 'whisper_midblock_start', 0)
+        _we = getattr(config.speech_config, 'whisper_midblock_end', -1)
+        _pruned_attn_dim = getattr(config.speech_config, 'whisper_pruned_attn_embed_dim', None)
+        if _pruned_attn_dim is not None and _pruned_attn_dim != config.speech_config.d_model:
+            _patch_whisper_attn_projections(
+                self.speech_encoder,
+                pruned_embed_dim=_pruned_attn_dim,
+                d_model=config.speech_config.d_model,
+                start=_ws, end=_we,
+            )
+        _pruned_ffn_dim = getattr(config.speech_config, 'whisper_pruned_ffn_dim', None)
+        if _pruned_ffn_dim is not None and _pruned_ffn_dim != config.speech_config.encoder_ffn_dim:
+            _patch_whisper_ffn_layers(
+                self.speech_encoder,
+                pruned_ffn_dim=_pruned_ffn_dim,
+                d_model=config.speech_config.d_model,
+                start=_ws, end=_we,
+            )
         self.ln_speech = nn.LayerNorm(config.speech_config.d_model)
         self.speech_audio_adapter = MERaLiON2SpeechAudioAdaper(
             config.speech_config.d_model, config.text_config.hidden_size)

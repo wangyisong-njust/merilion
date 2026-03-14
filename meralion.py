@@ -415,6 +415,16 @@ def main(args):
                     layer.self_attn.num_heads = layer.self_attn.q_proj.weight.data.shape[0] // layer.self_attn.head_dim
                     layer.self_attn.embed_dim = layer.self_attn.q_proj.weight.data.shape[0]
 
+            # Save pruned dims so vLLM can recreate projections with correct shapes.
+            if len(model.model.speech_encoder.layers) > 0:
+                sample_layer = model.model.speech_encoder.layers[args.whisper_block_layer_start]
+                if whisper_attn_ratio > 0:
+                    model.model.config.speech_config.whisper_pruned_attn_embed_dim = int(
+                        sample_layer.self_attn.embed_dim)
+                if whisper_mlp_ratio > 0:
+                    model.model.config.speech_config.whisper_pruned_ffn_dim = int(
+                        sample_layer.fc1.weight.data.shape[0])
+
         # Clean the gradient in the model
         model.model.zero_grad()
         for name, module in model.model.named_parameters():
