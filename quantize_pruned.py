@@ -20,25 +20,62 @@ Then benchmark / eval the quantized model:
     python vllm_eval_wer.py --model <save_dir> ...
 """
 import os
-import sys
 import argparse
 import logging
 
 import torch
 from transformers import AutoModelForCausalLM, AutoProcessor
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-quant_src = os.path.join(script_dir, "vllm_inference")
-if quant_src not in sys.path:
-    sys.path.insert(0, quant_src)
-
-from meralion_2_quant import align_mlp_dims  # reuse existing helper
-
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+
+
+def align_mlp_dims(model, alignment=128):
+    """Pad MLP intermediate_size to a multiple of `alignment`.
+
+    vLLM's quantized kernels (Marlin, AllSpark) require weight dimensions
+    divisible by 128. Pruned models may have non-aligned intermediate_size.
+    Zero-padding is safe: extra gate/up dims produce zeros after activation,
+    multiplied by zero columns in down_proj → zero contribution.
+    """
+    actual_intermediate = None
+    for name, module in model.named_modules():
+        if 'text_decoder' in name and 'gate_proj' in name and isinstance(module, torch.nn.Linear):
+            actual_intermediate = module.out_features
+            break
+
+    if actual_intermediate is None:
+        logger.info("No text_decoder MLP found, skipping alignment")
+        return
+
+    aligned = ((actual_intermediate + alignment - 1) // alignment) * alignment
+    if aligned == actual_intermediate:
+        logger.info(f"MLP intermediate_size {actual_intermediate} already aligned to {alignment}")
+        return
+
+    pad = aligned - actual_intermediate
+    logger.info(f"Padding MLP intermediate_size: {actual_intermediate} → {aligned} (+{pad})")
+
+    for name, module in model.named_modules():
+        if 'text_decoder' not in name or '.mlp.' not in name:
+            continue
+        if not isinstance(module, torch.nn.Linear):
+            continue
+        w = module.weight.data
+        if 'gate_proj' in name or 'up_proj' in name:
+            module.weight = torch.nn.Parameter(
+                torch.cat([w, torch.zeros(pad, w.shape[1], dtype=w.dtype, device=w.device)], dim=0))
+            module.out_features = aligned
+        elif 'down_proj' in name:
+            module.weight = torch.nn.Parameter(
+                torch.cat([w, torch.zeros(w.shape[0], pad, dtype=w.dtype, device=w.device)], dim=1))
+            module.in_features = aligned
+
+    if hasattr(model.config, 'text_config'):
+        model.config.text_config.intermediate_size = aligned
 
 
 def quantize_pruned(model_path: str, scheme: str = "W8A16", save_dir: str = None):
