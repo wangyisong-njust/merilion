@@ -78,7 +78,8 @@ def main():
 
     sampling_params = SamplingParams(
         temperature=0.0, top_p=0.9, top_k=50,
-        repetition_penalty=1.0, seed=42, max_tokens=256,
+        repetition_penalty=1.0, seed=42, max_tokens=128,
+        stop=["<end_of_turn>", "<eos>"],
     )
 
     print(f"\nLoading model from {args.model}...")
