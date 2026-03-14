@@ -20,12 +20,11 @@ Then benchmark / eval the quantized model:
     python vllm_eval_wer.py --model <save_dir> ...
 """
 import os
-import sys
 import argparse
 import logging
 
 import torch
-from transformers import AutoProcessor
+from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -99,17 +98,13 @@ def quantize_pruned(model_path: str, scheme: str = "W8A16", save_dir: str = None
 
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
 
-    # Load the model class directly from the checkpoint directory.
-    # AutoModelForCausalLM fails because the auto_map registers only
-    # AutoModelForSpeechSeq2Seq, not AutoModelForCausalLM.
-    model_path_abs = os.path.abspath(model_path)
-    if model_path_abs not in sys.path:
-        sys.path.insert(0, model_path_abs)
-    from modeling_meralion2 import MERaLiON2ForConditionalGeneration
-    model = MERaLiON2ForConditionalGeneration.from_pretrained(
+    # Use AutoModelForSpeechSeq2Seq — the model's auto_map registers this class,
+    # not AutoModelForCausalLM. trust_remote_code handles relative imports correctly.
+    model = AutoModelForSpeechSeq2Seq.from_pretrained(
         model_path,
         torch_dtype=torch.float16,
         low_cpu_mem_usage=False,
+        trust_remote_code=True,
     )
     model.cuda()
     model.eval()
