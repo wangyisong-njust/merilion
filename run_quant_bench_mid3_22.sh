@@ -31,22 +31,30 @@ $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --num_samples $NUM_BENCH_SAMPLES \
     --output vllm_benchmark_${NAME}-BF16.json && \
 echo '' && \
-echo '========== W8A16 (bitsandbytes INT8) ==========' && \
+echo '========== Quantize → W8A16 (llm-compressor RTN) ==========' && \
+$PYTHON_PATH -u quantize_pruned.py \
+    --model $CKPT \
+    --scheme W8A16 && \
+echo '' && \
+echo '========== W8A16 benchmark ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned $CKPT \
+    --pruned ${CKPT}-W8A16-RTN \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
-    --quantization bitsandbytes \
     --output vllm_benchmark_${NAME}-W8A16.json && \
 echo '' && \
-echo '========== W4A16 (bitsandbytes NF4) ==========' && \
+echo '========== Quantize → W4A16 (llm-compressor RTN) ==========' && \
+$PYTHON_PATH -u quantize_pruned.py \
+    --model $CKPT \
+    --scheme W4A16 && \
+echo '' && \
+echo '========== W4A16 benchmark ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned $CKPT \
+    --pruned ${CKPT}-W4A16-RTN \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
-    --quantization bitsandbytes_nf4 \
     --output vllm_benchmark_${NAME}-W4A16.json
 " > quant_bench_${NAME}.log 2>&1 &
 
