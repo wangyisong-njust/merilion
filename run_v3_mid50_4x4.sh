@@ -80,8 +80,8 @@ $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --quantization bitsandbytes_nf4 \
     --output vllm_benchmark_${NAME}-W4A16.json && \
 echo '' && \
-echo '========== Step 3: Post-training (LoRA recovery, 2-GPU) ==========' && \
-$PYTHON_PATH -u post_training_meralion.py \
+echo '========== Step 3: Post-training (LoRA recovery, 2-GPU DDP via torchrun) ==========' && \
+$PYTHON_PATH -m torch.distributed.run --nproc_per_node=2 post_training_meralion.py \
     --base_model $CKPT \
     --output_dir $TUNE_DIR \
     $LORA_ARGS && \

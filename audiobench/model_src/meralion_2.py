@@ -14,12 +14,14 @@ def meralion_2_model_loader(self):
     
     logger.info(f"Loading model from: {self.model_name}")
     
+    # No device_map="auto": incompatible with DDP (torchrun assigns each
+    # process its own GPU via LOCAL_RANK; device_map would override that).
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
     self.model = MERaLiON2ForConditionalGeneration.from_pretrained(
         self.model_name,
-        device_map="auto",
         trust_remote_code=True,
-        torch_dtype=torch.bfloat16
-    )
+        torch_dtype=torch.bfloat16,
+    ).to(f"cuda:{local_rank}")
     self.processor = AutoProcessor.from_pretrained(self.model_name, trust_remote_code=True)
     logger.info(f"Model loaded: {self.model_name}")
 

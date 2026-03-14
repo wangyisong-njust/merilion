@@ -65,8 +65,8 @@ $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --num_samples $NUM_BENCH_SAMPLES \
     --output vllm_benchmark_${NAME}.json && \
 echo '' && \
-echo '========== Step 3: Post-training (2-GPU via device_map=auto) ==========' && \
-$PYTHON_PATH -u post_training_meralion.py \
+echo '========== Step 3: Post-training (2-GPU DDP via torchrun) ==========' && \
+$PYTHON_PATH -m torch.distributed.run --nproc_per_node=2 post_training_meralion.py \
     --base_model $CKPT \
     --output_dir $TUNE_DIR \
     $LORA_ARGS && \

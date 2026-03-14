@@ -272,11 +272,6 @@ def main(args):
     
     
     peft_model = get_peft_model(model.model, config)
-    # Prevent Trainer from wrapping in DataParallel when device_map="auto" is used.
-    # Without this, Trainer sees 2 GPUs and creates DataParallel, which breaks DoRA
-    # (its identity-matrix x_eye gets scattered across replicas causing shape errors).
-    peft_model.is_parallelizable = True
-    peft_model.model_parallel = True
     peft_model.print_trainable_parameters()
 
     
