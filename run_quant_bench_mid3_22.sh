@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # Quantization speed benchmark for v3-td50-mid3-22
-# BF16 (baseline) vs W8A16 (INT8, RTN) vs W4A16 (AWQ)
+# BF16 (baseline) vs W8A16 (INT8, RTN) vs FP8 (dynamic)
 # ============================================================
 export WANDB_DISABLED=true
 export PYTHONUNBUFFERED=1
@@ -44,20 +44,20 @@ $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --num_samples $NUM_BENCH_SAMPLES \
     --output vllm_benchmark_${NAME}-W8A16.json && \
 echo '' && \
-echo '========== Quantize → W4A16 (AutoAWQ, calibrated) ==========' && \
-$PYTHON_PATH -u quantize_pruned_awq.py \
+echo '========== Quantize → FP8 (dynamic, no calibration) ==========' && \
+$PYTHON_PATH -u quantize_pruned.py \
     --model $CKPT \
-    --dataset $DATASET && \
+    --scheme FP8_DYNAMIC && \
 echo '' && \
-echo '========== W4A16 AWQ benchmark ==========' && \
+echo '========== FP8 benchmark ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned ${CKPT}-W4A16-AWQ \
+    --pruned ${CKPT}-FP8 \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
-    --output vllm_benchmark_${NAME}-W4A16-AWQ.json
+    --output vllm_benchmark_${NAME}-FP8.json
 " > quant_bench_${NAME}.log 2>&1 &
 
 echo ""
 echo "Submitted to GPU $GPU — monitor: tail -f quant_bench_${NAME}.log"
-echo "Results: vllm_benchmark_${NAME}-{BF16,W8A16,W4A16-AWQ}.json"
+echo "Results: vllm_benchmark_${NAME}-{BF16,W8A16,FP8}.json"

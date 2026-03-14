@@ -90,10 +90,12 @@ def quantize_pruned(model_path: str, scheme: str = "W8A16", save_dir: str = None
 
     if save_dir is None:
         model_name = os.path.basename(model_path.rstrip("/"))
-        save_dir = os.path.join(os.path.dirname(model_path), f"{model_name}-{scheme}-RTN")
+        suffix = "FP8" if scheme == "FP8_DYNAMIC" else f"{scheme}-RTN"
+        save_dir = os.path.join(os.path.dirname(model_path), f"{model_name}-{suffix}")
 
     logger.info(f"Model:   {model_path}")
-    logger.info(f"Scheme:  {scheme} (RTN, no calibration)")
+    mode = "dynamic FP8, no calibration" if scheme == "FP8_DYNAMIC" else "RTN, no calibration"
+    logger.info(f"Scheme:  {scheme} ({mode})")
     logger.info(f"Save to: {save_dir}")
 
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
@@ -144,11 +146,12 @@ def quantize_pruned(model_path: str, scheme: str = "W8A16", save_dir: str = None
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Quantize pruned MERaLiON-2 (RTN, no calibration)")
+    parser = argparse.ArgumentParser(description="Quantize pruned MERaLiON-2 with llm-compressor")
     parser.add_argument("--model", required=True, help="Path to pruned/tuned checkpoint")
-    parser.add_argument("--scheme", default="W8A16", choices=["W8A16", "W4A16"],
-                        help="W8A16 = INT8 weights (recommended); W4A16 = INT4 weights")
+    parser.add_argument("--scheme", default="W8A16",
+                        choices=["W8A16", "W4A16", "FP8_DYNAMIC"],
+                        help="W8A16/W4A16: INT weight-only RTN; FP8_DYNAMIC: FP8 weights+activations")
     parser.add_argument("--save_dir", default=None,
-                        help="Output dir (default: <model>-<scheme>-RTN)")
+                        help="Output dir (default: <model>-<scheme>-RTN or <model>-FP8)")
     args = parser.parse_args()
     quantize_pruned(args.model, args.scheme, args.save_dir)
