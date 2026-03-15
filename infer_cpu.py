@@ -142,6 +142,7 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
         dtype=torch.long)
     attention_mask = torch.ones_like(input_ids)
 
+    from transformers import DynamicCache
     with torch.inference_mode():
         output_ids = model.generate(
             input_ids=input_ids,
@@ -151,6 +152,7 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
             max_new_tokens=max_new_tokens,
             do_sample=False,
             use_cache=True,
+            past_key_values=DynamicCache(),
             eos_token_id=[
                 tokenizer.eos_token_id,
                 tokenizer.convert_tokens_to_ids("<end_of_turn>"),
