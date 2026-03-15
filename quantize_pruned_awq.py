@@ -195,6 +195,19 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
     # Align MLP dims to 128 for AWQ GEMM kernel compatibility
     align_mlp_dims(model.model, alignment=128)
 
+    # AWQ calibration calls model(**inp) where inp["input_ids"] may still be on
+    # CPU after AWQ moves embed_tokens to GPU. Patch Gemma2Model.forward on this
+    # instance to auto-move input_ids to the embed_tokens device.
+    _td_model = model.model.text_decoder.model
+    _orig_td_fwd = _td_model.forward
+
+    def _auto_device_forward(input_ids=None, **kwargs):
+        if input_ids is not None:
+            input_ids = input_ids.to(_td_model.embed_tokens.weight.device)
+        return _orig_td_fwd(input_ids=input_ids, **kwargs)
+
+    _td_model.forward = _auto_device_forward
+
     # Build calibration texts
     calib_texts = get_calib_texts(dataset_path, num_calib)
 
