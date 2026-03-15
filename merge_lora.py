@@ -25,6 +25,64 @@ if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
 
+def fix_auto_map(model_dir):
+    """Reconstruct auto_map in config.json from local .py files.
+
+    LLM-Pruner and transformers save_pretrained can both corrupt auto_map,
+    setting its values to an empty string.  This makes AutoModel try to
+    download from HuggingFace Hub with repo_id='' and fail.  We recover by
+    scanning the .py files present in the directory and finding which one
+    defines the architecture class listed in 'architectures'.
+    """
+    cfg_path = os.path.join(model_dir, "config.json")
+    if not os.path.exists(cfg_path):
+        return
+    with open(cfg_path) as f:
+        cfg = json.load(f)
+
+    auto_map = cfg.get("auto_map", {})
+    architectures = cfg.get("architectures", [])
+
+    # Check if any value is empty / missing the module prefix (no dot → looks
+    # like a bare class name that HF tries to treat as a HF Hub repo ID).
+    bad = not auto_map or any(
+        not v or "." not in v for v in auto_map.values()
+    )
+    if not bad:
+        return
+
+    if not architectures:
+        print(f"  [fix_auto_map] WARNING: no architectures in config, cannot reconstruct auto_map")
+        return
+
+    arch_class = architectures[0]
+    found_module = None
+    for fname in os.listdir(model_dir):
+        if not fname.endswith(".py"):
+            continue
+        with open(os.path.join(model_dir, fname)) as f:
+            content = f.read()
+        if f"class {arch_class}" in content:
+            found_module = fname[:-3]  # strip .py
+            break
+
+    if found_module is None:
+        print(f"  [fix_auto_map] WARNING: no .py file defines class {arch_class}")
+        return
+
+    correct_ref = f"{found_module}.{arch_class}"
+    # Preserve existing keys if present; always set AutoModelForSpeechSeq2Seq.
+    keys_to_set = list(auto_map.keys()) or ["AutoModelForSpeechSeq2Seq"]
+    new_auto_map = {k: correct_ref for k in keys_to_set}
+    if "AutoModelForSpeechSeq2Seq" not in new_auto_map:
+        new_auto_map["AutoModelForSpeechSeq2Seq"] = correct_ref
+
+    cfg["auto_map"] = new_auto_map
+    with open(cfg_path, "w") as f:
+        json.dump(cfg, f, indent=2)
+    print(f"  [fix_auto_map] set auto_map -> {new_auto_map}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Merge LoRA adapter into pruned MERaLiON-2 base model")
     parser.add_argument("--base",    required=True, help="Pruned base model directory (contains config.json)")
@@ -91,6 +149,10 @@ def main():
                 json.dump(out_cfg, f, indent=2)
             for k, v in changed.items():
                 print(f"  restored {k} from base config: {v}")
+
+    # Reconstruct auto_map from local .py files in case the base config
+    # also had a corrupted auto_map (e.g. LLM-Pruner called save_pretrained).
+    fix_auto_map(args.output)
 
     print("Saving processor/tokenizer...")
     processor = AutoProcessor.from_pretrained(args.base, trust_remote_code=True)

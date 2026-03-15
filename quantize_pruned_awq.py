@@ -34,6 +34,58 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def fix_auto_map(model_dir):
+    """Reconstruct auto_map in config.json from local .py files.
+
+    LLM-Pruner and transformers save_pretrained can corrupt auto_map to an
+    empty string, causing HFValidationError when AutoModel tries to treat it
+    as a HuggingFace Hub repo ID.  Reconstruct from the .py file that defines
+    the architecture class listed in config['architectures'].
+    """
+    cfg_path = os.path.join(model_dir, "config.json")
+    if not os.path.exists(cfg_path):
+        return
+    with open(cfg_path) as f:
+        cfg = json.load(f)
+
+    auto_map = cfg.get("auto_map", {})
+    architectures = cfg.get("architectures", [])
+
+    bad = not auto_map or any(not v or "." not in v for v in auto_map.values())
+    if not bad:
+        return
+
+    if not architectures:
+        logger.warning("fix_auto_map: no architectures in config, cannot reconstruct auto_map")
+        return
+
+    arch_class = architectures[0]
+    found_module = None
+    for fname in sorted(os.listdir(model_dir)):
+        if not fname.endswith(".py"):
+            continue
+        with open(os.path.join(model_dir, fname)) as f:
+            content = f.read()
+        if f"class {arch_class}" in content:
+            found_module = fname[:-3]
+            break
+
+    if found_module is None:
+        logger.warning(f"fix_auto_map: no .py file defines class {arch_class}")
+        return
+
+    correct_ref = f"{found_module}.{arch_class}"
+    keys_to_set = list(auto_map.keys()) or ["AutoModelForSpeechSeq2Seq"]
+    new_auto_map = {k: correct_ref for k in keys_to_set}
+    if "AutoModelForSpeechSeq2Seq" not in new_auto_map:
+        new_auto_map["AutoModelForSpeechSeq2Seq"] = correct_ref
+
+    cfg["auto_map"] = new_auto_map
+    with open(cfg_path, "w") as f:
+        json.dump(cfg, f, indent=2)
+    logger.info(f"fix_auto_map: set auto_map -> {new_auto_map}")
+
+
 def align_mlp_dims(model, alignment=128):
     """Pad MLP intermediate_size to a multiple of `alignment`.
 
@@ -138,6 +190,10 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
     logger.info(f"Model:   {model_path}")
     logger.info(f"Scheme:  W4A16 (AWQ, {num_calib} calibration samples, group={q_group_size})")
     logger.info(f"Save to: {save_dir}")
+
+    # Fix auto_map before any from_pretrained call — LLM-Pruner and
+    # save_pretrained can both corrupt it to an empty string.
+    fix_auto_map(model_path)
 
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
     tokenizer = processor.tokenizer
@@ -271,6 +327,10 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
         if fname.endswith(".py"):
             shutil.copy2(os.path.join(model_path, fname), os.path.join(save_dir, fname))
             logger.info(f"  copied {fname}")
+
+    # Final safety: reconstruct auto_map from the .py files we just copied
+    # in case the "restore from source" above copied a bad value.
+    fix_auto_map(save_dir)
 
     logger.info(f"Saved to: {save_dir}")
     logger.info("Load in vLLM: LLM(model=save_dir, trust_remote_code=True)")
