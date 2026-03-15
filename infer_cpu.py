@@ -34,6 +34,11 @@ import os
 import sys
 import time
 
+# Hide all CUDA devices before importing torch so that torchao INT4 kernels
+# always dispatch to the CPU backend (old torchao versions create CUDA tensors
+# internally even when the model is on CPU, if a GPU is visible).
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+
 import numpy as np
 import torch
 import torch.nn as nn
