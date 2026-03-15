@@ -279,6 +279,41 @@ def _patch_whisper_ffn_layers(encoder, pruned_ffn_dim: int, d_model: int,
         layer.fc2 = nn.Linear(pruned_ffn_dim, d_model, bias=True)
 
 
+def _replace_encoder_linears_awq(encoder: nn.Module, w_bit: int = 4,
+                                  group_size: int = 128) -> None:
+    """Replace all nn.Linear in the Whisper encoder with AWQ WQLinear_GEMM.
+
+    Uses init_only=True so weights are not computed here — they will be loaded
+    from the AWQ-quantized checkpoint via load_weights.  Layers whose dimensions
+    are not divisible by group_size are left as nn.Linear with a warning.
+    """
+    try:
+        from awq.modules.linear import WQLinear_GEMM
+    except ImportError as e:
+        raise RuntimeError(
+            "AutoAWQ is required for encoder_quantization='awq_w4a16'. "
+            "Install with: pip install autoawq") from e
+
+    replaced = skipped = 0
+    for parent_module in list(encoder.modules()):
+        for child_name, child_module in list(parent_module.named_children()):
+            if not isinstance(child_module, nn.Linear):
+                continue
+            if child_module.in_features % group_size != 0 or child_module.out_features % group_size != 0:
+                logger.warning(
+                    "_replace_encoder_linears_awq: leaving %s (%dx%d) as fp16 "
+                    "— not divisible by group_size=%d",
+                    child_name, child_module.in_features, child_module.out_features, group_size)
+                skipped += 1
+                continue
+            wq = WQLinear_GEMM.from_linear(
+                child_module, w_bit=w_bit, group_size=group_size, init_only=True)
+            setattr(parent_module, child_name, wq)
+            replaced += 1
+    logger.info("_replace_encoder_linears_awq: replaced %d layers (skipped %d)",
+                replaced, skipped)
+
+
 def _maybe_apply(registry, method_name, *args):
     """Apply registry.method_name(*args) as a decorator if the method exists, else no-op."""
     method = getattr(registry, method_name, None)
@@ -340,6 +375,15 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
                 d_model=config.speech_config.d_model,
                 start=_ws, end=_we,
             )
+        # Apply AWQ W4A16 quantization to encoder if checkpoint was quantized that way
+        if getattr(config, 'encoder_quantization', None) == 'awq_w4a16':
+            logger.info("encoder_quantization=awq_w4a16: replacing encoder Linear with WQLinear_GEMM")
+            _replace_encoder_linears_awq(
+                self.speech_encoder,
+                w_bit=4,
+                group_size=getattr(config, 'encoder_quant_group_size', 128),
+            )
+
         self.ln_speech = nn.LayerNorm(config.speech_config.d_model)
         self.speech_audio_adapter = MERaLiON2SpeechAudioAdaper(
             config.speech_config.d_model, config.text_config.hidden_size)
@@ -402,7 +446,13 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
                                 feature_attention_mask=feature_attention_mask)
 
     def _process_audio_input(self, audio_input):
-        input_features = audio_input["input_features"].to(self.speech_encoder.dtype)
+        # speech_encoder.dtype returns the first parameter's dtype; with AWQ-quantized
+        # weights that would be int32 (qweight).  Force float16 for the activations.
+        if getattr(self.config, 'encoder_quantization', None) == 'awq_w4a16':
+            feat_dtype = torch.float16
+        else:
+            feat_dtype = self.speech_encoder.dtype
+        input_features = audio_input["input_features"].to(feat_dtype)
         feature_attention_mask = audio_input["feature_attention_mask"]
 
         audio_outputs = self.speech_encoder(
@@ -463,6 +513,9 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
             ("gate_up_proj", "up_proj", 1),
         ]
         params_dict = dict(self.named_parameters(remove_duplicate=False))
+        # WQLinear_GEMM stores qweight/qzeros/scales as register_buffer, not nn.Parameter.
+        # Include all named buffers so AWQ encoder weights are found during loading.
+        params_dict.update(self.named_buffers())
 
         for name, loaded_weight in weights:
             if "rotary_emb.inv_freq" in name:

@@ -181,8 +181,43 @@ def get_calib_texts(dataset_path, num_calib=64, seed=42):
     return texts
 
 
+def quantize_encoder_awq(speech_encoder, w_bit: int = 4, group_size: int = 128):
+    """Quantize all nn.Linear layers in the Whisper speech encoder with AWQ W4A16.
+
+    Uses RTN (round-to-nearest) quantization via WQLinear_GEMM.from_linear since
+    activation-aware calibration requires audio inputs that are not available in the
+    text-only AWQ calibration loop.  The encoder is compute-bound on attention and FFN,
+    so RTN W4A16 still yields meaningful memory-bandwidth savings over float16.
+
+    Dimension alignment: AWQ GEMM requires in_features and out_features divisible by
+    group_size (128).  Standard Whisper large dims (d_model=1280, ffn=5120) satisfy
+    this; pruned dims are checked and skipped with a warning if not divisible.
+    """
+    from awq.modules.linear import WQLinear_GEMM
+    replaced = skipped = 0
+    for parent_name, parent_module in list(speech_encoder.named_modules()):
+        for child_name, child_module in list(parent_module.named_children()):
+            if not isinstance(child_module, torch.nn.Linear):
+                continue
+            if child_module.in_features % group_size != 0 or child_module.out_features % group_size != 0:
+                logger.warning(
+                    f"quantize_encoder_awq: skipping {parent_name}.{child_name} "
+                    f"({child_module.in_features}x{child_module.out_features}) — "
+                    f"dims not divisible by group_size={group_size}")
+                skipped += 1
+                continue
+            wq_linear = WQLinear_GEMM.from_linear(
+                child_module, w_bit=w_bit, group_size=group_size, init_only=False)
+            setattr(parent_module, child_name, wq_linear)
+            replaced += 1
+    logger.info(
+        f"quantize_encoder_awq: quantized {replaced} Linear layers "
+        f"(skipped {skipped} non-aligned)")
+
+
 def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
-                  num_calib: int = 64, q_group_size: int = 128):
+                  num_calib: int = 64, q_group_size: int = 128,
+                  quantize_encoder: bool = True):
     """Quantize a pruned MERaLiON-2 checkpoint to W4A16 with AutoAWQ.
 
     Strategy for custom model loading:
@@ -306,7 +341,7 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
         "version": "GEMM",
     }
 
-    logger.info("Quantizing...")
+    logger.info("Quantizing text decoder (AWQ)...")
     model.quantize(
         tokenizer,
         quant_config=quant_config,
@@ -314,6 +349,12 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
         max_calib_samples=num_calib,
         max_calib_seq_len=512,
     )
+
+    # Quantize speech encoder with same AWQ W4A16 format (RTN, no audio calibration)
+    if quantize_encoder:
+        logger.info("Quantizing speech encoder (AWQ W4A16 RTN)...")
+        quantize_encoder_awq(model.model.speech_encoder,
+                             w_bit=4, group_size=q_group_size)
 
     # Fix conflicting generation_config before saving
     inner = getattr(model, "model", model)
@@ -337,6 +378,9 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
             if key in src_cfg:
                 dst_cfg[key] = src_cfg[key]
                 changed[key] = src_cfg[key]
+        if quantize_encoder:
+            dst_cfg["encoder_quantization"] = "awq_w4a16"
+            changed["encoder_quantization"] = "awq_w4a16"
         if changed:
             with open(dst_cfg_path, "w") as f:
                 json.dump(dst_cfg, f, indent=2)
@@ -368,5 +412,8 @@ if __name__ == "__main__":
                         help="Calibration samples (64-128 recommended)")
     parser.add_argument("--q_group_size", type=int, default=128,
                         help="AWQ group size (default: 128)")
+    parser.add_argument("--no_encoder_quant", action="store_true",
+                        help="Skip speech encoder quantization (text decoder only)")
     args = parser.parse_args()
-    quantize_awq(args.model, args.dataset, args.save_dir, args.num_calib, args.q_group_size)
+    quantize_awq(args.model, args.dataset, args.save_dir, args.num_calib, args.q_group_size,
+                 quantize_encoder=not args.no_encoder_quant)

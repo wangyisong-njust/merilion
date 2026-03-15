@@ -52,16 +52,6 @@ $PYTHON_PATH -u merge_lora.py \
     --adapter $TUNE_DIR \
     --output  $TUNE_DIR && \
 echo '' && \
-echo '========== Step 4: vLLM Latency Benchmark — merged (BF16) ==========' && \
-$PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned  $TUNE_DIR \
-    --original $ORIGINAL \
-    --dataset $DATASET \
-    --num_samples $NUM_BENCH_SAMPLES \
-    --batch_size 1 \
-    --max_tokens 256 \
-    --output vllm_benchmark_${NAME}-tune.json && \
-echo '' && \
 echo '========== Step 5: AWQ W4A16 quantization of merged model ==========' && \
 $PYTHON_PATH -u quantize_pruned_awq.py \
     --model   $TUNE_DIR \
@@ -103,6 +93,16 @@ $PYTHON_PATH -u vllm_eval_wer.py \
 #     --base_model $CKPT \
 #     --output_dir $TUNE_DIR \
 #     $LORA_ARGS && \
+# echo '' && \
+# echo '========== Step 4: vLLM Latency Benchmark — merged (BF16) ==========' && \
+# $PYTHON_PATH -u vllm_benchmark_pruned.py \
+#     --pruned  $TUNE_DIR \
+#     --original $ORIGINAL \
+#     --dataset $DATASET \
+#     --num_samples $NUM_BENCH_SAMPLES \
+#     --batch_size 1 \
+#     --max_tokens 256 \
+#     --output vllm_benchmark_${NAME}-tune.json && \
 # echo '' && \
 
 # ============================================================
