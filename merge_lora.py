@@ -11,6 +11,7 @@ Usage:
 overwrite the adapter-only files in place.
 """
 import argparse
+import json
 import os
 import shutil
 import sys
@@ -68,6 +69,23 @@ def main():
     os.makedirs(args.output, exist_ok=True)
     print(f"Saving merged model to {args.output} ...")
     merged.save_pretrained(args.output)
+
+    # save_pretrained rewrites config.json and may corrupt auto_map (e.g. set
+    # it to an empty string or a package reference that HuggingFace treats as a
+    # remote repo ID).  Restore auto_map from the base config so AutoModel can
+    # find the local .py files we copy below.
+    base_cfg_path = os.path.join(args.base, "config.json")
+    out_cfg_path  = os.path.join(args.output, "config.json")
+    if os.path.exists(base_cfg_path):
+        with open(base_cfg_path) as f:
+            base_cfg = json.load(f)
+        with open(out_cfg_path) as f:
+            out_cfg = json.load(f)
+        if "auto_map" in base_cfg:
+            out_cfg["auto_map"] = base_cfg["auto_map"]
+            with open(out_cfg_path, "w") as f:
+                json.dump(out_cfg, f, indent=2)
+            print(f"  restored auto_map from base config: {base_cfg['auto_map']}")
 
     print("Saving processor/tokenizer...")
     processor = AutoProcessor.from_pretrained(args.base, trust_remote_code=True)
