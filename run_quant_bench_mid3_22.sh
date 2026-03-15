@@ -13,7 +13,7 @@ WORKDIR="/home/jinchao/runtao/LLM-Pruner"
 
 cd $WORKDIR
 
-GPU=0
+GPU=1
 NAME="v3-td50-mid3-22"
 CKPT="meralion_checkpoints/MERaLiON-2-3B-$NAME"
 ORIGINAL="/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
@@ -23,27 +23,6 @@ NUM_BENCH_SAMPLES=50
 echo "[GPU $GPU] Quantization benchmark: $NAME"
 
 CUDA_VISIBLE_DEVICES=$GPU nohup bash -c "
-echo '========== BF16 baseline ==========' && \
-$PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned $CKPT \
-    --original $ORIGINAL \
-    --dataset $DATASET \
-    --num_samples $NUM_BENCH_SAMPLES \
-    --output vllm_benchmark_${NAME}-BF16.json && \
-echo '' && \
-echo '========== Quantize → W8A16 (llm-compressor RTN) ==========' && \
-$PYTHON_PATH -u quantize_pruned.py \
-    --model $CKPT \
-    --scheme W8A16 && \
-echo '' && \
-echo '========== W8A16 benchmark ==========' && \
-$PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned ${CKPT}-W8A16-RTN \
-    --original $ORIGINAL \
-    --dataset $DATASET \
-    --num_samples $NUM_BENCH_SAMPLES \
-    --output vllm_benchmark_${NAME}-W8A16.json && \
-echo '' && \
 echo '========== Quantize → W4A16 (AutoAWQ, calibrated) ==========' && \
 $PYTHON_PATH -u quantize_pruned_awq.py \
     --model $CKPT \

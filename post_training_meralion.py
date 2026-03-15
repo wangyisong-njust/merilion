@@ -816,6 +816,13 @@ def main(args):
     # Save final model (best WER version)
     trainer.save_model(args.output_dir)
 
+    # Merge LoRA into base model and save full merged model for vLLM
+    print("\n[INFO] Merging LoRA weights into base model for vLLM...")
+    merged = peft_model.merge_and_unload()
+    merged.save_pretrained(args.output_dir)
+    processor.save_pretrained(args.output_dir)
+    print(f"[INFO] Full merged model saved to {args.output_dir}")
+
     # Final WER evaluation on PART1 test set (local, no internet needed)
     peft_model.eval()
     wer_metric = evaluate.load("wer")

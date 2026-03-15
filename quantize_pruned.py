@@ -149,9 +149,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Quantize pruned MERaLiON-2 with llm-compressor")
     parser.add_argument("--model", required=True, help="Path to pruned/tuned checkpoint")
     parser.add_argument("--scheme", default="W8A16",
-                        choices=["W8A16", "W4A16", "FP8_DYNAMIC"],
-                        help="W8A16/W4A16: INT weight-only RTN; FP8_DYNAMIC: FP8 weights+activations")
+                        choices=["W8A16", "W4A16", "W4A16_GPTQ", "FP8_DYNAMIC"],
+                        help="W8A16/W4A16: RTN; W4A16_GPTQ: calibrated GPTQ (needs --dataset); FP8_DYNAMIC: FP8")
     parser.add_argument("--save_dir", default=None,
-                        help="Output dir (default: <model>-<scheme>-RTN or <model>-FP8)")
+                        help="Output dir (default: <model>-<scheme>[-RTN])")
+    parser.add_argument("--dataset", default=None,
+                        help="Path to IMDA dataset (required for W4A16_GPTQ)")
+    parser.add_argument("--num_calib", type=int, default=128,
+                        help="Calibration samples for W4A16_GPTQ (default: 128)")
     args = parser.parse_args()
-    quantize_pruned(args.model, args.scheme, args.save_dir)
+    quantize_pruned(args.model, args.scheme, args.save_dir, args.dataset, args.num_calib)

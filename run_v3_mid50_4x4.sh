@@ -12,7 +12,8 @@
 #   GPU 6,7 — v3-td50-mid3-23    Text 50%, layers 3-23
 #
 # Pipeline per experiment:
-#   Prune → vLLM benchmark (pruned) → Post-training (LoRA, 2-GPU) → vLLM WER eval
+#   Prune → Post-training (LoRA) → Merge → vLLM BF16 benchmark
+#        → AWQ W4A16 quant → vLLM W4A16 benchmark → vLLM WER eval
 # ============================================================
 
 export WANDB_DISABLED=true
@@ -40,69 +41,65 @@ _run_exp() {
 
     local CKPT="meralion_checkpoints/MERaLiON-2-3B-$NAME"
     local TUNE_DIR="meralion_tune_log/MERaLiON-2-3B-$NAME-tune"
+    local AWQ_DIR="${TUNE_DIR}-W4A16-AWQ"
 
     echo "[GPU $GPU,$GPU2] $NAME"
 
     CUDA_VISIBLE_DEVICES=$GPU,$GPU2 nohup bash -c "
-echo '========== Step 1: Pruning ==========' && \
-$PYTHON_PATH -u meralion.py \
-    --base_model $ORIGINAL \
-    --pruning_ratio 0.5 \
-    --text_attn_pruning_ratio 0.5 --text_mlp_pruning_ratio 0.5 \
-    $PRUNE_COMMON $TEXT_LAYERS \
-    --post_prune_eval \
-    --save_ckpt_log_name MERaLiON-2-3B-$NAME \
-    --save_model_path $CKPT && \
+echo '========== Step 3: Merge LoRA into base model ==========' && \
+$PYTHON_PATH -u merge_lora.py \
+    --base    $CKPT \
+    --adapter $TUNE_DIR \
+    --output  $TUNE_DIR && \
 echo '' && \
-echo '========== Step 2a: vLLM Latency Benchmark — pruned (BF16) ==========' && \
+echo '========== Step 4: vLLM Latency Benchmark — merged (BF16) ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned $CKPT \
+    --pruned  $TUNE_DIR \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
-    --output vllm_benchmark_${NAME}.json && \
+    --output vllm_benchmark_${NAME}-tune.json && \
 echo '' && \
-echo '========== Step 2b: Quantize pruned → W8A16 (llm-compressor RTN) ==========' && \
-$PYTHON_PATH -u quantize_pruned.py \
-    --model $CKPT \
-    --scheme W8A16 && \
+echo '========== Step 5: AWQ W4A16 quantization of merged model ==========' && \
+$PYTHON_PATH -u quantize_pruned_awq.py \
+    --model   $TUNE_DIR \
+    --dataset $DATASET \
+    --save_dir $AWQ_DIR && \
 echo '' && \
-echo '========== Step 2c: vLLM Latency Benchmark — pruned + W8A16 ==========' && \
+echo '========== Step 6: vLLM Latency Benchmark — merged + W4A16-AWQ ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned ${CKPT}-W8A16-RTN \
+    --pruned  $AWQ_DIR \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
-    --output vllm_benchmark_${NAME}-W8A16.json && \
+    --output vllm_benchmark_${NAME}-W4A16-AWQ.json && \
 echo '' && \
-echo '========== Step 2d: Quantize pruned → W4A16 (llm-compressor RTN) ==========' && \
-$PYTHON_PATH -u quantize_pruned.py \
-    --model $CKPT \
-    --scheme W4A16 && \
-echo '' && \
-echo '========== Step 2e: vLLM Latency Benchmark — pruned + W4A16 ==========' && \
-$PYTHON_PATH -u vllm_benchmark_pruned.py \
-    --pruned ${CKPT}-W4A16-RTN \
-    --original $ORIGINAL \
-    --dataset $DATASET \
-    --num_samples $NUM_BENCH_SAMPLES \
-    --output vllm_benchmark_${NAME}-W4A16.json && \
-echo '' && \
-echo '========== Step 3: Post-training (LoRA recovery, 2-GPU DDP via torchrun) ==========' && \
-$PYTHON_PATH -m torch.distributed.run --nproc_per_node=2 post_training_meralion.py \
-    --base_model $CKPT \
-    --output_dir $TUNE_DIR \
-    $LORA_ARGS && \
-echo '' && \
-echo '========== Step 4: vLLM WER Evaluation on tuned checkpoint ==========' && \
+echo '========== Step 7: vLLM WER Evaluation — merged (BF16) ==========' && \
 $PYTHON_PATH -u vllm_eval_wer.py \
-    --model $TUNE_DIR \
+    --model   $TUNE_DIR \
     --dataset $DATASET \
     --num_samples 500 \
     --num_demo 10 \
     --output vllm_wer_${NAME}.json
 " > tune_${NAME}.log 2>&1 &
 }
+
+# echo '========== Step 1: Pruning ==========' && \
+# $PYTHON_PATH -u meralion.py \
+#     --base_model $ORIGINAL \
+#     --pruning_ratio 0.5 \
+#     --text_attn_pruning_ratio 0.5 --text_mlp_pruning_ratio 0.5 \
+#     $PRUNE_COMMON $TEXT_LAYERS \
+#     --post_prune_eval \
+#     --save_ckpt_log_name MERaLiON-2-3B-$NAME \
+#     --save_model_path $CKPT && \
+# echo '' && \
+# echo '========== Step 2: Post-training (LoRA recovery, 2-GPU DDP via torchrun) ==========' && \
+# $PYTHON_PATH -m torch.distributed.run --nproc_per_node=2 post_training_meralion.py \
+#     --base_model $CKPT \
+#     --output_dir $TUNE_DIR \
+#     $LORA_ARGS && \
+# echo '' && \
 
 # ============================================================
 # GPU 0,1: Text 50% mid4-22
@@ -150,4 +147,4 @@ echo ""
 echo "Monitor: tail -f tune_v3-td50-mid{4,3}-*.log"
 echo "WER:     grep -E 'Post-prune WER|Final Test WER|WER:' tune_v3-td50-mid{4,3}-*.log"
 echo "Bench:   grep -E 'Decode speedup|Prefill speedup' tune_v3-td50-mid{4,3}-*.log"
-echo "Quant:   ls meralion_checkpoints/MERaLiON-2-3B-v3-td50-mid*-W8A16-RTN/"
+echo "AWQ:     ls meralion_tune_log/MERaLiON-2-3B-v3-td50-mid*-tune-W4A16-AWQ/"
