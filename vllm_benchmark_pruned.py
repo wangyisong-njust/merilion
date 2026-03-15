@@ -52,14 +52,25 @@ def benchmark_model(model_path, label, test_subset, sampling_params, num_samples
     print(f"Model: {model_path}")
     print(f"{'=' * 60}")
 
-    # For pre-quantized models (llm-compressor compressed-tensors format),
-    # vLLM auto-detects the quantization scheme from config.json — no flag needed.
+    # Detect AWQ format explicitly — vLLM auto-detection may miss AWQ for custom
+    # trust_remote_code models, causing it to load INT4-packed weights as FP16.
+    # compressed-tensors (W8A16/W4A16-RTN/FP8) are always auto-detected correctly.
+    quant_kwarg = {}
+    cfg_path = os.path.join(model_path, "config.json")
+    if os.path.exists(cfg_path):
+        import json as _json
+        with open(cfg_path) as _f:
+            _cfg = _json.load(_f)
+        if _cfg.get("quantization_config", {}).get("quant_type") == "awq":
+            quant_kwarg["quantization"] = "awq"
+
     t0 = time.time()
     llm = LLM(
         model=model_path,
         tokenizer=model_path,
         limit_mm_per_prompt={"audio": 1},
         trust_remote_code=True,
+        **quant_kwarg,
     )
     load_time = time.time() - t0
     print(f"Model loaded in {load_time:.1f}s")

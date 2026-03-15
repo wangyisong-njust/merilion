@@ -83,11 +83,19 @@ def main():
     )
 
     print(f"\nLoading model from {args.model}...")
+    quant_kwarg = {}
+    cfg_path = os.path.join(args.model, "config.json")
+    if os.path.exists(cfg_path):
+        import json as _json
+        with open(cfg_path) as _f:
+            if _json.load(_f).get("quantization_config", {}).get("quant_type") == "awq":
+                quant_kwarg["quantization"] = "awq"
     llm = LLM(
         model=args.model,
         tokenizer=args.model,
         limit_mm_per_prompt={"audio": 1},
         trust_remote_code=True,
+        **quant_kwarg,
     )
 
     print(f"Running inference on {args.num_samples} samples...")
