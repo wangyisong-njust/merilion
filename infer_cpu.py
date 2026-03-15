@@ -99,6 +99,7 @@ def load_model_cpu(model_path: str, int4: bool = True, compile: bool = True):
     print(f"  Loaded in {time.time()-t0:.1f}s")
 
     if int4:
+        model = model.to("cpu")   # ensure all tensors are on CPU before INT4 packing
         print("Applying torchao INT4 weight-only quantization …")
         t0 = time.time()
         _apply_torchao_int4(model)
