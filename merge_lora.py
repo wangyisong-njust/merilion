@@ -81,11 +81,16 @@ def main():
             base_cfg = json.load(f)
         with open(out_cfg_path) as f:
             out_cfg = json.load(f)
-        if "auto_map" in base_cfg:
-            out_cfg["auto_map"] = base_cfg["auto_map"]
+        changed = {}
+        for key in ("architectures", "auto_map"):
+            if key in base_cfg:
+                out_cfg[key] = base_cfg[key]
+                changed[key] = base_cfg[key]
+        if changed:
             with open(out_cfg_path, "w") as f:
                 json.dump(out_cfg, f, indent=2)
-            print(f"  restored auto_map from base config: {base_cfg['auto_map']}")
+            for k, v in changed.items():
+                print(f"  restored {k} from base config: {v}")
 
     print("Saving processor/tokenizer...")
     processor = AutoProcessor.from_pretrained(args.base, trust_remote_code=True)
