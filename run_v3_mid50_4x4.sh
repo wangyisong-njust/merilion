@@ -58,6 +58,8 @@ $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
+    --batch_size 1 \
+    --max_tokens 256 \
     --output vllm_benchmark_${NAME}-tune.json && \
 echo '' && \
 echo '========== Step 5: AWQ W4A16 quantization of merged model ==========' && \
@@ -72,6 +74,8 @@ $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --original $ORIGINAL \
     --dataset $DATASET \
     --num_samples $NUM_BENCH_SAMPLES \
+    --batch_size 1 \
+    --max_tokens 256 \
     --output vllm_benchmark_${NAME}-W4A16-AWQ.json && \
 echo '' && \
 echo '========== Step 7: vLLM WER Evaluation — merged (BF16) ==========' && \

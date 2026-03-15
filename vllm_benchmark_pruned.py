@@ -43,18 +43,36 @@ def build_inputs(sample):
     return {"prompt": prompt, "multi_modal_data": {"audio": [(audio_array, sr)]}}
 
 
-def benchmark_model(model_path, label, test_subset, sampling_params, num_samples):
+def _collect_metrics(outputs):
+    ttfts, decode_tps, total_tokens = [], [], 0
+    for o in outputs:
+        n = len(o.outputs[0].token_ids)
+        total_tokens += n
+        m = getattr(o, "metrics", None)
+        if (m is not None
+                and getattr(m, "first_token_time", None) is not None
+                and getattr(m, "finished_time", None) is not None
+                and getattr(m, "arrival_time", None) is not None):
+            ttfts.append(m.first_token_time - m.arrival_time)
+            dt = m.finished_time - m.first_token_time
+            if dt > 0 and n > 1:
+                decode_tps.append((n - 1) / dt)
+    return ttfts, decode_tps, total_tokens
+
+
+def benchmark_model(model_path, label, test_subset, sampling_params, num_samples,
+                    batch_size=None):
+    """Run benchmark.  batch_size=None batches all samples; batch_size=1 runs
+    each sample sequentially for single-request latency measurement."""
     import torch
     from vllm import LLM
 
+    bs = batch_size or num_samples
     print(f"\n{'=' * 60}")
-    print(f"Benchmarking: {label}")
+    print(f"Benchmarking: {label}  (batch_size={bs})")
     print(f"Model: {model_path}")
     print(f"{'=' * 60}")
 
-    # Detect AWQ format explicitly — vLLM auto-detection may miss AWQ for custom
-    # trust_remote_code models, causing it to load INT4-packed weights as FP16.
-    # compressed-tensors (W8A16/W4A16-RTN/FP8) are always auto-detected correctly.
     quant_kwarg = {}
     cfg_path = os.path.join(model_path, "config.json")
     if os.path.exists(cfg_path):
@@ -75,67 +93,48 @@ def benchmark_model(model_path, label, test_subset, sampling_params, num_samples
     load_time = time.time() - t0
     print(f"Model loaded in {load_time:.1f}s")
 
-    # Warmup (2 samples)
-    print("Warming up...")
-    warmup = [build_inputs(test_subset[i]) for i in range(min(2, num_samples))]
-    _ = llm.generate(warmup, sampling_params=sampling_params)
-
-    # Benchmark
-    print(f"Running {num_samples} samples...")
     all_inputs = [build_inputs(test_subset[i]) for i in range(num_samples)]
 
+    # Warmup (2 samples)
+    print("Warming up...")
+    _ = llm.generate(all_inputs[:min(2, num_samples)], sampling_params=sampling_params)
+
+    # Benchmark — single-batch or sequential
+    print(f"Running {num_samples} samples (batch_size={bs})...")
+    ttfts, decode_tps, total_output_tokens = [], [], 0
     t_start = time.time()
-    outputs = llm.generate(all_inputs, sampling_params=sampling_params)
-    t_end = time.time()
+    for i in range(0, num_samples, bs):
+        batch = all_inputs[i:i + bs]
+        outs = llm.generate(batch, sampling_params=sampling_params)
+        t, d, n = _collect_metrics(outs)
+        ttfts.extend(t); decode_tps.extend(d); total_output_tokens += n
+    total_time = time.time() - t_start
 
-    total_time = t_end - t_start
+    avg_ttft_ms    = np.median(ttfts) * 1000 if ttfts else None
+    avg_decode_tps = np.median(decode_tps) if decode_tps else None
+    total_tps      = total_output_tokens / total_time
 
-    # Per-request prefill/decode breakdown from vLLM metrics
-    ttfts = []        # time-to-first-token (prefill latency) per request, seconds
-    decode_tps = []   # decode tok/s per request
-    total_output_tokens = 0
-
-    for o in outputs:
-        n_tokens = len(o.outputs[0].token_ids)
-        total_output_tokens += n_tokens
-        m = getattr(o, "metrics", None)
-        if (m is not None
-                and getattr(m, "first_token_time", None) is not None
-                and getattr(m, "finished_time", None) is not None
-                and getattr(m, "arrival_time", None) is not None):
-            ttfts.append(m.first_token_time - m.arrival_time)
-            decode_time = m.finished_time - m.first_token_time
-            decode_tokens = max(n_tokens - 1, 0)
-            if decode_time > 0 and decode_tokens > 0:
-                decode_tps.append(decode_tokens / decode_time)
-
-    avg_ttft_ms = np.mean(ttfts) * 1000 if ttfts else None
-    avg_decode_tps = np.mean(decode_tps) if decode_tps else None
-    # Fallback throughput if metrics unavailable
-    total_tps = total_output_tokens / total_time
-
-    print(f"\nResults ({label}):")
+    print(f"\nResults ({label}, batch_size={bs}):")
     print(f"  Samples:              {num_samples}")
     print(f"  Total output tokens:  {total_output_tokens}  ({total_output_tokens/num_samples:.1f} tok/sample)")
     print(f"  Total time:           {total_time:.1f}s")
     if avg_ttft_ms is not None:
-        print(f"  Prefill (TTFT):       {avg_ttft_ms:.0f} ms  (mean per request)")
-        print(f"  Decode speed:         {avg_decode_tps:.1f} tok/s  (mean per request)")
+        print(f"  Prefill (TTFT):       {avg_ttft_ms:.0f} ms  (median per request)")
+        print(f"  Decode speed:         {avg_decode_tps:.1f} tok/s  (median per request)")
     else:
         print(f"  Throughput:           {total_tps:.1f} tok/s  (batch, metrics unavailable)")
     print(f"  Load time:            {load_time:.1f}s")
 
-    # Print first 3 predictions
-    for i, o in enumerate(outputs[:3]):
+    for i, o in enumerate(llm.generate(all_inputs[:3], sampling_params=sampling_params)):
         pred = o.outputs[0].text.removeprefix("<Speaker1>: ").strip()
         print(f"  Sample {i}: {pred[:100]}...")
 
-    # Free GPU memory
     del llm
     gc.collect()
     torch.cuda.empty_cache()
 
     return {
+        "batch_size": bs,
         "load_time": load_time,
         "num_samples": num_samples,
         "total_output_tokens": total_output_tokens,
@@ -153,6 +152,10 @@ def main():
     parser.add_argument("--original", default=None, help="Path to original model (for comparison)")
     parser.add_argument("--dataset", required=True, help="Path to IMDA_PART1_mono_en_30_ASR dataset")
     parser.add_argument("--num_samples", type=int, default=50, help="Number of samples for benchmark")
+    parser.add_argument("--batch_size", type=int, default=None,
+                        help="Requests per generate() call; None=all samples at once, 1=single-request latency mode")
+    parser.add_argument("--max_tokens", type=int, default=128,
+                        help="Max decode tokens per sample (increase for stable tok/s measurement)")
     parser.add_argument("--output", default="vllm_benchmark_results.json", help="Output JSON file")
     args = parser.parse_args()
 
@@ -177,7 +180,7 @@ def main():
 
     sampling_params = SamplingParams(
         temperature=0.0, top_p=0.9, top_k=50,
-        repetition_penalty=1.0, seed=42, max_tokens=128,
+        repetition_penalty=1.0, seed=42, max_tokens=args.max_tokens,
         stop=["<end_of_turn>", "<eos>"],
     )
 
@@ -186,7 +189,8 @@ def main():
     # Benchmark pruned model
     if os.path.exists(args.pruned):
         results["pruned"] = benchmark_model(
-            args.pruned, "pruned", test_subset, sampling_params, args.num_samples)
+            args.pruned, "pruned", test_subset, sampling_params, args.num_samples,
+            batch_size=args.batch_size)
     else:
         print(f"ERROR: Pruned model not found: {args.pruned}")
         sys.exit(1)
@@ -194,7 +198,8 @@ def main():
     # Benchmark original model
     if args.original and os.path.exists(args.original):
         results["original"] = benchmark_model(
-            args.original, "original", test_subset, sampling_params, args.num_samples)
+            args.original, "original", test_subset, sampling_params, args.num_samples,
+            batch_size=args.batch_size)
 
     # Summary
     print(f"\n{'=' * 60}")
