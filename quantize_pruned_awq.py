@@ -25,7 +25,7 @@ import argparse
 import logging
 
 import torch
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, AutoModelForCausalLM
+from transformers import AutoConfig, AutoProcessor, AutoModelForCausalLM
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -212,25 +212,23 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
     tokenizer = processor.tokenizer
 
-    # --- Register meralion2 with AutoAWQ ---
-    # AutoAWQ checks config.model_type against AWQ_CAUSAL_LM_MODEL_MAP *before*
-    # loading the model. We register a custom subclass of the Gemma2 AWQ class
-    # that routes get_model_layers() to text_decoder.model.layers (where our
-    # Gemma2 decoder layers live). The Gemma2 AWQ class's get_layers_for_scaling
-    # and get_act_order_weights work unchanged since the layer structure is identical.
-    #
-    # We also register with AutoModelForCausalLM so the AWQ from_pretrained call
-    # (which uses AutoModelForCausalLM internally) can load our custom model class.
-    logger.info("Pre-loading model to register with AutoModelForCausalLM...")
-    reference_model = AutoModelForSpeechSeq2Seq.from_pretrained(
-        model_path, trust_remote_code=True,
-        torch_dtype=torch.float16, low_cpu_mem_usage=True,
-    )
-    model_class = type(reference_model)
-    config_class = type(reference_model.config)
-    del reference_model
+    # --- Register meralion2 with AutoConfig / AutoModelForCausalLM / AutoAWQ ---
+    # Import classes directly from meralion2_bl (same package merge_lora.py uses)
+    # instead of using AutoModelForSpeechSeq2Seq.from_pretrained(trust_remote_code=True).
+    # In transformers 4.51.x the trust_remote_code path resolves pretrained_model_name_or_path
+    # to '' for local custom configs, causing HFValidationError.
+    # By registering the classes we bypass auto_map and trust_remote_code entirely.
+    from meralion2_bl.modeling_meralion2 import MERaLiON2ForConditionalGeneration as model_class
+    from meralion2_bl.configuration_meralion2 import MERaLiON2Config as config_class
+
+    try:
+        AutoConfig.register("meralion2", config_class)
+        logger.info("Registered MERaLiON2Config with AutoConfig")
+    except ValueError:
+        logger.info("MERaLiON2Config already registered with AutoConfig")
 
     AutoModelForCausalLM.register(config_class, model_class)
+    logger.info("Registered MERaLiON2ForConditionalGeneration with AutoModelForCausalLM")
 
     from awq.models.auto import AWQ_CAUSAL_LM_MODEL_MAP
     from awq.models.gemma2 import Gemma2AWQForCausalLM
@@ -250,18 +248,15 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
             )
 
     AWQ_CAUSAL_LM_MODEL_MAP["meralion2"] = MERaLiONAWQForCausalLM
-    # base.py also looks up model_type in TRANSFORMERS_AUTO_MAPPING_DICT to select
-    # the HF auto class for loading. Point meralion2 to AutoModelForCausalLM, which
-    # we've already registered with our model class above.
     if hasattr(_awq_base, "TRANSFORMERS_AUTO_MAPPING_DICT"):
         _awq_base.TRANSFORMERS_AUTO_MAPPING_DICT["meralion2"] = "AutoModelForCausalLM"
 
-    logger.info("Loading with AutoAWQForCausalLM...")
+    logger.info("Loading with AutoAWQForCausalLM (trust_remote_code=False)...")
     model = AutoAWQForCausalLM.from_pretrained(
         model_path,
         torch_dtype=torch.float16,
         low_cpu_mem_usage=True,
-        trust_remote_code=True,
+        trust_remote_code=False,
     )
 
     # Align MLP dims to 128 for AWQ GEMM kernel compatibility
