@@ -66,7 +66,7 @@ def _apply_torchao_int4(model):
     # torchao 0.1–0.2: Int4WeightOnlyQuantizer
     try:
         from torchao.quantization.quant_api import Int4WeightOnlyQuantizer
-        Int4WeightOnlyQuantizer().quantize(model)
+        Int4WeightOnlyQuantizer(device="cpu").quantize(model)
         return
     except ImportError:
         pass
