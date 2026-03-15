@@ -17,7 +17,9 @@ Then benchmark:
     python vllm_benchmark_pruned.py --pruned <save_dir> ...
     python vllm_eval_wer.py --model <save_dir> ...
 """
+import json
 import os
+import shutil
 import sys
 import argparse
 import logging
@@ -243,6 +245,33 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
 
     model.save_quantized(save_dir)
     processor.save_pretrained(save_dir)
+
+    # save_quantized / save_pretrained may corrupt auto_map (writes empty string)
+    # and architectures.  Restore both from source config.json.
+    src_cfg_path = os.path.join(model_path, "config.json")
+    dst_cfg_path = os.path.join(save_dir, "config.json")
+    if os.path.exists(src_cfg_path) and os.path.exists(dst_cfg_path):
+        with open(src_cfg_path) as f:
+            src_cfg = json.load(f)
+        with open(dst_cfg_path) as f:
+            dst_cfg = json.load(f)
+        changed = {}
+        for key in ("architectures", "auto_map"):
+            if key in src_cfg:
+                dst_cfg[key] = src_cfg[key]
+                changed[key] = src_cfg[key]
+        if changed:
+            with open(dst_cfg_path, "w") as f:
+                json.dump(dst_cfg, f, indent=2)
+            for k, v in changed.items():
+                logger.info(f"  restored {k}: {v}")
+
+    # Copy custom .py files needed for trust_remote_code
+    for fname in os.listdir(model_path):
+        if fname.endswith(".py"):
+            shutil.copy2(os.path.join(model_path, fname), os.path.join(save_dir, fname))
+            logger.info(f"  copied {fname}")
+
     logger.info(f"Saved to: {save_dir}")
     logger.info("Load in vLLM: LLM(model=save_dir, trust_remote_code=True)")
     logger.info("  vLLM auto-detects AWQ from quantization_config in config.json")
