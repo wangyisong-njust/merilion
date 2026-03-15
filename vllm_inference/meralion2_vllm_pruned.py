@@ -504,10 +504,20 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
 # MERaLiON-2.  Reuse the plugin's processor classes when available.
 # ---------------------------------------------------------------------------
 def _register_processor_factory():
+    """Register MERaLiON2PrunedForConditionalGeneration in vLLM's
+    _processor_factories (required by vLLM 0.8+ even with V0 engine).
+
+    Safe to call multiple times — skips silently if already registered.
+    Must be called AFTER ModelRegistry.register_model for the pruned class,
+    because some vLLM versions validate against ModelRegistry at registration.
+    """
     if not hasattr(MULTIMODAL_REGISTRY, '_processor_factories'):
         return  # Old vLLM — already covered by _maybe_apply decorators above
 
-    # Primary path: reuse the proper processor classes from vllm_plugin_meralion2
+    # Idempotent: skip if already registered.
+    if MERaLiON2PrunedForConditionalGeneration in MULTIMODAL_REGISTRY._processor_factories:
+        return
+
     try:
         from vllm_plugin_meralion2.vllm085 import (
             MERaLiON2MultiModalProcessor,
@@ -521,10 +531,22 @@ def _register_processor_factory():
         )(MERaLiON2PrunedForConditionalGeneration)
         logger.info("Registered MERaLiON2MultiModalProcessor for pruned model "
                     "(reused from vllm_plugin_meralion2.vllm085)")
-        return
     except Exception as e:
-        logger.warning(f"Could not reuse vllm_plugin_meralion2 processor ({e}); "
-                       "falling back to built-in stub")
+        import traceback
+        logger.warning(f"Could not register processor factory for pruned model:\n"
+                       f"{traceback.format_exc()}")
+        raise RuntimeError(
+            "Failed to register MERaLiON2PrunedForConditionalGeneration in "
+            "MULTIMODAL_REGISTRY._processor_factories. "
+            "Call _register_processor_factory() again after "
+            "ModelRegistry.register_model(...)."
+        ) from e
 
 
-_register_processor_factory()
+# Attempt early registration.  May fail if ModelRegistry hasn't registered
+# MERaLiON2PrunedForConditionalGeneration yet — callers should call again
+# after ModelRegistry.register_model to guarantee success.
+try:
+    _register_processor_factory()
+except RuntimeError:
+    pass  # Will be retried by the caller after ModelRegistry registration

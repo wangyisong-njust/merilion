@@ -159,11 +159,18 @@ def main():
     # Register pruned model support
     from vllm import SamplingParams, ModelRegistry
     from pruned_gemma2_vllm import is_pruned_model
-    from meralion2_vllm_pruned import MERaLiON2PrunedForConditionalGeneration
+    from meralion2_vllm_pruned import (
+        MERaLiON2PrunedForConditionalGeneration,
+        _register_processor_factory,
+    )
     ModelRegistry.register_model(
         "MERaLiON2ForConditionalGeneration",
         MERaLiON2PrunedForConditionalGeneration,
     )
+    # Re-run processor factory registration now that ModelRegistry is set up.
+    # The module-level call may have failed/skipped if vLLM validated against
+    # ModelRegistry before the register_model call above.
+    _register_processor_factory()
 
     # Load test data
     from datasets import load_from_disk
