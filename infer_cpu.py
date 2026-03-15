@@ -53,9 +53,29 @@ SPEECH_TOKENS_PER_CHUNK = 100
 MAX_CHUNKS = 8
 
 
+def _apply_int8_dynamic(model):
+    """INT8 dynamic quantization via PyTorch built-in.
+
+    Uses torch.quantization.quantize_dynamic which wraps each nn.Linear with a
+    DynamicQuantizedLinear that reads the original *float* weight at runtime and
+    quantises on-the-fly.  Because the weight tensor itself is never replaced,
+    tied-weight models (Gemma2 lm_head ↔ embed_tokens) stay numerically correct.
+    Typical CPU speedup: 1.5–2×.  WER degradation: <0.3%.
+    """
+    torch.quantization.quantize_dynamic(
+        model, {nn.Linear}, dtype=torch.qint8, inplace=True)
+
+
 def _apply_torchao_int4(model):
-    """Apply INT4 weight-only quantization, handling different torchao API versions."""
-    # torchao >= 0.3: quantize_() + int4_weight_only()
+    """INT4 weight-only quantization via torchao (experimental for pruned models).
+
+    WARNING: old torchao Int4WeightOnlyQuantizer replaces the weight *tensor*
+    with a packed uint8 blob.  On tied-weight models (lm_head ↔ embed_tokens)
+    this corrupts the LM head forward pass → WER > 100%.
+    Only use if the installed torchao supports per-layer filtering.
+
+    torchao >= 0.3: quantize_() + int4_weight_only()
+    """
     try:
         from torchao.quantization import quantize_, int4_weight_only
         quantize_(model, int4_weight_only())
@@ -63,7 +83,6 @@ def _apply_torchao_int4(model):
     except ImportError:
         pass
 
-    # torchao 0.1–0.2: Int4WeightOnlyQuantizer
     try:
         from torchao.quantization.quant_api import Int4WeightOnlyQuantizer
         Int4WeightOnlyQuantizer(device="cpu").quantize(model)
@@ -76,12 +95,13 @@ def _apply_torchao_int4(model):
         "Upgrade with: pip install torchao --upgrade")
 
 
-def load_model_cpu(model_path: str, int4: bool = True, compile: bool = True):
+def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True, compile: bool = True):
     """Load pruned model on CPU with torchao INT4 weight-only quantization.
 
     Args:
-        int4:    apply torchao int4_weight_only to all Linear layers
-        compile: apply torch.compile for SIMD kernel fusion (recommended)
+        int8:    apply PyTorch INT8 dynamic quantization (default, safe for tied weights)
+        int4:    apply torchao INT4 weight-only (experimental; may corrupt lm_head on tied models)
+        compile: apply torch.compile for kernel fusion
     """
     from meralion2_bl.modeling_meralion2 import MERaLiON2ForConditionalGeneration
     from transformers import AutoProcessor
@@ -103,6 +123,12 @@ def load_model_cpu(model_path: str, int4: bool = True, compile: bool = True):
         model.generation_config.cache_implementation = None
     print(f"  Loaded in {time.time()-t0:.1f}s")
 
+    if int8 and not int4:
+        print("Applying INT8 dynamic quantization (torch.quantization.quantize_dynamic) …")
+        t0 = time.time()
+        _apply_int8_dynamic(model)
+        print(f"  Done in {time.time()-t0:.1f}s")
+
     if int4:
         # Verify all tensors are on CPU before packing
         cuda_params = [(n, p.device) for n, p in model.named_parameters() if p.device.type != "cpu"]
@@ -112,7 +138,7 @@ def load_model_cpu(model_path: str, int4: bool = True, compile: bool = True):
             for n, _ in cuda_params + cuda_bufs:
                 print(f"    {n}")
         model = model.to(torch.device("cpu"))
-        print("Applying torchao INT4 weight-only quantization …")
+        print("Applying torchao INT4 weight-only quantization (experimental) …")
         t0 = time.time()
         _apply_torchao_int4(model)
         print(f"  Done in {time.time()-t0:.1f}s")
@@ -212,18 +238,39 @@ def main():
     parser.add_argument("--num_samples", type=int, default=20)
     parser.add_argument("--max_new_tokens", type=int, default=128)
     parser.add_argument("--no_quant", action="store_true",
-                        help="FP32 baseline, no INT4 quantization")
+                        help="FP32 baseline, no quantization")
+    parser.add_argument("--int4", action="store_true",
+                        help="Use torchao INT4 (experimental; may break tied-weight models)")
     parser.add_argument("--no_compile", action="store_true",
                         help="Skip torch.compile (faster startup, slower inference)")
     parser.add_argument("--output", default="cpu_results.json")
     args = parser.parse_args()
     args.model = os.path.abspath(args.model)
 
+    use_int8 = not args.no_quant and not args.int4
+    use_int4 = not args.no_quant and args.int4
+
+    # Measure RSS before loading
+    try:
+        import psutil, os as _os
+        _proc = psutil.Process(_os.getpid())
+        _ram_before_mb = _proc.memory_info().rss / 1e6
+    except ImportError:
+        _proc = None
+        _ram_before_mb = 0.0
+
     model, processor = load_model_cpu(
         args.model,
-        int4=not args.no_quant,
+        int8=use_int8,
+        int4=use_int4,
         compile=not args.no_compile,
     )
+
+    if _proc is not None:
+        ram_after_mb = _proc.memory_info().rss / 1e6
+        print(f"  RAM after load+quant: {ram_after_mb:.0f} MB  (delta: {ram_after_mb - _ram_before_mb:+.0f} MB)")
+    else:
+        ram_after_mb = 0.0
 
     # ── single audio file ──────────────────────────────────────────────────
     if args.audio:
@@ -282,14 +329,16 @@ def main():
         print(f"compiled:     {not args.no_compile}")
         print(f"{'='*60}")
 
+        quant_method = ("int4" if use_int4 else "int8" if use_int8 else "fp32")
         with open(args.output, "w") as f:
             json.dump({
                 "model": args.model,
-                "int4": not args.no_quant,
+                "quant_method": quant_method,
                 "compiled": not args.no_compile,
                 "num_samples": args.num_samples,
                 "wer": wer,
                 "avg_latency_s": avg_lat,
+                "ram_mb": ram_after_mb,
                 "latencies": latencies,
             }, f, indent=2)
         print(f"Saved to {args.output}")

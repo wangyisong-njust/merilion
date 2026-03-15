@@ -30,12 +30,12 @@ $PYTHON_PATH -u infer_cpu.py \
     --output     cpu_fp32_${NAME}.json
 
 echo ""
-echo "--- Step 2: INT4 + torch.compile ---"
+echo "--- Step 2: INT8 dynamic + torch.compile ---"
 $PYTHON_PATH -u infer_cpu.py \
     --model      $MODEL \
     --dataset    $DATASET \
     --num_samples $NUM_SAMPLES \
-    --output     cpu_int4_${NAME}.json
+    --output     cpu_int8_${NAME}.json
 
 echo ""
 echo "========================================"
@@ -43,10 +43,10 @@ echo "Summary:"
 $PYTHON_PATH -c "
 import json
 fp32 = json.load(open('cpu_fp32_${NAME}.json'))
-int4 = json.load(open('cpu_int4_${NAME}.json'))
-speedup = fp32['avg_latency_s'] / int4['avg_latency_s']
-print(f'  FP32   WER={fp32[\"wer\"]*100:.2f}%  latency={fp32[\"avg_latency_s\"]:.2f}s/sample')
-print(f'  INT4   WER={int4[\"wer\"]*100:.2f}%  latency={int4[\"avg_latency_s\"]:.2f}s/sample')
-print(f'  Speedup: {speedup:.2f}x')
+int8 = json.load(open('cpu_int8_${NAME}.json'))
+speedup = fp32['avg_latency_s'] / int8['avg_latency_s']
+print(f'  FP32   WER={fp32[\"wer\"]*100:.2f}%  latency={fp32[\"avg_latency_s\"]:.2f}s/sample  RAM={fp32.get(\"ram_mb\",0):.0f}MB')
+print(f'  INT8   WER={int8[\"wer\"]*100:.2f}%  latency={int8[\"avg_latency_s\"]:.2f}s/sample  RAM={int8.get(\"ram_mb\",0):.0f}MB')
+print(f'  Speedup: {speedup:.2f}x   ΔWER: {(int8[\"wer\"]-fp32[\"wer\"])*100:+.2f}%')
 "
 echo "========================================"

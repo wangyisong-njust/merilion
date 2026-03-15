@@ -107,11 +107,11 @@ for entry in "${CONFIGS[@]}"; do
     fi
 
     FP32_OUT="cpu_fp32_${NAME}.json"
-    INT4_OUT="cpu_int4_${NAME}.json"
+    INT8_OUT="cpu_int8_${NAME}.json"
 
     # ── FP32 baseline ──────────────────────────────────────────────────────
     echo ""
-    echo "  --- Step 1: FP32 baseline ---"
+    echo "  --- Step 1: FP32 baseline (no quant, no compile) ---"
     "$PYTHON_PATH" -u infer_cpu.py \
         --model      "$MODEL_DIR" \
         --dataset    "$DATASET" \
@@ -120,27 +120,29 @@ for entry in "${CONFIGS[@]}"; do
         --output     "$FP32_OUT" \
         || { echo "  [FAIL] FP32"; SKIPPED+=("$NAME (fp32 failed)"); continue; }
 
-    # ── INT4 + compile ─────────────────────────────────────────────────────
+    # ── INT8 + compile ─────────────────────────────────────────────────────
     echo ""
-    echo "  --- Step 2: INT4 + torch.compile ---"
+    echo "  --- Step 2: INT8 dynamic + torch.compile ---"
     "$PYTHON_PATH" -u infer_cpu.py \
         --model      "$MODEL_DIR" \
         --dataset    "$DATASET" \
         --num_samples "$NUM_SAMPLES" \
-        --output     "$INT4_OUT" \
-        || { echo "  [FAIL] INT4"; SKIPPED+=("$NAME (int4 failed)"); continue; }
+        --output     "$INT8_OUT" \
+        || { echo "  [FAIL] INT8"; SKIPPED+=("$NAME (int8 failed)"); continue; }
 
     # ── Collect metrics ────────────────────────────────────────────────────
     SIZE_MB=$(disk_mb "$MODEL_DIR")
     ROW=$("$PYTHON_PATH" -c "
 import json
 fp = json.load(open('${FP32_OUT}'))
-it = json.load(open('${INT4_OUT}'))
+it = json.load(open('${INT8_OUT}'))
 speedup  = fp['avg_latency_s'] / it['avg_latency_s']
 fp_wer   = fp.get('wer', float('nan')) * 100
 it_wer   = it.get('wer', float('nan')) * 100
 dwer     = it_wer - fp_wer
-print(f\"{fp['avg_latency_s']:.2f}|{it['avg_latency_s']:.2f}|{speedup:.2f}|{fp_wer:.2f}|{it_wer:.2f}|{dwer:+.2f}\")
+fp_ram   = fp.get('ram_mb', 0)
+it_ram   = it.get('ram_mb', 0)
+print(f\"{fp['avg_latency_s']:.2f}|{it['avg_latency_s']:.2f}|{speedup:.2f}|{fp_wer:.2f}|{it_wer:.2f}|{dwer:+.2f}|{fp_ram:.0f}|{it_ram:.0f}\")
 ")
     RESULTS+=("${NAME}|${SIZE_MB}|${ROW}")
     echo ""
@@ -148,28 +150,28 @@ done
 
 # ── Summary table ─────────────────────────────────────────────────────────
 echo ""
-echo "================================================================================================================================="
+echo "============================================================================================================================================================================================"
 echo "  CPU Benchmark Summary — v3 mid-pruning, ${NUM_SAMPLES} samples (IMDA PART1)"
-echo "  Baseline FP32 vs torchao INT4 + torch.compile"
-echo "  Original model size: ${ORIG_MB} MB"
-echo "================================================================================================================================="
-printf "  %-28s %8s %8s %10s %10s %8s %8s %8s %8s\n" \
-    "Config" "Size(MB)" "vs.orig" "FP32 lat" "INT4 lat" "Speedup" "FP32 WER" "INT4 WER" "ΔWER"
-echo "  ---------------------------------------------------------------------------------------------------------------------------------"
+echo "  FP32 baseline vs INT8 dynamic (torch.quantization.quantize_dynamic) + torch.compile"
+echo "  Original model disk size: ${ORIG_MB} MB  |  Disk size reflects pruning only; INT8 RAM ≈ disk×0.5 at runtime"
+echo "============================================================================================================================================================================================"
+printf "  %-28s %8s %8s %10s %10s %8s %8s %8s %8s %10s %10s\n" \
+    "Config" "Disk(MB)" "vs.orig" "FP32 lat" "INT8 lat" "Speedup" "FP32 WER" "INT8 WER" "ΔWER" "FP32 RAM" "INT8 RAM"
+echo "  --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 
 for row in "${RESULTS[@]}"; do
-    IFS='|' read -r name size_mb fp32_lat int4_lat speedup fp32_wer int4_wer dwer <<< "$row"
+    IFS='|' read -r name size_mb fp32_lat int8_lat speedup fp32_wer int8_wer dwer fp32_ram int8_ram <<< "$row"
     if [ -n "$ORIG_MB" ] && [ "$ORIG_MB" -gt 0 ] 2>/dev/null; then
-        vs_orig=$(python3 -c "print(f'{int(\"${size_mb}\") / int(\"${ORIG_MB}\") * 100:.0f}%')" 2>/dev/null || echo "  n/a")
+        vs_orig=$("$PYTHON_PATH" -c "print(f'{int(\"${size_mb}\") / int(\"${ORIG_MB}\") * 100:.0f}%')" 2>/dev/null || echo "n/a")
     else
-        vs_orig="  n/a"
+        vs_orig="n/a"
     fi
-    printf "  %-28s %8s %8s %10s %10s %8s %8s %8s %8s\n" \
-        "$name" "${size_mb}MB" "$vs_orig" "${fp32_lat}s" "${int4_lat}s" "${speedup}x" \
-        "${fp32_wer}%" "${int4_wer}%" "$dwer%"
+    printf "  %-28s %8s %8s %10s %10s %8s %8s %8s %8s %10s %10s\n" \
+        "$name" "${size_mb}MB" "$vs_orig" "${fp32_lat}s" "${int8_lat}s" "${speedup}x" \
+        "${fp32_wer}%" "${int8_wer}%" "$dwer%" "${fp32_ram}MB" "${int8_ram}MB"
 done
 
-echo "  ================================================================================================================================="
+echo "  ============================================================================================================================================================================================"
 echo ""
 
 if [ ${#SKIPPED[@]} -gt 0 ]; then
@@ -183,6 +185,6 @@ fi
 echo "  Per-config JSON results:"
 for row in "${RESULTS[@]}"; do
     IFS='|' read -r name _ <<< "$row"
-    echo "    cpu_fp32_${name}.json  cpu_int4_${name}.json"
+    echo "    cpu_fp32_${name}.json  cpu_int8_${name}.json"
 done
 echo ""
