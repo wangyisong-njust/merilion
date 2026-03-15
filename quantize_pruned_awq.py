@@ -162,6 +162,7 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
 
     from awq.models.auto import AWQ_CAUSAL_LM_MODEL_MAP
     from awq.models.gemma2 import Gemma2AWQForCausalLM
+    import awq.models.base as _awq_base
 
     class MERaLiONAWQForCausalLM(Gemma2AWQForCausalLM):
         """AWQ wrapper for MERaLiON-2: text decoder lives at model.text_decoder.model.layers."""
@@ -171,6 +172,11 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
             return model.text_decoder.model.layers
 
     AWQ_CAUSAL_LM_MODEL_MAP["meralion2"] = MERaLiONAWQForCausalLM
+    # base.py also looks up model_type in TRANSFORMERS_AUTO_MAPPING_DICT to select
+    # the HF auto class for loading. Point meralion2 to AutoModelForCausalLM, which
+    # we've already registered with our model class above.
+    if hasattr(_awq_base, "TRANSFORMERS_AUTO_MAPPING_DICT"):
+        _awq_base.TRANSFORMERS_AUTO_MAPPING_DICT["meralion2"] = "AutoModelForCausalLM"
 
     logger.info("Loading with AutoAWQForCausalLM...")
     model = AutoAWQForCausalLM.from_pretrained(
