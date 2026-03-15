@@ -516,29 +516,51 @@ def _register_processor_factory():
     """Register MERaLiON2PrunedForConditionalGeneration in vLLM's
     _processor_factories.  Idempotent — safe to call multiple times.
     Requires vllm_plugin_meralion2.vllm085 to already be in sys.modules.
+
+    Implementation note: _processor_factories is a ClassRegistry (vllm.utils).
+    ClassRegistry.__getitem__ does MRO lookup, but we must write directly to
+    .data (the underlying dict) to guarantee an exact-key hit at lookup time.
+    Using register_processor() is unreliable because it may have validation
+    that rejects classes not yet registered in ModelRegistry.
+    The idempotency check also uses .data directly — ClassRegistry.__contains__
+    uses non-strict MRO lookup and could return True for a parent class.
     """
     import sys as _sys
     if not hasattr(MULTIMODAL_REGISTRY, '_processor_factories'):
         return  # Old vLLM — already covered by _maybe_apply decorators above
-    if MERaLiON2PrunedForConditionalGeneration in MULTIMODAL_REGISTRY._processor_factories:
-        return  # Already registered
+
+    pf = MULTIMODAL_REGISTRY._processor_factories
+    pf_data = getattr(pf, 'data', pf)  # ClassRegistry stores entries in .data
+
+    # Strict idempotency: check the underlying dict, not the MRO-aware wrapper.
+    if MERaLiON2PrunedForConditionalGeneration in pf_data:
+        return
 
     plugin_mod = _sys.modules.get('vllm_plugin_meralion2.vllm085')
     if plugin_mod is None:
-        # Plugin not loaded yet — hook will call us later
+        # Plugin not loaded yet — hook will call us later.
         return
 
-    try:
-        MULTIMODAL_REGISTRY.register_processor(
-            plugin_mod.MERaLiON2MultiModalProcessor,
-            info=plugin_mod.MERaLiON2ProcessingInfo,
-            dummy_inputs=plugin_mod.MERaLiON2DummyInputsBuilder,
-        )(MERaLiON2PrunedForConditionalGeneration)
-        logger.info("Registered MERaLiON2MultiModalProcessor for pruned model")
-    except Exception:
-        import traceback
-        logger.warning("Could not register processor factory for pruned model:\n"
-                       + traceback.format_exc())
+    plugin_cls = getattr(plugin_mod, 'MERaLiON2ForConditionalGeneration', None)
+    if plugin_cls is None:
+        logger.warning("vllm_plugin_meralion2.vllm085 loaded but "
+                       "MERaLiON2ForConditionalGeneration not found")
+        return
+
+    plugin_data = getattr(plugin_cls, '__self__', None)  # unused
+    plugin_factory = pf_data.get(plugin_cls)
+    if plugin_factory is None:
+        logger.warning("Plugin class MERaLiON2ForConditionalGeneration is not "
+                       "in _processor_factories.data — cannot copy factory")
+        return
+
+    # Copy the plugin's factory directly into the underlying dict so that
+    # ClassRegistry.__getitem__(MERaLiON2PrunedForConditionalGeneration) finds
+    # it with an exact key match (avoids any register_processor validation).
+    pf_data[MERaLiON2PrunedForConditionalGeneration] = plugin_factory
+    logger.info("Copied MERaLiON2ForConditionalGeneration processor factory "
+                "to MERaLiON2PrunedForConditionalGeneration in "
+                "_processor_factories.data")
 
 
 class _PluginPatchHook:
