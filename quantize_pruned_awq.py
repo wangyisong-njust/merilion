@@ -37,10 +37,11 @@ logger = logging.getLogger(__name__)
 def fix_auto_map(model_dir):
     """Reconstruct auto_map in config.json from local .py files.
 
-    LLM-Pruner and transformers save_pretrained can corrupt auto_map to an
-    empty string, causing HFValidationError when AutoModel tries to treat it
-    as a HuggingFace Hub repo ID.  Reconstruct from the .py file that defines
-    the architecture class listed in config['architectures'].
+    LLM-Pruner and transformers save_pretrained can corrupt auto_map values
+    to empty strings, causing HFValidationError.  We scan .py files in
+    model_dir to find the right module.ClassName for each auto_map key:
+      - "AutoConfig"  keys → look for the Config class (arch name + "Config")
+      - "AutoModel*"  keys → look for the model class (architectures[0])
     """
     cfg_path = os.path.join(model_dir, "config.json")
     if not os.path.exists(cfg_path):
@@ -51,34 +52,47 @@ def fix_auto_map(model_dir):
     auto_map = cfg.get("auto_map", {})
     architectures = cfg.get("architectures", [])
 
+    logger.info(f"fix_auto_map({os.path.basename(model_dir)}): current auto_map={auto_map}")
+
     bad = not auto_map or any(not v or "." not in v for v in auto_map.values())
     if not bad:
+        logger.info("fix_auto_map: auto_map looks valid, skipping")
         return
 
     if not architectures:
         logger.warning("fix_auto_map: no architectures in config, cannot reconstruct auto_map")
         return
 
-    arch_class = architectures[0]
-    found_module = None
-    for fname in sorted(os.listdir(model_dir)):
-        if not fname.endswith(".py"):
-            continue
-        with open(os.path.join(model_dir, fname)) as f:
-            content = f.read()
-        if f"class {arch_class}" in content:
-            found_module = fname[:-3]
-            break
+    arch_class = architectures[0]  # e.g. "MERaLiON2ForConditionalGeneration"
+    # Derive config class name: "MERaLiON2ForConditionalGeneration" → "MERaLiON2Config"
+    model_stem = arch_class.split("For")[0] if "For" in arch_class else arch_class
+    config_class = f"{model_stem}Config"
 
-    if found_module is None:
+    def find_module(class_name):
+        for fname in sorted(os.listdir(model_dir)):
+            if not fname.endswith(".py"):
+                continue
+            with open(os.path.join(model_dir, fname)) as f:
+                if f"class {class_name}" in f.read():
+                    return fname[:-3]
+        return None
+
+    model_module = find_module(arch_class)
+    config_module = find_module(config_class) or model_module  # fallback to same file
+
+    if model_module is None:
         logger.warning(f"fix_auto_map: no .py file defines class {arch_class}")
         return
 
-    correct_ref = f"{found_module}.{arch_class}"
     keys_to_set = list(auto_map.keys()) or ["AutoModelForSpeechSeq2Seq"]
-    new_auto_map = {k: correct_ref for k in keys_to_set}
+    new_auto_map = {}
+    for key in keys_to_set:
+        if "Config" in key:
+            new_auto_map[key] = f"{config_module}.{config_class}"
+        else:
+            new_auto_map[key] = f"{model_module}.{arch_class}"
     if "AutoModelForSpeechSeq2Seq" not in new_auto_map:
-        new_auto_map["AutoModelForSpeechSeq2Seq"] = correct_ref
+        new_auto_map["AutoModelForSpeechSeq2Seq"] = f"{model_module}.{arch_class}"
 
     cfg["auto_map"] = new_auto_map
     with open(cfg_path, "w") as f:
