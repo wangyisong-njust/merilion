@@ -171,6 +171,12 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
         def get_model_layers(model):
             return model.text_decoder.model.layers
 
+        @staticmethod
+        def move_embed(model, device):
+            model.text_decoder.model.embed_tokens = (
+                model.text_decoder.model.embed_tokens.to(device)
+            )
+
     AWQ_CAUSAL_LM_MODEL_MAP["meralion2"] = MERaLiONAWQForCausalLM
     # base.py also looks up model_type in TRANSFORMERS_AUTO_MAPPING_DICT to select
     # the HF auto class for loading. Point meralion2 to AutoModelForCausalLM, which
