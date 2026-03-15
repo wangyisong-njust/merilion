@@ -69,6 +69,10 @@ def load_model_cpu(model_path: str, int4: bool = True, compile: bool = True):
         device_map="cpu",
     )
     model.eval()
+    # Clear cache_implementation so DynamicCache can be passed to generate()
+    # without conflict. DynamicCache handles non-uniform KV heads in pruned models.
+    if hasattr(model, "generation_config"):
+        model.generation_config.cache_implementation = None
     print(f"  Loaded in {time.time()-t0:.1f}s")
 
     if int4:
