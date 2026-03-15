@@ -89,8 +89,8 @@ def load_model_cpu(model_path: str, int4: bool = True, compile: bool = True):
     model = MERaLiON2ForConditionalGeneration.from_pretrained(
         model_path,
         torch_dtype=torch.float32,
-        device_map="cpu",
     )
+    model = model.cpu()
     model.eval()
     # Clear cache_implementation so DynamicCache can be passed to generate()
     # without conflict. DynamicCache handles non-uniform KV heads in pruned models.
@@ -99,7 +99,14 @@ def load_model_cpu(model_path: str, int4: bool = True, compile: bool = True):
     print(f"  Loaded in {time.time()-t0:.1f}s")
 
     if int4:
-        model = model.to("cpu")   # ensure all tensors are on CPU before INT4 packing
+        # Verify all tensors are on CPU before packing
+        cuda_params = [(n, p.device) for n, p in model.named_parameters() if p.device.type != "cpu"]
+        cuda_bufs   = [(n, b.device) for n, b in model.named_buffers()    if b.device.type != "cpu"]
+        if cuda_params or cuda_bufs:
+            print(f"  WARNING: {len(cuda_params)} params and {len(cuda_bufs)} buffers still on CUDA — moving them")
+            for n, _ in cuda_params + cuda_bufs:
+                print(f"    {n}")
+        model = model.to(torch.device("cpu"))
         print("Applying torchao INT4 weight-only quantization …")
         t0 = time.time()
         _apply_torchao_int4(model)
