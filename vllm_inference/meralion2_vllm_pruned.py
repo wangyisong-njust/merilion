@@ -502,51 +502,90 @@ class MERaLiON2PrunedForConditionalGeneration(nn.Module, SupportsMultiModal,
 # The pruned model only differs in text-decoder layer dims; all multimodal
 # processing (audio encoding, token counting) is identical to the original
 # MERaLiON-2.  Reuse the plugin's processor classes when available.
+#
+# Timing problem: vllm_plugin_meralion2 is NOT importable until vLLM loads
+# it internally during LLM() construction — which is too late because
+# _dummy_run (which calls _processor_factories) fires during LLM.__init__.
+#
+# Solution: install a sys.meta_path import hook that intercepts the moment
+# Python loads vllm_plugin_meralion2, patches its register() function, and
+# runs our registration immediately after the plugin's own registration.
 # ---------------------------------------------------------------------------
+
 def _register_processor_factory():
     """Register MERaLiON2PrunedForConditionalGeneration in vLLM's
-    _processor_factories (required by vLLM 0.8+ even with V0 engine).
-
-    Safe to call multiple times — skips silently if already registered.
-    Must be called AFTER ModelRegistry.register_model for the pruned class,
-    because some vLLM versions validate against ModelRegistry at registration.
+    _processor_factories.  Idempotent — safe to call multiple times.
+    Requires vllm_plugin_meralion2.vllm085 to already be in sys.modules.
     """
+    import sys as _sys
     if not hasattr(MULTIMODAL_REGISTRY, '_processor_factories'):
         return  # Old vLLM — already covered by _maybe_apply decorators above
-
-    # Idempotent: skip if already registered.
     if MERaLiON2PrunedForConditionalGeneration in MULTIMODAL_REGISTRY._processor_factories:
+        return  # Already registered
+
+    plugin_mod = _sys.modules.get('vllm_plugin_meralion2.vllm085')
+    if plugin_mod is None:
+        # Plugin not loaded yet — hook will call us later
         return
 
     try:
-        from vllm_plugin_meralion2.vllm085 import (
-            MERaLiON2MultiModalProcessor,
-            MERaLiON2ProcessingInfo,
-            MERaLiON2DummyInputsBuilder,
-        )
         MULTIMODAL_REGISTRY.register_processor(
-            MERaLiON2MultiModalProcessor,
-            info=MERaLiON2ProcessingInfo,
-            dummy_inputs=MERaLiON2DummyInputsBuilder,
+            plugin_mod.MERaLiON2MultiModalProcessor,
+            info=plugin_mod.MERaLiON2ProcessingInfo,
+            dummy_inputs=plugin_mod.MERaLiON2DummyInputsBuilder,
         )(MERaLiON2PrunedForConditionalGeneration)
-        logger.info("Registered MERaLiON2MultiModalProcessor for pruned model "
-                    "(reused from vllm_plugin_meralion2.vllm085)")
-    except Exception as e:
+        logger.info("Registered MERaLiON2MultiModalProcessor for pruned model")
+    except Exception:
         import traceback
-        logger.warning(f"Could not register processor factory for pruned model:\n"
-                       f"{traceback.format_exc()}")
-        raise RuntimeError(
-            "Failed to register MERaLiON2PrunedForConditionalGeneration in "
-            "MULTIMODAL_REGISTRY._processor_factories. "
-            "Call _register_processor_factory() again after "
-            "ModelRegistry.register_model(...)."
-        ) from e
+        logger.warning("Could not register processor factory for pruned model:\n"
+                       + traceback.format_exc())
 
 
-# Attempt early registration.  May fail if ModelRegistry hasn't registered
-# MERaLiON2PrunedForConditionalGeneration yet — callers should call again
-# after ModelRegistry.register_model to guarantee success.
-try:
+class _PluginPatchHook:
+    """sys.meta_path hook: intercepts vllm_plugin_meralion2 import and
+    patches register() so our processor factory is registered right after
+    the plugin's own registration — at exactly the right moment inside
+    LLM() initialisation.
+    """
+    _installed = False
+
+    def find_module(self, name, path=None):
+        if name == 'vllm_plugin_meralion2':
+            return self
+        return None
+
+    def load_module(self, name):
+        import sys as _sys
+        import importlib
+
+        # Remove ourselves first to avoid re-entry during the real import.
+        try:
+            _sys.meta_path.remove(self)
+        except ValueError:
+            pass
+
+        if name in _sys.modules:
+            mod = _sys.modules[name]
+        else:
+            mod = importlib.import_module(name)
+
+        # Patch register() so we fire right after the plugin registers.
+        _orig_register = getattr(mod, 'register', None)
+        if _orig_register is not None:
+            def _patched_register(_orig=_orig_register):
+                _orig()
+                _register_processor_factory()
+            mod.register = _patched_register
+
+        return mod
+
+
+# Install hook.  Silently skip if the plugin is already loaded (e.g. during
+# testing or if vLLM loaded it before this module was imported).
+import sys as _sys
+if 'vllm_plugin_meralion2' not in _sys.modules:
+    _hook = _PluginPatchHook()
+    _sys.meta_path.insert(0, _hook)
+else:
+    # Plugin already loaded — try to register immediately.
     _register_processor_factory()
-except RuntimeError:
-    pass  # Will be retried by the caller after ModelRegistry registration

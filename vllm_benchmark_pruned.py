@@ -156,21 +156,18 @@ def main():
     parser.add_argument("--output", default="vllm_benchmark_results.json", help="Output JSON file")
     args = parser.parse_args()
 
-    # Register pruned model support
+    # Register pruned model support.
+    # Importing meralion2_vllm_pruned installs a sys.meta_path hook that
+    # patches vllm_plugin_meralion2.register() so MERaLiON2PrunedForConditionalGeneration
+    # is added to _processor_factories right after the plugin registers its own
+    # class — at exactly the right point during LLM() initialisation.
     from vllm import SamplingParams, ModelRegistry
     from pruned_gemma2_vllm import is_pruned_model
-    from meralion2_vllm_pruned import (
-        MERaLiON2PrunedForConditionalGeneration,
-        _register_processor_factory,
-    )
+    from meralion2_vllm_pruned import MERaLiON2PrunedForConditionalGeneration
     ModelRegistry.register_model(
         "MERaLiON2ForConditionalGeneration",
         MERaLiON2PrunedForConditionalGeneration,
     )
-    # Re-run processor factory registration now that ModelRegistry is set up.
-    # The module-level call may have failed/skipped if vLLM validated against
-    # ModelRegistry before the register_model call above.
-    _register_processor_factory()
 
     # Load test data
     from datasets import load_from_disk

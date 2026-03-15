@@ -64,15 +64,11 @@ def main():
     from vllm import LLM, SamplingParams
     from vllm import ModelRegistry
     from pruned_gemma2_vllm import is_pruned_model
-    from meralion2_vllm_pruned import (
-        MERaLiON2PrunedForConditionalGeneration,
-        _register_processor_factory,
-    )
+    from meralion2_vllm_pruned import MERaLiON2PrunedForConditionalGeneration
     ModelRegistry.register_model(
         "MERaLiON2ForConditionalGeneration",
         MERaLiON2PrunedForConditionalGeneration,
     )
-    _register_processor_factory()
 
     from datasets import load_from_disk
     print(f"Loading dataset from {args.dataset}...")
