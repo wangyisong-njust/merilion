@@ -232,6 +232,7 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
 
     from awq.models.auto import AWQ_CAUSAL_LM_MODEL_MAP
     from awq.models.gemma2 import Gemma2AWQForCausalLM
+    from awq.models._config import AwqConfig
     import awq.models.base as _awq_base
 
     class MERaLiONAWQForCausalLM(Gemma2AWQForCausalLM):
@@ -251,12 +252,23 @@ def quantize_awq(model_path: str, dataset_path: str, save_dir: str = None,
     if hasattr(_awq_base, "TRANSFORMERS_AUTO_MAPPING_DICT"):
         _awq_base.TRANSFORMERS_AUTO_MAPPING_DICT["meralion2"] = "AutoModelForCausalLM"
 
-    logger.info("Loading with AutoAWQForCausalLM (trust_remote_code=False)...")
-    model = AutoAWQForCausalLM.from_pretrained(
+    # Load the HF model directly to bypass AutoAWQ's from_pretrained, which on
+    # some AutoAWQ versions resolves model_weights_path to '' (the empty _name_or_path
+    # stored in config.json), causing HFValidationError inside AutoModelForCausalLM.
+    logger.info("Loading HF model directly for AWQ wrapping...")
+    hf_model = model_class.from_pretrained(
         model_path,
         torch_dtype=torch.float16,
         low_cpu_mem_usage=True,
-        trust_remote_code=False,
+        device_map="auto",
+    )
+    model = MERaLiONAWQForCausalLM(
+        model=hf_model,
+        model_type="meralion2",
+        is_quantized=False,
+        config=hf_model.config,
+        quant_config=AwqConfig(),
+        processor=None,
     )
 
     # Align MLP dims to 128 for AWQ GEMM kernel compatibility
