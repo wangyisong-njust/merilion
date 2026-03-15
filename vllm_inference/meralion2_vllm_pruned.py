@@ -530,33 +530,156 @@ def _register_processor_factory():
     if MERaLiON2PrunedForConditionalGeneration in pf_data:
         return  # Already registered (strict key check, not MRO)
 
-    # Force-import the submodule.  This triggers the class-level
-    # @MULTIMODAL_REGISTRY.register_processor decorator inside vllm085.py
-    # and is safe to call even if the module was already imported.
+    # Try to get the processor classes from the installed plugin first.
+    # If the plugin is missing from this env, fall back to local copies of the
+    # same files shipped in vllm_inference/ (configuration_meralion2.py, etc.)
+    _ProcessorInfo = _DummyBuilder = _Processor = None
+
     try:
         import importlib as _importlib
-        plugin_mod = _importlib.import_module('vllm_plugin_meralion2.vllm085')
-    except Exception as e:
-        print(f"[meralion2_vllm_pruned] WARNING: cannot import "
-              f"vllm_plugin_meralion2.vllm085: {e}", flush=True)
-        return
+        _pm = _importlib.import_module('vllm_plugin_meralion2.vllm085')
+        plugin_cls = getattr(_pm, 'MERaLiON2ForConditionalGeneration', None)
+        if plugin_cls is not None:
+            plugin_factory = pf_data.get(plugin_cls)
+            if plugin_factory is not None:
+                pf_data[MERaLiON2PrunedForConditionalGeneration] = plugin_factory
+                print("[meralion2_vllm_pruned] Registered processor factory "
+                      "(copied from vllm_plugin_meralion2)", flush=True)
+                return
+        _ProcessorInfo  = getattr(_pm, 'MERaLiON2ProcessingInfo', None)
+        _DummyBuilder   = getattr(_pm, 'MERaLiON2DummyInputsBuilder', None)
+        _Processor      = getattr(_pm, 'MERaLiON2MultiModalProcessor', None)
+    except Exception:
+        pass
 
-    plugin_cls = getattr(plugin_mod, 'MERaLiON2ForConditionalGeneration', None)
-    if plugin_cls is None:
-        print("[meralion2_vllm_pruned] WARNING: MERaLiON2ForConditionalGeneration "
-              "not found in vllm_plugin_meralion2.vllm085", flush=True)
-        return
+    # Plugin unavailable or factory not yet in pf_data — build classes locally.
+    if None in (_ProcessorInfo, _DummyBuilder, _Processor):
+        try:
+            import os as _os, sys as _sys
+            _vi = _os.path.dirname(_os.path.abspath(__file__))
+            if _vi not in _sys.path:
+                _sys.path.insert(0, _vi)
+            from configuration_meralion2 import MERaLiON2Config
+            from processing_meralion2 import MERaLiON2Processor
+            from vllm.multimodal.processing import (
+                BaseMultiModalProcessor, BaseProcessingInfo,
+                PromptReplacement, PromptUpdate, PromptUpdateDetails)
+            from vllm.multimodal.profiling import BaseDummyInputsBuilder
+            from vllm.multimodal.parse import (
+                AudioProcessorItems, MultiModalDataItems, MultiModalDataParser)
+            from vllm.multimodal.inputs import (
+                MultiModalDataDict, MultiModalFieldConfig, MultiModalKwargs)
+            from transformers import BatchFeature
+            from transformers.models.whisper.feature_extraction_whisper import (
+                WhisperFeatureExtractor)
 
-    # pf_data may be a plain dict or ClassRegistry; .get works for both.
-    plugin_factory = pf_data.get(plugin_cls)
-    if plugin_factory is None:
-        print(f"[meralion2_vllm_pruned] WARNING: plugin factory not in "
-              f"pf_data (keys: {[c.__name__ for c in pf_data]})", flush=True)
-        return
+            class MERaLiON2ProcessingInfo(BaseProcessingInfo):
+                def get_hf_config(self):
+                    return self.ctx.get_hf_config(MERaLiON2Config)
+                def get_hf_processor(self, *, sampling_rate=None, **kw):
+                    return self.ctx.get_hf_processor(MERaLiON2Processor, **kw)
+                def get_feature_extractor(self, *, sampling_rate=None):
+                    fe = self.get_hf_processor().feature_extractor
+                    assert isinstance(fe, WhisperFeatureExtractor)
+                    return fe
+                def get_supported_mm_limits(self):
+                    return {"audio": None}
 
-    pf_data[MERaLiON2PrunedForConditionalGeneration] = plugin_factory
-    print("[meralion2_vllm_pruned] Registered processor factory for "
-          "MERaLiON2PrunedForConditionalGeneration", flush=True)
+            class MERaLiON2DummyInputsBuilder(
+                    BaseDummyInputsBuilder[MERaLiON2ProcessingInfo]):
+                def get_dummy_text(self, mm_counts):
+                    num_audios = mm_counts.get("audio", 0)
+                    tok = self.info.get_hf_processor().speech_token
+                    return tok * num_audios
+                def get_dummy_mm_data(self, seq_len, mm_counts):
+                    proc = self.info.get_hf_processor()
+                    fe   = self.info.get_feature_extractor()
+                    n_chunks = getattr(proc, 'number_chunk_limit', 30)
+                    audio_len = n_chunks * fe.chunk_length * fe.sampling_rate
+                    num_audios = mm_counts.get("audio", 0)
+                    return {"audio": self._get_dummy_audios(
+                        length=audio_len, num_audios=num_audios)}
+
+            class MERaLiON2MultiModalProcessor(
+                    BaseMultiModalProcessor[MERaLiON2ProcessingInfo]):
+                def _get_data_parser(self):
+                    fe = self.info.get_feature_extractor()
+                    return MultiModalDataParser(target_sr=fe.sampling_rate)
+                def _call_hf_processor(self, prompt, mm_data, mm_kwargs):
+                    if not mm_data.get("audios", []):
+                        ids = self.info.get_tokenizer().encode(prompt)
+                        ids = self._apply_hf_processor_tokens_only(ids)
+                        return BatchFeature(dict(input_ids=[ids]), tensor_type="pt")
+                    proc = self.info.get_hf_processor()
+                    fe   = self.info.get_feature_extractor(**mm_kwargs)
+                    mm_kwargs = dict(**mm_kwargs, sampling_rate=fe.sampling_rate)
+                    results = super()._call_hf_processor(prompt, mm_data, mm_kwargs)
+                    tok_id   = getattr(proc, 'speech_token_index', 255999)
+                    chunk_sz = getattr(proc, 'fixed_speech_embeds_length', 100)
+                    sizes    = (results["input_ids"] == tok_id).sum(axis=1) // chunk_sz
+                    import torch as _torch
+                    results["input_features"] = _torch.split(
+                        results["input_features"], sizes.tolist())
+                    results["feature_attention_mask"] = _torch.split(
+                        results["feature_attention_mask"], sizes.tolist())
+                    return results
+                def _get_mm_fields_config(self, hf_inputs, hf_processor_mm_kwargs):
+                    return dict(
+                        input_features=MultiModalFieldConfig.batched("audio"),
+                        feature_attention_mask=MultiModalFieldConfig.batched("audio"))
+                def _get_prompt_updates(self, mm_items, hf_processor_mm_kwargs, out_mm_kwargs):
+                    proc     = self.info.get_hf_processor(**hf_processor_mm_kwargs)
+                    tok      = getattr(proc, 'audio_token', '<SpeechHere>')
+                    tok_id   = getattr(proc, 'speech_token_index', 255999)
+                    chunk_sz = getattr(proc, 'fixed_speech_embeds_length', 100)
+                    feat_sz  = getattr(proc, 'feature_chunk_size', 30 * 16000)
+                    def _repl(item_idx):
+                        audios = mm_items.get_items("audio", AudioProcessorItems)
+                        n = ((audios.get_audio_length(item_idx) - 1) // feat_sz + 1)
+                        return PromptUpdateDetails.select_token_id(
+                            [tok_id] * n * chunk_sz, embed_token_id=tok_id)
+                    return [PromptReplacement(modality="audio", target=tok,
+                                             replacement=_repl)]
+
+            _ProcessorInfo = MERaLiON2ProcessingInfo
+            _DummyBuilder  = MERaLiON2DummyInputsBuilder
+            _Processor     = MERaLiON2MultiModalProcessor
+            print("[meralion2_vllm_pruned] Built processor classes from local "
+                  "vllm_inference/ fallback (vllm_plugin_meralion2 not installed)",
+                  flush=True)
+        except Exception as _e:
+            print(f"[meralion2_vllm_pruned] ERROR: could not build fallback "
+                  f"processor classes: {_e}", flush=True)
+            return
+
+    try:
+        MULTIMODAL_REGISTRY.register_processor(
+            _Processor,
+            info=_ProcessorInfo,
+            dummy_inputs=_DummyBuilder,
+        )(MERaLiON2PrunedForConditionalGeneration)
+        print("[meralion2_vllm_pruned] Registered processor factory for "
+              "MERaLiON2PrunedForConditionalGeneration", flush=True)
+    except Exception as _e:
+        print(f"[meralion2_vllm_pruned] WARNING: register_processor failed "
+              f"({_e}); trying direct pf_data write", flush=True)
+        # Last resort: copy via pf_data if register_processor API changed
+        plugin_factory = pf_data.get(_ProcessorInfo)
+        if plugin_factory is None and pf_data:
+            # grab any existing factory to get the _ProcessorFactories type
+            _any_cls = next(iter(pf_data))
+            _PFType  = type(pf_data[_any_cls])
+            try:
+                pf_data[MERaLiON2PrunedForConditionalGeneration] = _PFType(
+                    info=_ProcessorInfo,
+                    dummy_inputs=_DummyBuilder,
+                    processor=_Processor,
+                )
+                print("[meralion2_vllm_pruned] Registered via direct pf_data write",
+                      flush=True)
+            except Exception as _e2:
+                print(f"[meralion2_vllm_pruned] ERROR: direct pf_data write "
+                      f"also failed: {_e2}", flush=True)
 
 
 def _patch_multimodal_registry():
