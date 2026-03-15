@@ -48,6 +48,29 @@ SPEECH_TOKENS_PER_CHUNK = 100
 MAX_CHUNKS = 8
 
 
+def _apply_torchao_int4(model):
+    """Apply INT4 weight-only quantization, handling different torchao API versions."""
+    # torchao >= 0.3: quantize_() + int4_weight_only()
+    try:
+        from torchao.quantization import quantize_, int4_weight_only
+        quantize_(model, int4_weight_only())
+        return
+    except ImportError:
+        pass
+
+    # torchao 0.1–0.2: Int4WeightOnlyQuantizer
+    try:
+        from torchao.quantization.quant_api import Int4WeightOnlyQuantizer
+        Int4WeightOnlyQuantizer().quantize(model)
+        return
+    except ImportError:
+        pass
+
+    raise RuntimeError(
+        "No compatible torchao INT4 API found. "
+        "Upgrade with: pip install torchao --upgrade")
+
+
 def load_model_cpu(model_path: str, int4: bool = True, compile: bool = True):
     """Load pruned model on CPU with torchao INT4 weight-only quantization.
 
@@ -76,14 +99,9 @@ def load_model_cpu(model_path: str, int4: bool = True, compile: bool = True):
     print(f"  Loaded in {time.time()-t0:.1f}s")
 
     if int4:
-        try:
-            from torchao.quantization import quantize_, int4_weight_only
-        except ImportError:
-            raise RuntimeError(
-                "torchao not found. Install with: pip install torchao")
         print("Applying torchao INT4 weight-only quantization …")
         t0 = time.time()
-        quantize_(model, int4_weight_only())
+        _apply_torchao_int4(model)
         print(f"  Done in {time.time()-t0:.1f}s")
 
     if compile:
