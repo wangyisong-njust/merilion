@@ -12,6 +12,7 @@ overwrite the adapter-only files in place.
 """
 import argparse
 import os
+import shutil
 import sys
 
 import torch
@@ -71,6 +72,17 @@ def main():
     print("Saving processor/tokenizer...")
     processor = AutoProcessor.from_pretrained(args.base, trust_remote_code=True)
     processor.save_pretrained(args.output)
+
+    # Copy custom model code files from base (needed for trust_remote_code).
+    # save_pretrained writes weights/config but not the *.py files that
+    # AutoConfig/AutoModel look up when auto_map points to them.
+    print("Copying custom model code files from base...")
+    for fname in os.listdir(args.base):
+        if fname.endswith(".py"):
+            src = os.path.join(args.base, fname)
+            dst = os.path.join(args.output, fname)
+            shutil.copy2(src, dst)
+            print(f"  copied {fname}")
 
     print("\nDone — directory now contains a full model loadable by vLLM.")
 
