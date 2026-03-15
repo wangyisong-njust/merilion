@@ -54,6 +54,11 @@ def main():
     print("Merging LoRA weights...")
     merged = peft_model.merge_and_unload()
 
+    # Restore use_cache=True (was disabled during training for gradient checkpointing)
+    merged.config.use_cache = True
+    if hasattr(merged, "text_decoder"):
+        merged.text_decoder.config.use_cache = True
+
     os.makedirs(args.output, exist_ok=True)
     print(f"Saving merged model to {args.output} ...")
     merged.save_pretrained(args.output)
