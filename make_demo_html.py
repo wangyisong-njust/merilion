@@ -66,7 +66,7 @@ _HTML = """\
 <div class="container py-5">
 
   <h1 class="fw-bold mb-1">MERaLiON-2 — CPU Benchmark Demo</h1>
-  <p class="text-muted mb-4">Pruning &amp; quantization tradeoffs &middot; {n_samples} samples &middot; IMDA PART1 ASR</p>
+  <p class="text-muted mb-4">Pruning &amp; quantization tradeoffs &middot; @@N_SAMPLES@@ samples &middot; IMDA PART1 ASR</p>
 
   <!-- ── Performance Table ──────────────────────────────────────────────── -->
   <div class="card-section">
@@ -83,7 +83,7 @@ _HTML = """\
             <th>RAM</th>
           </tr>
         </thead>
-        <tbody>{table_rows}</tbody>
+        <tbody>@@TABLE_ROWS@@</tbody>
       </table>
     </div>
     <p class="text-muted small mt-2 mb-0">WER computed on normalised text (lowercase, no punctuation).</p>
@@ -108,10 +108,10 @@ _HTML = """\
 
 <script>
 /* ── data ──────────────────────────────────────────────────────────────── */
-const SAMPLES      = {samples_json};
-const CONFIG_LABELS = {config_labels_json};
-const CHART_PTS    = {chart_json};
-const PARETO_LINE  = {pareto_json};
+const SAMPLES      = @@SAMPLES_JSON@@;
+const CONFIG_LABELS = @@CONFIG_LABELS_JSON@@;
+const CHART_PTS    = @@CHART_JSON@@;
+const PARETO_LINE  = @@PARETO_JSON@@;
 
 /* ── Pareto chart ──────────────────────────────────────────────────────── */
 Chart.register(ChartDataLabels);
@@ -303,13 +303,14 @@ def build_html(configs: dict, n_samples: int) -> str:
             "configs":   cfg_data,
         })
 
-    return _HTML.format(
-        n_samples=n_samples,
-        table_rows=table_rows,
-        samples_json=json.dumps(samples_js, ensure_ascii=False),
-        config_labels_json=json.dumps(list(configs.keys())),
-        chart_json=json.dumps(chart_pts, ensure_ascii=False),
-        pareto_json=json.dumps(pareto_line),
+    return (
+        _HTML
+        .replace("@@N_SAMPLES@@",        str(n_samples))
+        .replace("@@TABLE_ROWS@@",       table_rows)
+        .replace("@@SAMPLES_JSON@@",     json.dumps(samples_js, ensure_ascii=False))
+        .replace("@@CONFIG_LABELS_JSON@@", json.dumps(list(configs.keys())))
+        .replace("@@CHART_JSON@@",       json.dumps(chart_pts, ensure_ascii=False))
+        .replace("@@PARETO_JSON@@",      json.dumps(pareto_line))
     )
 
 
