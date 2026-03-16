@@ -167,14 +167,13 @@ def load_model_cpu_native(model_path: str):
 def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: int,
                       instruction: str = "Transcribe the speech",
                       max_new_tokens: int = 128) -> str:
-    """Run ASR inference — no KV cache (use_cache=False), full-sequence re-forward each step.
+    """Run ASR inference using the native processor + manual prefill/decode loop.
 
-    use_cache=False avoids all HybridCache sizing/overflow issues.
-    Each decode step re-runs the full (growing) sequence through the model,
-    passing input_features every time so audio features are re-injected at
-    speech-token positions.  Slow but correct.
+    Uses apply_chat_template (prepends <bos>) and a pre-created HybridCache
+    sized for prefill + max_new_tokens to avoid generate() overflow issues.
     """
     import librosa
+    from transformers.cache_utils import HybridCache
 
     fe = processor.feature_extractor
     target_sr = fe.sampling_rate
@@ -183,9 +182,6 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
     if len(audio_array) > target_sr * 30:
         audio_array = audio_array[:target_sr * 30]
 
-    # Use apply_chat_template so <bos> is prepended (matches training format).
-    # Our manual "<start_of_turn>user..." prompt was missing <bos>, causing
-    # degenerate <Speaker> output regardless of cache or audio features.
     conversation = [{"role": "user",
                      "content": (f"Instruction: {instruction} \n"
                                  "Follow the text instruction based on the "
@@ -197,33 +193,56 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
                        sampling_rate=target_sr, return_tensors="pt")
     inputs = {k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
 
-    tokenizer    = processor.tokenizer
-    input_ids    = inputs["input_ids"]           # [1, seq_len]
-    input_features  = inputs.get("input_features")
-    feat_attn_mask  = inputs.get("feature_attention_mask")
+    tokenizer      = processor.tokenizer
+    input_ids      = inputs["input_ids"]
+    attention_mask = inputs["attention_mask"]
+    input_features = inputs.get("input_features")
+    feat_attn_mask = inputs.get("feature_attention_mask")
+    seq_len        = input_ids.shape[1]
 
     eos_ids = {tokenizer.eos_token_id,
                tokenizer.convert_tokens_to_ids("<end_of_turn>")}
 
-    all_ids = input_ids     # grows by 1 each decode step
-    generated_ids = []
+    model_dtype = next(model.parameters()).dtype
+    cache = HybridCache(
+        model.text_decoder.model.config,
+        max_batch_size=1,
+        max_cache_len=seq_len + max_new_tokens,
+        dtype=model_dtype,
+        device=torch.device("cpu"),
+    )
 
+    generated_ids = []
     with torch.inference_mode():
-        for step in range(max_new_tokens):
-            attn = torch.ones(1, all_ids.shape[1], dtype=torch.long)
+        # Prefill: process full prompt with audio features
+        out = model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            input_features=input_features,
+            feature_attention_mask=feat_attn_mask,
+            past_key_values=cache,
+            use_cache=True,
+            cache_position=torch.arange(0, seq_len),
+            return_dict=True,
+        )
+        next_tok = int(out.logits[0, -1].argmax())
+        generated_ids.append(next_tok)
+
+        # Decode: one token at a time
+        for step in range(max_new_tokens - 1):
+            if next_tok in eos_ids:
+                break
+            cur_attn = torch.ones(1, seq_len + step + 1, dtype=torch.long)
             out = model(
-                input_ids=all_ids,
-                attention_mask=attn,
-                input_features=input_features,      # re-inject audio every step
-                feature_attention_mask=feat_attn_mask,
-                use_cache=False,
+                input_ids=torch.tensor([[next_tok]]),
+                attention_mask=cur_attn,
+                past_key_values=cache,
+                use_cache=True,
+                cache_position=torch.tensor([seq_len + step]),
                 return_dict=True,
             )
             next_tok = int(out.logits[0, -1].argmax())
             generated_ids.append(next_tok)
-            if next_tok in eos_ids:
-                break
-            all_ids = torch.cat([all_ids, torch.tensor([[next_tok]])], dim=1)
 
     text = tokenizer.decode(generated_ids, skip_special_tokens=True)
     return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
