@@ -94,7 +94,6 @@ else
         --model            "$ORIGINAL" \
         --dataset          "$DATASET" \
         --num_samples      "$NUM_SAMPLES" \
-        --trust_remote_code \
         --int4 \
         --output           "$ORIG_INT4_OUT" \
         || { echo "[FAIL] original INT4 — skipping"; }

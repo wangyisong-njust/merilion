@@ -53,18 +53,6 @@ $PYTHON_PATH -u infer_cpu.py \
     --output      "cpu_int8ao_${NAME}.json" \
     | tee cpu_int8ao_${NAME}.log
 
-# Original model — INT4 + compile, native inference path (HybridCache manual loop)
-echo ""
-echo "========== CPU original: INT4 + compile [native path] =========="
-$PYTHON_PATH -u infer_cpu.py \
-    --model            "$ORIGINAL" \
-    --dataset          "$DATASET" \
-    --num_samples      "$NUM_BENCH_SAMPLES" \
-    --trust_remote_code \
-    --int4 \
-    --output           "cpu_int4_original_native.json" \
-    | tee cpu_int4_original_native.log
-
 # Original model — INT4 + compile, meralion2_bl path (model.generate)
 echo ""
 echo "========== CPU original: INT4 + compile [meralion2_bl path] =========="
