@@ -303,19 +303,19 @@ def build_html(configs: dict, n_samples: int) -> str:
             "configs":   cfg_data,
         })
 
-    # @@TOKEN@@ substitutions happen first (inserted JSON uses plain { }),
-    # then unescape {{ / }} left over from the original .format() escaping.
-    return (
-        _HTML
-        .replace("@@N_SAMPLES@@",        str(n_samples))
-        .replace("@@TABLE_ROWS@@",       table_rows)
-        .replace("@@SAMPLES_JSON@@",     json.dumps(samples_js, ensure_ascii=False))
+    # Step 1: unescape {{ / }} in the raw template BEFORE inserting any data.
+    # (Inserting JSON first then unescaping would corrupt }} inside nested JSON objects.)
+    html = _HTML.replace("{{", "{").replace("}}", "}")
+    # Step 2: substitute data tokens — JSON strings contain plain { } and are safe.
+    html = (html
+        .replace("@@N_SAMPLES@@",          str(n_samples))
+        .replace("@@TABLE_ROWS@@",         table_rows)
+        .replace("@@SAMPLES_JSON@@",       json.dumps(samples_js, ensure_ascii=False))
         .replace("@@CONFIG_LABELS_JSON@@", json.dumps(list(configs.keys())))
-        .replace("@@CHART_JSON@@",       json.dumps(chart_pts, ensure_ascii=False))
-        .replace("@@PARETO_JSON@@",      json.dumps(pareto_line))
-        .replace("{{", "{")
-        .replace("}}", "}")
+        .replace("@@CHART_JSON@@",         json.dumps(chart_pts, ensure_ascii=False))
+        .replace("@@PARETO_JSON@@",        json.dumps(pareto_line))
     )
+    return html
 
 
 # ── main ──────────────────────────────────────────────────────────────────
