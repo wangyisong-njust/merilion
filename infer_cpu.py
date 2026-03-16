@@ -193,6 +193,21 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
                        sampling_rate=target_sr, return_tensors="pt")
     inputs = {k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
 
+    # ── DEBUG (first call only) ───────────────────────────────────────────
+    if not getattr(transcribe_native, "_debug_done", False):
+        transcribe_native._debug_done = True
+        print(f"  [DEBUG] processor output keys: {list(inputs.keys())}")
+        for k, v in inputs.items():
+            if isinstance(v, torch.Tensor):
+                print(f"  [DEBUG]   {k}: shape={v.shape}  dtype={v.dtype}  "
+                      f"mean={v.float().mean():.4f}  std={v.float().std():.4f}")
+            else:
+                print(f"  [DEBUG]   {k}: {type(v).__name__} = {v}")
+        if "input_features" not in inputs:
+            print(f"  [DEBUG] WARNING: 'input_features' NOT in processor output — "
+                  "audio was not processed; model will hallucinate")
+    # ─────────────────────────────────────────────────────────────────────
+
     tokenizer = processor.tokenizer
     with torch.inference_mode():
         output_ids = model.generate(
@@ -207,6 +222,11 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
             ],
         )
     input_len = inputs["input_ids"].shape[1]
+    # ── DEBUG: first generated tokens ────────────────────────────────────
+    if not getattr(transcribe_native, "_debug_gen_done", False):
+        transcribe_native._debug_gen_done = True
+        gen_ids = output_ids[0][input_len:input_len+15].tolist()
+        print(f"  [DEBUG] first generated token IDs: {gen_ids}")
     generated = output_ids[0][input_len:]
     text = tokenizer.decode(generated, skip_special_tokens=True)
     return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()

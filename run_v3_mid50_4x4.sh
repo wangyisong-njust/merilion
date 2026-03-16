@@ -46,18 +46,6 @@ _run_exp() {
     echo "[GPU $GPU,$GPU2] $NAME"
 
     CUDA_VISIBLE_DEVICES=$GPU,$GPU2 nohup bash -c "
-echo '========== Step 3: Merge LoRA into base model ==========' && \
-$PYTHON_PATH -u merge_lora.py \
-    --base    $CKPT \
-    --adapter $TUNE_DIR \
-    --output  $TUNE_DIR && \
-echo '' && \
-echo '========== Step 5: AWQ W4A16 quantization of merged model ==========' && \
-$PYTHON_PATH -u quantize_pruned_awq.py \
-    --model   $TUNE_DIR \
-    --dataset $DATASET \
-    --save_dir $AWQ_DIR && \
-echo '' && \
 echo '========== Step 6: vLLM Latency Benchmark — merged + W4A16-AWQ ==========' && \
 $PYTHON_PATH -u vllm_benchmark_pruned.py \
     --pruned  $AWQ_DIR \
@@ -103,6 +91,12 @@ $PYTHON_PATH -u vllm_eval_wer.py \
 #     --batch_size 1 \
 #     --max_tokens 256 \
 #     --output vllm_benchmark_${NAME}-tune.json && \
+# echo '' && \
+# echo '========== Step 3: Merge LoRA into base model ==========' && \
+# $PYTHON_PATH -u quantize_pruned_awq.py \
+#     --model   $TUNE_DIR \
+#     --dataset $DATASET \
+#     --save_dir $AWQ_DIR && \
 # echo '' && \
 
 # ============================================================
