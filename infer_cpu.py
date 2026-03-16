@@ -128,6 +128,12 @@ def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True, compi
         t0 = time.time()
         _apply_int8_dynamic(model)
         print(f"  Done in {time.time()-t0:.1f}s")
+        # torch.compile is incompatible with DynamicQuantizedLinear (legacy QEngine ops
+        # are not traceable by Dynamo → garbled outputs).  INT8 BLAS gives speedup
+        # directly without compile, so skip it silently.
+        if compile:
+            print("  (torch.compile skipped: not compatible with INT8 dynamic quant)")
+        compile = False
 
     if int4:
         # Verify all tensors are on CPU before packing
@@ -202,6 +208,14 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
         [raw_ids[:pos] + [speech_token_id] * n_speech + raw_ids[pos + 1:]],
         dtype=torch.long)
     attention_mask = torch.ones_like(input_ids)
+
+    # Ensure generate() always uses DynamicCache.  Some transformers versions
+    # restore generation_config.cache_implementation from the saved config during
+    # generate(), which would re-enable HybridCache and cause shape mismatches on
+    # pruned models with non-uniform KV heads.
+    _gen_cfg = getattr(model, "generation_config", None)
+    if _gen_cfg is not None:
+        _gen_cfg.cache_implementation = None
 
     from transformers import DynamicCache
     with torch.inference_mode():
