@@ -38,7 +38,7 @@ def _config_note(model_path: str, quant_method: str) -> str:
     m = re.search(r"td(\d+)-mid(\d+)-(\d+)", name)
     if m:
         td, mid_start, n_layers = m.groups()
-        prune = f"{td}% top-down pruning, mid-block from layer {mid_start}, {n_layers}-layer decoder"
+        prune = f"{td}% top-down pruning"
     else:
         prune = name
     qmap = {
