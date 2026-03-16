@@ -1,13 +1,12 @@
 #!/bin/bash
 # ============================================================
-# CPU INT4 benchmark — ALL v3 mid-pruning configurations
+# CPU benchmark — ALL v3 mid-pruning configurations
 #
-# For each config that has a completed tune dir or pruned ckpt:
-#   1. Merge LoRA (if adapter not yet merged)
-#   2. FP32 baseline  (no_quant, no_compile)
-#   3. INT4 + compile (torchao Int4WeightOnlyQuantizer)
-#   4. Collect WER, latency, disk size
-# Then print a summary table.
+# Step 1 (once): original MERaLiON-2-3B FP32 baseline latency + WER
+# Step 2 (per-config): pruned+tuned model with INT8 dynamic quantization
+#
+# Table columns: Disk(MB) | vs.orig | Orig FP32 lat | INT8 lat | Speedup
+#                Orig WER | INT8 WER | ΔWER | Orig RAM | INT8 RAM
 # ============================================================
 
 PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
@@ -22,8 +21,8 @@ cd "$WORKDIR"
 
 # ── All v3 mid configurations ─────────────────────────────────────────────
 # Each entry: "short_name:has_posttrain"
-#   has_posttrain=1  → look for TUNE_ROOT/MERaLiON-2-3B-<name>-tune   (LoRA → merge)
-#   has_posttrain=0  → use CKPT_ROOT/MERaLiON-2-3B-<name> directly
+#   has_posttrain=1  → TUNE_ROOT/MERaLiON-2-3B-<name>-tune  (merge LoRA if needed)
+#   has_posttrain=0  → CKPT_ROOT/MERaLiON-2-3B-<name>  (pruned, no fine-tune)
 CONFIGS=(
     "v3-td50-mid3-22:1"
     "v3-td50-mid3-23:1"
@@ -43,17 +42,31 @@ disk_mb() {
         | awk '{s+=$1} END {print (s ? s : 0)}'
 }
 
-# ── Baseline: original model size ────────────────────────────────────────
 ORIG_MB=$(disk_mb "$ORIGINAL")
 echo "Original model disk size: ${ORIG_MB} MB"
 echo ""
 
 # ── Result accumulator ────────────────────────────────────────────────────
-# Format: "name|fp32_lat|int4_lat|speedup|fp32_wer|int4_wer|size_mb|size_pct"
 RESULTS=()
 SKIPPED=()
 
-# ── Main loop ─────────────────────────────────────────────────────────────
+# ── Step 1: original model FP32 baseline (run once) ──────────────────────
+ORIG_FP32_OUT="cpu_fp32_original.json"
+if [ -f "$ORIG_FP32_OUT" ]; then
+    echo "Step 1: original FP32 baseline already exists ($ORIG_FP32_OUT), skipping."
+else
+    echo "Step 1: running original MERaLiON-2-3B FP32 baseline …"
+    "$PYTHON_PATH" -u infer_cpu.py \
+        --model      "$ORIGINAL" \
+        --dataset    "$DATASET" \
+        --num_samples "$NUM_SAMPLES" \
+        --no_quant --no_compile \
+        --output     "$ORIG_FP32_OUT" \
+        || { echo "[FAIL] original FP32 baseline — aborting"; exit 1; }
+fi
+echo ""
+
+# ── Step 2+: per-config INT8 benchmark ───────────────────────────────────
 for entry in "${CONFIGS[@]}"; do
     IFS=':' read -r NAME HAS_PT <<< "$entry"
     CKPT="${CKPT_ROOT}/MERaLiON-2-3B-${NAME}"
@@ -72,7 +85,7 @@ for entry in "${CONFIGS[@]}"; do
         fi
         MODEL_DIR="$TUNE"
 
-        # ── Merge LoRA if still an adapter (no full model weights) ──────────
+        # Merge LoRA if still an adapter (no full model weights)
         HAS_FULL=0
         ls "${TUNE}"/model*.safetensors 2>/dev/null | grep -q . && HAS_FULL=1
         ls "${TUNE}"/pytorch_model*.bin  2>/dev/null | grep -q . && HAS_FULL=1
@@ -106,23 +119,10 @@ for entry in "${CONFIGS[@]}"; do
         echo "  Pruned-only (no post-training): $CKPT"
     fi
 
-    FP32_OUT="cpu_fp32_${NAME}.json"
     INT8_OUT="cpu_int8_${NAME}.json"
 
-    # ── FP32 baseline ──────────────────────────────────────────────────────
     echo ""
-    echo "  --- Step 1: FP32 baseline (no quant, no compile) ---"
-    "$PYTHON_PATH" -u infer_cpu.py \
-        --model      "$MODEL_DIR" \
-        --dataset    "$DATASET" \
-        --num_samples "$NUM_SAMPLES" \
-        --no_quant --no_compile \
-        --output     "$FP32_OUT" \
-        || { echo "  [FAIL] FP32"; SKIPPED+=("$NAME (fp32 failed)"); continue; }
-
-    # ── INT8 + compile ─────────────────────────────────────────────────────
-    echo ""
-    echo "  --- Step 2: INT8 dynamic + torch.compile ---"
+    echo "  --- INT8 dynamic quantization ---"
     "$PYTHON_PATH" -u infer_cpu.py \
         --model      "$MODEL_DIR" \
         --dataset    "$DATASET" \
@@ -130,19 +130,18 @@ for entry in "${CONFIGS[@]}"; do
         --output     "$INT8_OUT" \
         || { echo "  [FAIL] INT8"; SKIPPED+=("$NAME (int8 failed)"); continue; }
 
-    # ── Collect metrics ────────────────────────────────────────────────────
     SIZE_MB=$(disk_mb "$MODEL_DIR")
     ROW=$("$PYTHON_PATH" -c "
 import json
-fp = json.load(open('${FP32_OUT}'))
-it = json.load(open('${INT8_OUT}'))
-speedup  = fp['avg_latency_s'] / it['avg_latency_s']
-fp_wer   = fp.get('wer', float('nan')) * 100
-it_wer   = it.get('wer', float('nan')) * 100
-dwer     = it_wer - fp_wer
-fp_ram   = fp.get('ram_mb', 0)
-it_ram   = it.get('ram_mb', 0)
-print(f\"{fp['avg_latency_s']:.2f}|{it['avg_latency_s']:.2f}|{speedup:.2f}|{fp_wer:.2f}|{it_wer:.2f}|{dwer:+.2f}|{fp_ram:.0f}|{it_ram:.0f}\")
+orig = json.load(open('${ORIG_FP32_OUT}'))
+it   = json.load(open('${INT8_OUT}'))
+speedup   = orig['avg_latency_s'] / it['avg_latency_s']
+orig_wer  = orig.get('wer', float('nan')) * 100
+it_wer    = it.get('wer', float('nan')) * 100
+dwer      = it_wer - orig_wer
+orig_ram  = orig.get('ram_mb', 0)
+it_ram    = it.get('ram_mb', 0)
+print(f\"{orig['avg_latency_s']:.2f}|{it['avg_latency_s']:.2f}|{speedup:.2f}|{orig_wer:.2f}|{it_wer:.2f}|{dwer:+.2f}|{orig_ram:.0f}|{it_ram:.0f}\")
 ")
     RESULTS+=("${NAME}|${SIZE_MB}|${ROW}")
     echo ""
@@ -150,41 +149,41 @@ done
 
 # ── Summary table ─────────────────────────────────────────────────────────
 echo ""
-echo "============================================================================================================================================================================================"
-echo "  CPU Benchmark Summary — v3 mid-pruning, ${NUM_SAMPLES} samples (IMDA PART1)"
-echo "  FP32 baseline vs INT8 dynamic (torch.quantization.quantize_dynamic) + torch.compile"
-echo "  Original model disk size: ${ORIG_MB} MB  |  Disk size reflects pruning only; INT8 RAM ≈ disk×0.5 at runtime"
-echo "============================================================================================================================================================================================"
-printf "  %-28s %8s %8s %10s %10s %8s %8s %8s %8s %10s %10s\n" \
-    "Config" "Disk(MB)" "vs.orig" "FP32 lat" "INT8 lat" "Speedup" "FP32 WER" "INT8 WER" "ΔWER" "FP32 RAM" "INT8 RAM"
-echo "  --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+echo "========================================================================================================================================================================================"
+echo "  CPU Benchmark — v3 mid-pruning + INT8 dynamic quant  (${NUM_SAMPLES} samples, IMDA PART1)"
+echo "  Baseline: original MERaLiON-2-3B FP32  |  Optimized: pruned+tuned+INT8"
+echo "  Original disk: ${ORIG_MB} MB"
+echo "========================================================================================================================================================================================"
+printf "  %-28s %8s %8s %10s %10s %8s %9s %9s %8s %10s %10s\n" \
+    "Config" "Disk(MB)" "vs.orig" "Orig lat" "INT8 lat" "Speedup" "Orig WER" "INT8 WER" "ΔWER" "Orig RAM" "INT8 RAM"
+echo "  --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 
 for row in "${RESULTS[@]}"; do
-    IFS='|' read -r name size_mb fp32_lat int8_lat speedup fp32_wer int8_wer dwer fp32_ram int8_ram <<< "$row"
-    if [ -n "$ORIG_MB" ] && [ "$ORIG_MB" -gt 0 ] 2>/dev/null; then
-        vs_orig=$("$PYTHON_PATH" -c "print(f'{int(\"${size_mb}\") / int(\"${ORIG_MB}\") * 100:.0f}%')" 2>/dev/null || echo "n/a")
-    else
-        vs_orig="n/a"
-    fi
-    printf "  %-28s %8s %8s %10s %10s %8s %8s %8s %8s %10s %10s\n" \
-        "$name" "${size_mb}MB" "$vs_orig" "${fp32_lat}s" "${int8_lat}s" "${speedup}x" \
-        "${fp32_wer}%" "${int8_wer}%" "$dwer%" "${fp32_ram}MB" "${int8_ram}MB"
+    IFS='|' read -r name size_mb orig_lat int8_lat speedup orig_wer int8_wer dwer orig_ram int8_ram <<< "$row"
+    vs_orig=$("$PYTHON_PATH" -c "
+try:
+    print(f'{int(\"${size_mb}\") / int(\"${ORIG_MB}\") * 100:.0f}%')
+except:
+    print('n/a')
+" 2>/dev/null)
+    printf "  %-28s %8s %8s %10s %10s %8s %9s %9s %8s %10s %10s\n" \
+        "$name" "${size_mb}MB" "$vs_orig" "${orig_lat}s" "${int8_lat}s" "${speedup}x" \
+        "${orig_wer}%" "${int8_wer}%" "$dwer%" "${orig_ram}MB" "${int8_ram}MB"
 done
 
-echo "  ============================================================================================================================================================================================"
+echo "  ========================================================================================================================================================================================"
 echo ""
 
 if [ ${#SKIPPED[@]} -gt 0 ]; then
-    echo "  Skipped configs:"
-    for s in "${SKIPPED[@]}"; do
-        echo "    - $s"
-    done
+    echo "  Skipped:"
+    for s in "${SKIPPED[@]}"; do echo "    - $s"; done
     echo ""
 fi
 
-echo "  Per-config JSON results:"
+echo "  JSON results:"
+echo "    Baseline: $ORIG_FP32_OUT"
 for row in "${RESULTS[@]}"; do
     IFS='|' read -r name _ <<< "$row"
-    echo "    cpu_fp32_${name}.json  cpu_int8_${name}.json"
+    echo "    cpu_int8_${name}.json"
 done
 echo ""
