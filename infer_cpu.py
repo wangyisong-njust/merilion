@@ -31,6 +31,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import sys
 import time
 
@@ -46,6 +47,13 @@ import torch.nn as nn
 script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
+
+def _normalize_text(text: str) -> str:
+    """Lowercase + strip punctuation for fair WER comparison."""
+    text = text.lower()
+    text = re.sub(r"[^\w\s]", "", text)
+    return text.strip()
+
 
 SAMPLE_RATE = 16000
 CHUNK_SIZE = SAMPLE_RATE * 30
@@ -350,11 +358,13 @@ def main():
             print(f"  [{i+1:3d}/{args.num_samples}] {elapsed:5.1f}s | {pred[:70]}")
 
         wer_metric = evaluate.load("wer")
-        wer     = wer_metric.compute(predictions=predictions,
-                                     references=references)
+        norm_preds = [_normalize_text(p) for p in predictions]
+        norm_refs  = [_normalize_text(r) for r in references]
+        wer     = wer_metric.compute(predictions=norm_preds,
+                                     references=norm_refs)
         avg_lat = float(np.mean(latencies))
         print(f"\n{'='*60}")
-        print(f"WER:          {wer:.4f}  ({wer*100:.2f}%)")
+        print(f"WER:          {wer:.4f}  ({wer*100:.2f}%)  [normalized]")
         print(f"Avg latency:  {avg_lat:.2f} s/sample")
         print(f"INT4:         {not args.no_quant}")
         print(f"compiled:     {not args.no_compile}")

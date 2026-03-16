@@ -12,6 +12,7 @@ import sys
 import os
 import json
 import gc
+import re
 import argparse
 
 import numpy as np
@@ -47,6 +48,13 @@ def get_reference(sample):
 
 def clean_pred(text):
     return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
+
+
+def _normalize_text(text: str) -> str:
+    """Lowercase + strip punctuation for fair WER comparison."""
+    text = text.lower()
+    text = re.sub(r"[^\w\s]", "", text)
+    return text.strip()
 
 
 def main():
@@ -120,7 +128,9 @@ def main():
     references = [get_reference(test_subset[i]) for i in range(args.num_samples)]
 
     wer_metric = evaluate.load("wer")
-    wer = wer_metric.compute(predictions=predictions, references=references)
+    norm_preds = [_normalize_text(p) for p in predictions]
+    norm_refs  = [_normalize_text(r) for r in references]
+    wer = wer_metric.compute(predictions=norm_preds, references=norm_refs)
 
     print(f"\n{'='*60}")
     print(f"WER EVALUATION — {args.model}")
