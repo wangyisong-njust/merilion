@@ -461,6 +461,10 @@ def main():
                              "For the original un-pruned model only. "
                              "Bypasses meralion2_bl and all cache workarounds.")
     parser.add_argument("--output", default="cpu_results.json")
+    parser.add_argument("--audio_dir", default=None,
+                        help="Save each sample's audio as WAV here (for HTML demo page)")
+    parser.add_argument("--save_samples", action="store_true",
+                        help="Include per-sample predictions + references in JSON output")
     args = parser.parse_args()
     args.model = os.path.abspath(args.model)
 
@@ -517,6 +521,9 @@ def main():
             range(10500, 10500 + args.num_samples))
 
         predictions, references, latencies = [], [], []
+        samples_out = []
+        if args.audio_dir:
+            os.makedirs(args.audio_dir, exist_ok=True)
         for i in range(args.num_samples):
             sample = subset[i]
             audio = np.asarray(sample["context"]["audio"]["array"],
@@ -529,6 +536,13 @@ def main():
                      else sample["instruction"])
             ref = sample["other_attributes"]["Transcription"]
 
+            audio_file = None
+            if args.audio_dir:
+                import soundfile as _sf
+                audio_file = os.path.join(args.audio_dir, f"sample_{i:03d}.wav")
+                if not os.path.exists(audio_file):
+                    _sf.write(audio_file, audio, sr)
+
             t0 = time.time()
             pred = _infer(model, processor, audio, sr,
                           instruction=instr,
@@ -538,6 +552,10 @@ def main():
             references.append(ref)
             latencies.append(elapsed)
             print(f"  [{i+1:3d}/{args.num_samples}] {elapsed:5.1f}s | {pred[:70]}")
+            entry = {"idx": i, "reference": ref, "prediction": pred, "latency_s": elapsed}
+            if audio_file:
+                entry["audio_file"] = audio_file
+            samples_out.append(entry)
 
         wer_metric = evaluate.load("wer")
         norm_preds = [_normalize_text(p) for p in predictions]
@@ -556,17 +574,20 @@ def main():
         print(f"quant:        {quant_method}")
         print(f"compiled:     {not args.no_compile}")
         print(f"{'='*60}")
+        result = {
+            "model": args.model,
+            "quant_method": quant_method,
+            "compiled": not args.no_compile,
+            "num_samples": args.num_samples,
+            "wer": wer,
+            "avg_latency_s": avg_lat,
+            "ram_mb": ram_after_mb,
+            "latencies": latencies,
+        }
+        if args.save_samples:
+            result["samples"] = samples_out
         with open(args.output, "w") as f:
-            json.dump({
-                "model": args.model,
-                "quant_method": quant_method,
-                "compiled": not args.no_compile,
-                "num_samples": args.num_samples,
-                "wer": wer,
-                "avg_latency_s": avg_lat,
-                "ram_mb": ram_after_mb,
-                "latencies": latencies,
-            }, f, indent=2)
+            json.dump(result, f, indent=2)
         print(f"Saved to {args.output}")
         return
 
