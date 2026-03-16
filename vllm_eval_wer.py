@@ -73,17 +73,22 @@ def main():
     from datasets import load_from_disk
     print(f"Loading dataset from {args.dataset}...")
     test_data = load_from_disk(args.dataset)
-    # Samples 10500+ avoid overlap with train (0-10000) and val (10000-10500).
-    # --num_samples -1 uses all remaining samples from index 10500 onwards.
+    # Split definition (shuffle seed=42, same as eval framework in vllm_inference/src/dataset.py):
+    #   train:      0 – 9999
+    #   val:    10000 – 10499
+    #   cb-test:10500 – 10999
+    #   eval-test: 11000 – 15999  ← imda_part1_asr_test (5000 samples)
+    TEST_START = 11000
+    TEST_END   = 16000   # exclusive
     shuffled = test_data.shuffle(seed=42)
-    total_available = len(shuffled) - 10500
+    total_available = TEST_END - TEST_START
     if args.num_samples == -1 or args.num_samples >= total_available:
         n = total_available
     else:
         n = args.num_samples
-    test_subset = shuffled.select(range(10500, 10500 + n))
+    test_subset = shuffled.select(range(TEST_START, TEST_START + n))
     args.num_samples = n
-    print(f"  Test samples: {n}  (indices 10500–{10500 + n - 1} of shuffled dataset)")
+    print(f"  Test samples: {n}  (imda_part1_asr_test: shuffled indices {TEST_START}–{TEST_START + n - 1})")
 
     sampling_params = SamplingParams(
         temperature=0.0, top_p=0.9, top_k=50,

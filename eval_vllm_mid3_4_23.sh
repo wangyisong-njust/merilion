@@ -21,7 +21,7 @@ ORIGINAL="/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
 DATASET="/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR"
 CKPT_ROOT="meralion_checkpoints"
 TUNE_ROOT="meralion_tune_log"
-NUM_SAMPLES=-1   # -1 = all available test samples (index 10500 to end)
+NUM_SAMPLES=-1   # -1 = full imda_part1_asr_test (indices 11000-15999, 5000 samples)
 NUM_DEMO=5
 
 PRUNED_CONFIGS=(
@@ -30,7 +30,7 @@ PRUNED_CONFIGS=(
 )
 
 cd "$WORKDIR"
-echo "GPU: $GPU  |  dataset: all test samples (num_samples=-1)"
+echo "GPU: $GPU  |  dataset: imda_part1_asr_test (shuffled indices 11000-15999, up to 5000 samples)"
 echo ""
 
 # ── Helper: run eval for one model ───────────────────────────────────────
