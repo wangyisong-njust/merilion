@@ -73,8 +73,17 @@ def main():
     from datasets import load_from_disk
     print(f"Loading dataset from {args.dataset}...")
     test_data = load_from_disk(args.dataset)
-    # Samples 10500+ avoid overlap with train (0-10000) and val (10000-10500)
-    test_subset = test_data.shuffle(seed=42).select(range(10500, 10500 + args.num_samples))
+    # Samples 10500+ avoid overlap with train (0-10000) and val (10000-10500).
+    # --num_samples -1 uses all remaining samples from index 10500 onwards.
+    shuffled = test_data.shuffle(seed=42)
+    total_available = len(shuffled) - 10500
+    if args.num_samples == -1 or args.num_samples >= total_available:
+        n = total_available
+    else:
+        n = args.num_samples
+    test_subset = shuffled.select(range(10500, 10500 + n))
+    args.num_samples = n
+    print(f"  Test samples: {n}  (indices 10500–{10500 + n - 1} of shuffled dataset)")
 
     sampling_params = SamplingParams(
         temperature=0.0, top_p=0.9, top_k=50,
