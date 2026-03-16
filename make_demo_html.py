@@ -18,6 +18,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import sys
 
 # ── helpers ───────────────────────────────────────────────────────────────
@@ -31,6 +32,25 @@ def _audio_data_uri(path: str) -> str:
     return f"data:{mime};base64,{data}"
 
 
+def _config_note(model_path: str, quant_method: str) -> str:
+    """Human-readable description from model path + quant_method."""
+    name = os.path.basename(model_path.rstrip("/")).replace("-tune", "")
+    m = re.search(r"td(\d+)-mid(\d+)-(\d+)", name)
+    if m:
+        td, mid_start, n_layers = m.groups()
+        prune = f"{td}% top-down pruning, mid-block from layer {mid_start}, {n_layers}-layer decoder"
+    else:
+        prune = name
+    qmap = {
+        "fp32":    "FP32, no quantization",
+        "int8":    "INT8 dynamic quantization (no compile)",
+        "int8ao":  "INT8 weight-only + torch.compile",
+        "int4":    "INT4 weight-only + torch.compile",
+    }
+    q = qmap.get(quant_method.replace("_native", ""), quant_method)
+    return f"{prune}; {q}"
+
+
 # ── HTML template ─────────────────────────────────────────────────────────
 
 _HTML = """\
@@ -39,7 +59,7 @@ _HTML = """\
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MERaLiON-2 CPU Benchmark Demo</title>
+<title>MERaLiON-2-3B CPU Benchmark Demo</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -55,17 +75,19 @@ _HTML = """\
   .pred-box { background: #eef2ff; border-left: 3px solid #4c6ef5;
               padding: 7px 12px; border-radius: 4px; font-size:.9em; min-height: 2.6em; }
   .lat-tag  { font-size: .78em; color: #6c757d; margin-top: 6px; }
-  #paretoChart { max-height: 400px; }
+  #paretoChart { max-height: 420px; }
   thead th { background: #212529; color: #fff; white-space: nowrap; }
   .table td, .table th { vertical-align: middle; }
-  .wer-cell { font-weight: 600; }
+  .acc-cell { font-weight: 600; }
   .best-row { background: #f0fff4 !important; }
+  .footnote { color: #999; font-size: .82em; line-height: 1.7; }
+  .footnote strong { color: #777; }
 </style>
 </head>
 <body>
 <div class="container py-5">
 
-  <h1 class="fw-bold mb-1">MERaLiON-2 — CPU Benchmark Demo</h1>
+  <h1 class="fw-bold mb-1">MERaLiON-2-3B &mdash; CPU Benchmark Demo</h1>
   <p class="text-muted mb-4">Pruning &amp; quantization tradeoffs &middot; @@N_SAMPLES@@ samples &middot; IMDA PART1 ASR</p>
 
   <!-- ── Performance Table ──────────────────────────────────────────────── -->
@@ -77,23 +99,23 @@ _HTML = """\
           <tr>
             <th>Configuration</th>
             <th>Avg Latency</th>
-            <th>Speedup vs FP32</th>
-            <th>WER</th>
-            <th>ΔWER vs FP32</th>
-            <th>RAM</th>
+            <th>Speedup vs Original</th>
+            <th>Accuracy</th>
+            <th>&Delta;Accuracy vs Original</th>
+            <th>RAM (GB)</th>
           </tr>
         </thead>
         <tbody>@@TABLE_ROWS@@</tbody>
       </table>
     </div>
-    <p class="text-muted small mt-2 mb-0">WER computed on normalised text (lowercase, no punctuation).</p>
+    <p class="text-muted small mt-2 mb-0">Accuracy = 1 &minus; WER, computed on normalised text (lowercase, no punctuation).</p>
   </div>
 
   <!-- ── Pareto Chart ───────────────────────────────────────────────────── -->
   <div class="card-section">
-    <h4 class="mb-1">Pareto: Latency vs WER</h4>
-    <p class="text-muted small mb-3">Lower-left is better. Each point is one configuration; the Pareto frontier
-       marks configurations where no other option beats it on <em>both</em> axes.</p>
+    <h4 class="mb-1">Pareto: Speedup vs Accuracy</h4>
+    <p class="text-muted small mb-3">Upper-right is better. Each point is one configuration; the dashed line
+       connects the Pareto frontier where no other option beats it on <em>both</em> axes.</p>
     <canvas id="paretoChart"></canvas>
   </div>
 
@@ -104,14 +126,20 @@ _HTML = """\
     <div id="samplesContainer" class="row row-cols-1 row-cols-xl-2 g-3"></div>
   </div>
 
+  <!-- ── Footnotes ──────────────────────────────────────────────────────── -->
+  <div class="card-section footnote">
+    <p class="mb-2"><strong>Configuration notes</strong></p>
+    @@FOOTNOTES@@
+  </div>
+
 </div><!-- /container -->
 
 <script>
 /* ── data ──────────────────────────────────────────────────────────────── */
-const SAMPLES      = @@SAMPLES_JSON@@;
+const SAMPLES       = @@SAMPLES_JSON@@;
 const CONFIG_LABELS = @@CONFIG_LABELS_JSON@@;
-const CHART_PTS    = @@CHART_JSON@@;
-const PARETO_LINE  = @@PARETO_JSON@@;
+const CHART_PTS     = @@CHART_JSON@@;
+const PARETO_LINE   = @@PARETO_JSON@@;
 
 /* ── Pareto chart ──────────────────────────────────────────────────────── */
 Chart.register(ChartDataLabels);
@@ -138,7 +166,7 @@ new Chart(paretoCtx, {{
       /* Individual config points */
       ...CHART_PTS.map((pt, i) => ({{
         label: pt.label,
-        data: [{{ x: pt.wer, y: pt.lat }}],
+        data: [{{ x: pt.speedup, y: pt.acc }}],
         backgroundColor: COLORS[i % COLORS.length],
         borderColor:     COLORS[i % COLORS.length],
         pointRadius: 9,
@@ -160,14 +188,14 @@ new Chart(paretoCtx, {{
           label: (item) => {{
             const pt = CHART_PTS[item.datasetIndex - 1];
             if (!pt) return "";
-            return `${{pt.label}} — WER: ${{pt.wer.toFixed(2)}}%  lat: ${{pt.lat.toFixed(2)}}s`;
+            return `${{pt.label}} — Speedup: ${{pt.speedup.toFixed(2)}}×  Accuracy: ${{pt.acc.toFixed(2)}}%`;
           }},
         }},
       }},
     }},
     scales: {{
-      x: {{ title: {{ display: true, text: "WER (%)" }}, min: 0 }},
-      y: {{ title: {{ display: true, text: "Avg Latency (s)" }}, min: 0 }},
+      x: {{ title: {{ display: true, text: "Speedup (×)" }}, min: 0 }},
+      y: {{ title: {{ display: true, text: "Accuracy (%)" }} }},
     }},
   }},
 }});
@@ -219,54 +247,72 @@ SAMPLES.forEach((s, idx) => {{
 # ── build ─────────────────────────────────────────────────────────────────
 
 def _pareto_frontier(points):
-    """Return points on the Pareto frontier (min WER, min latency), sorted by WER."""
-    pts = sorted(points, key=lambda p: p["wer"])
-    frontier = []
-    best_lat = float("inf")
-    for p in pts:
-        if p["lat"] < best_lat:
-            frontier.append(p)
-            best_lat = p["lat"]
-    return frontier
+    """Pareto frontier for (speedup, acc) — both higher is better.
+
+    Sort by speedup ascending; a point is non-dominated if no other point
+    has both higher speedup AND higher accuracy.
+    """
+    non_dom = []
+    for p in points:
+        dominated = any(
+            q["speedup"] >= p["speedup"] and q["acc"] >= p["acc"]
+            and (q["speedup"] > p["speedup"] or q["acc"] > p["acc"])
+            for q in points if q is not p
+        )
+        if not dominated:
+            non_dom.append(p)
+    return sorted(non_dom, key=lambda p: p["speedup"])
 
 
 def build_html(configs: dict, n_samples: int) -> str:
-    base_lat = next(iter(configs.values())).get("avg_latency_s", 1.0)
-    base_wer = next(iter(configs.values())).get("wer", 0.0) * 100
+    # ── rename configs: first → "Original Model", rest → A, B, C, … ──────
+    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    orig_labels = list(configs.keys())
+    label_map = {}
+    for i, lbl in enumerate(orig_labels):
+        label_map[lbl] = "Original Model" if i == 0 else letters[i - 1]
+
+    base_data = next(iter(configs.values()))
+    base_lat  = base_data.get("avg_latency_s", 1.0)
+    base_acc  = (1 - base_data.get("wer", 0.0)) * 100
 
     # ── summary table rows ────────────────────────────────────────────────
     table_rows = ""
-    for i, (label, data) in enumerate(configs.items()):
-        lat  = data.get("avg_latency_s", 0)
-        wer  = data.get("wer", float("nan")) * 100
-        ram  = data.get("ram_mb", 0)
-        spd  = base_lat / lat if lat > 0 else 0
-        dwer = wer - base_wer
-        best = (i == 0)
-        row_cls = ' class="best-row"' if best else ""
-        dwer_str = ("—" if i == 0
-                    else f'<span class="text-{"danger" if dwer>0 else "success"}">'
-                         f'{dwer:+.2f}%</span>')
+    for i, (orig_lbl, data) in enumerate(configs.items()):
+        disp  = label_map[orig_lbl]
+        lat   = data.get("avg_latency_s", 0)
+        acc   = (1 - data.get("wer", float("nan"))) * 100
+        ram   = data.get("ram_mb", 0) / 1024
+        spd   = base_lat / lat if lat > 0 else 0
+        dacc  = acc - base_acc
+        row_cls = ' class="best-row"' if i == 0 else ""
+        if i == 0:
+            dacc_str = "—"
+            spd_str  = "—"
+        else:
+            # accuracy drop → grey (not red); accuracy gain → green
+            color = "success" if dacc > 0 else "secondary"
+            dacc_str = f'<span class="text-{color}">{dacc:+.2f}%</span>'
+            spd_str  = f"{spd:.2f}×"
         table_rows += f"""
         <tr{row_cls}>
-          <td><strong>{label}</strong></td>
+          <td><strong>{disp}</strong></td>
           <td>{lat:.2f} s</td>
-          <td>{"—" if i == 0 else f"{spd:.2f}×"}</td>
-          <td class="wer-cell">{wer:.2f}%</td>
-          <td>{dwer_str}</td>
-          <td>{ram:.0f} MB</td>
+          <td>{spd_str}</td>
+          <td class="acc-cell">{acc:.2f}%</td>
+          <td>{dacc_str}</td>
+          <td>{ram:.2f} GB</td>
         </tr>"""
 
     # ── chart data ────────────────────────────────────────────────────────
     chart_pts = [
-        {"label": label,
-         "wer": data.get("wer", 0) * 100,
-         "lat": data.get("avg_latency_s", 0)}
-        for label, data in configs.items()
+        {"label":   label_map[lbl],
+         "speedup": base_lat / data.get("avg_latency_s", 1),
+         "acc":     (1 - data.get("wer", 0)) * 100}
+        for lbl, data in configs.items()
     ]
-    pareto = _pareto_frontier(chart_pts)
-    # extend pareto line to y-axis for visual clarity
-    pareto_line = [{"x": p["wer"], "y": p["lat"]} for p in pareto]
+    pareto     = _pareto_frontier(chart_pts)
+    pareto_line = [{"x": p["speedup"], "y": p["acc"]} for p in pareto]
 
     # ── samples data (embedded audio) ─────────────────────────────────────
     ref_data = next(
@@ -289,11 +335,12 @@ def build_html(configs: dict, n_samples: int) -> str:
                 print(f"  WARNING: could not embed {afile}: {e}", file=sys.stderr)
 
         cfg_data = {}
-        for label, data in configs.items():
+        for orig_lbl, data in configs.items():
+            disp  = label_map[orig_lbl]
             slist = data.get("samples", [])
             if i < len(slist):
                 s = slist[i]
-                cfg_data[label] = {
+                cfg_data[disp] = {
                     "prediction": s.get("prediction", ""),
                     "latency_s":  s.get("latency_s", 0.0),
                 }
@@ -303,17 +350,32 @@ def build_html(configs: dict, n_samples: int) -> str:
             "configs":   cfg_data,
         })
 
-    # Step 1: unescape {{ / }} in the raw template BEFORE inserting any data.
-    # (Inserting JSON first then unescaping would corrupt }} inside nested JSON objects.)
+    # ── footnotes ─────────────────────────────────────────────────────────
+    footnote_items = []
+    for i, (orig_lbl, data) in enumerate(configs.items()):
+        disp = label_map[orig_lbl]
+        if disp == "Original Model":
+            continue
+        note = _config_note(
+            data.get("model", orig_lbl),
+            data.get("quant_method", "")
+        )
+        footnote_items.append(f"<li><strong>{disp}</strong> &mdash; {note}</li>")
+    footnotes_html = "<ul style='list-style:none;padding:0;margin:0'>" \
+                     + "".join(footnote_items) + "</ul>"
+
+    # ── render ────────────────────────────────────────────────────────────
+    # Step 1: unescape {{ / }} in template BEFORE inserting JSON data.
     html = _HTML.replace("{{", "{").replace("}}", "}")
-    # Step 2: substitute data tokens — JSON strings contain plain { } and are safe.
+    # Step 2: substitute tokens — inserted JSON uses plain { } and is safe.
     html = (html
         .replace("@@N_SAMPLES@@",          str(n_samples))
         .replace("@@TABLE_ROWS@@",         table_rows)
         .replace("@@SAMPLES_JSON@@",       json.dumps(samples_js, ensure_ascii=False))
-        .replace("@@CONFIG_LABELS_JSON@@", json.dumps(list(configs.keys())))
+        .replace("@@CONFIG_LABELS_JSON@@", json.dumps(list(label_map.values())))
         .replace("@@CHART_JSON@@",         json.dumps(chart_pts, ensure_ascii=False))
         .replace("@@PARETO_JSON@@",        json.dumps(pareto_line))
+        .replace("@@FOOTNOTES@@",          footnotes_html)
     )
     return html
 
