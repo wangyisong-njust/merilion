@@ -138,6 +138,75 @@ def _apply_torchao_int4(model):
         "Upgrade with: pip install torchao --upgrade")
 
 
+def load_model_cpu_native(model_path: str):
+    """Load original (non-pruned) model with trust_remote_code=True.
+
+    Uses the model's own modeling code and processor — no meralion2_bl, no
+    manual cache handling.  Only suitable for the un-pruned baseline.
+    """
+    from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
+
+    print(f"Loading processor …")
+    processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+
+    print(f"Loading model (trust_remote_code=True) in FP32 on CPU …")
+    t0 = time.time()
+    model = AutoModelForSpeechSeq2Seq.from_pretrained(
+        model_path,
+        trust_remote_code=True,
+        torch_dtype=torch.float32,
+    )
+    model = model.cpu()
+    model.eval()
+    print(f"  Loaded in {time.time()-t0:.1f}s")
+    return model, processor
+
+
+def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: int,
+                      instruction: str = "Transcribe the speech",
+                      max_new_tokens: int = 128) -> str:
+    """Run ASR inference using the model's native processor interface.
+
+    Mirrors the reference meralion_2.py inference: passes raw audio and prompt
+    text to processor() which handles feature extraction and speech token
+    expansion, then calls model.generate(**inputs).
+    """
+    import librosa
+    fe = processor.feature_extractor
+    target_sr = fe.sampling_rate
+    if sample_rate != target_sr:
+        audio_array = librosa.resample(audio_array, orig_sr=sample_rate, target_sr=target_sr)
+    if len(audio_array) > target_sr * 30:
+        audio_array = audio_array[:target_sr * 30]
+
+    prompt = (
+        "<start_of_turn>user\n"
+        f"Instruction: {instruction} \n"
+        "Follow the text instruction based on the following audio: <SpeechHere><end_of_turn>\n"
+        "<start_of_turn>model\n"
+    )
+    inputs = processor(text=prompt, audios=audio_array,
+                       sampling_rate=target_sr, return_tensors="pt")
+    inputs = {k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
+
+    tokenizer = processor.tokenizer
+    with torch.inference_mode():
+        output_ids = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            use_cache=True,
+            eos_token_id=[
+                tokenizer.eos_token_id,
+                tokenizer.convert_tokens_to_ids("<end_of_turn>"),
+            ],
+        )
+    input_len = inputs["input_ids"].shape[1]
+    generated = output_ids[0][input_len:]
+    text = tokenizer.decode(generated, skip_special_tokens=True)
+    return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
+
+
 def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True, compile: bool = True):
     """Load pruned model on CPU with torchao INT4 weight-only quantization.
 
@@ -318,12 +387,16 @@ def main():
                         help="Use torchao INT4 (experimental; may break tied-weight models)")
     parser.add_argument("--no_compile", action="store_true",
                         help="Skip torch.compile (faster startup, slower inference)")
+    parser.add_argument("--trust_remote_code", action="store_true",
+                        help="Use model's native code (trust_remote_code=True). "
+                             "For the original un-pruned model only. "
+                             "Bypasses meralion2_bl and all cache workarounds.")
     parser.add_argument("--output", default="cpu_results.json")
     args = parser.parse_args()
     args.model = os.path.abspath(args.model)
 
-    use_int8 = not args.no_quant and not args.int4
-    use_int4 = not args.no_quant and args.int4
+    use_int8 = not args.no_quant and not args.int4 and not args.trust_remote_code
+    use_int4 = not args.no_quant and args.int4 and not args.trust_remote_code
 
     # Measure RSS before loading
     try:
@@ -334,18 +407,23 @@ def main():
         _proc = None
         _ram_before_mb = 0.0
 
-    model, processor = load_model_cpu(
-        args.model,
-        int8=use_int8,
-        int4=use_int4,
-        compile=not args.no_compile,
-    )
+    if args.trust_remote_code:
+        model, processor = load_model_cpu_native(args.model)
+    else:
+        model, processor = load_model_cpu(
+            args.model,
+            int8=use_int8,
+            int4=use_int4,
+            compile=not args.no_compile,
+        )
 
     if _proc is not None:
         ram_after_mb = _proc.memory_info().rss / 1e6
         print(f"  RAM after load+quant: {ram_after_mb:.0f} MB  (delta: {ram_after_mb - _ram_before_mb:+.0f} MB)")
     else:
         ram_after_mb = 0.0
+
+    _infer = transcribe_native if args.trust_remote_code else transcribe
 
     # ── single audio file ──────────────────────────────────────────────────
     if args.audio:
@@ -355,9 +433,9 @@ def main():
             audio = audio.mean(axis=-1)
         audio = audio.astype(np.float32)
         t0 = time.time()
-        text = transcribe(model, processor, audio, sr,
-                          instruction=args.instruction,
-                          max_new_tokens=args.max_new_tokens)
+        text = _infer(model, processor, audio, sr,
+                      instruction=args.instruction,
+                      max_new_tokens=args.max_new_tokens)
         print(f"\nTranscription ({time.time()-t0:.2f}s):\n  {text}")
         return
 
@@ -384,9 +462,9 @@ def main():
             ref = sample["other_attributes"]["Transcription"]
 
             t0 = time.time()
-            pred = transcribe(model, processor, audio, sr,
-                              instruction=instr,
-                              max_new_tokens=args.max_new_tokens)
+            pred = _infer(model, processor, audio, sr,
+                          instruction=instr,
+                          max_new_tokens=args.max_new_tokens)
             elapsed = time.time() - t0
             predictions.append(pred)
             references.append(ref)
@@ -406,7 +484,10 @@ def main():
         print(f"compiled:     {not args.no_compile}")
         print(f"{'='*60}")
 
-        quant_method = ("int4" if use_int4 else "int8" if use_int8 else "fp32")
+        quant_method = ("fp32_native" if args.trust_remote_code
+                        else "int4" if use_int4
+                        else "int8" if use_int8
+                        else "fp32")
         with open(args.output, "w") as f:
             json.dump({
                 "model": args.model,

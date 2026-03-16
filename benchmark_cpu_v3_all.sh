@@ -26,13 +26,13 @@ cd "$WORKDIR"
 CONFIGS=(
     "v3-td50-mid3-22:1"
     "v3-td50-mid3-23:1"
-    "v3-td50-mid4-22:0"
+    # "v3-td50-mid4-22:0"
     "v3-td50-mid4-23:1"
-    "v3-td50-mid5-19:1"
-    "v3-td50-mid5-19-wm25:1"
-    "v3-td50-mid6-20:1"
-    "v3-td50-mid6-20-wm15:1"
-    "v3-td50-mid7-21:1"
+    # "v3-td50-mid5-19:1"
+    # "v3-td50-mid5-19-wm25:1"
+    # "v3-td50-mid6-20:1"
+    # "v3-td50-mid6-20-wm15:1"
+    # "v3-td50-mid7-21:1"
 )
 
 # ── Helper: compute model disk size in MB ─────────────────────────────────
@@ -57,11 +57,11 @@ if [ -f "$ORIG_FP32_OUT" ]; then
 else
     echo "Step 1: running original MERaLiON-2-3B FP32 baseline …"
     "$PYTHON_PATH" -u infer_cpu.py \
-        --model      "$ORIGINAL" \
-        --dataset    "$DATASET" \
-        --num_samples "$NUM_SAMPLES" \
-        --no_quant --no_compile \
-        --output     "$ORIG_FP32_OUT" \
+        --model            "$ORIGINAL" \
+        --dataset          "$DATASET" \
+        --num_samples      "$NUM_SAMPLES" \
+        --trust_remote_code \
+        --output           "$ORIG_FP32_OUT" \
         || { echo "[FAIL] original FP32 baseline — aborting"; exit 1; }
 fi
 echo ""
