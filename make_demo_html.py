@@ -303,6 +303,8 @@ def build_html(configs: dict, n_samples: int) -> str:
             "configs":   cfg_data,
         })
 
+    # @@TOKEN@@ substitutions happen first (inserted JSON uses plain { }),
+    # then unescape {{ / }} left over from the original .format() escaping.
     return (
         _HTML
         .replace("@@N_SAMPLES@@",        str(n_samples))
@@ -311,6 +313,8 @@ def build_html(configs: dict, n_samples: int) -> str:
         .replace("@@CONFIG_LABELS_JSON@@", json.dumps(list(configs.keys())))
         .replace("@@CHART_JSON@@",       json.dumps(chart_pts, ensure_ascii=False))
         .replace("@@PARETO_JSON@@",      json.dumps(pareto_line))
+        .replace("{{", "{")
+        .replace("}}", "}")
     )
 
 
