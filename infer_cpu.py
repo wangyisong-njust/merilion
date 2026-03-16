@@ -55,6 +55,24 @@ def _normalize_text(text: str) -> str:
     return text.strip()
 
 
+def _model_is_pruned(model) -> bool:
+    """Return True if the model has non-uniform KV heads (was pruned via midblock).
+
+    Gemma2Model.forward() auto-selects the cache when past_key_values is None:
+      - pruned  (midblock_start>=0, midblock_ratio<1) → DynamicCache
+      - original                                      → HybridCache
+    We must NOT override this for the original model; forcing DynamicCache on it
+    produces degenerate <Speaker> outputs because HybridCache-specific attention
+    masking in prepare_inputs_for_generation is then skipped.
+    """
+    try:
+        cfg = model.text_decoder.model.config
+        return (getattr(cfg, "midblock_start", -1) >= 0
+                and getattr(cfg, "midblock_ratio", 1.0) < 1.0)
+    except Exception:
+        return False
+
+
 SAMPLE_RATE = 16000
 CHUNK_SIZE = SAMPLE_RATE * 30
 SPEECH_TOKENS_PER_CHUNK = 100
@@ -142,9 +160,12 @@ def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True, compi
     )
     model = model.cpu()
     model.eval()
-    # Clear cache_implementation so DynamicCache can be passed to generate()
-    # without conflict. DynamicCache handles non-uniform KV heads in pruned models.
-    if hasattr(model, "generation_config"):
+    # For pruned models: clear cache_implementation so generate() does NOT
+    # pre-create a HybridCache; Gemma2Model.forward will then create DynamicCache
+    # automatically (it detects midblock_start/midblock_ratio in config).
+    # For the original model: leave cache_implementation="hybrid" intact so
+    # generate() creates the correct HybridCache before the forward pass.
+    if hasattr(model, "generation_config") and _model_is_pruned(model):
         model.generation_config.cache_implementation = None
     print(f"  Loaded in {time.time()-t0:.1f}s")
 
@@ -234,15 +255,14 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
         dtype=torch.long)
     attention_mask = torch.ones_like(input_ids)
 
-    # Ensure generate() always uses DynamicCache.  Some transformers versions
-    # restore generation_config.cache_implementation from the saved config during
-    # generate(), which would re-enable HybridCache and cause shape mismatches on
-    # pruned models with non-uniform KV heads.
-    _gen_cfg = getattr(model, "generation_config", None)
-    if _gen_cfg is not None:
-        _gen_cfg.cache_implementation = None
+    # For pruned models: re-assert cache_implementation=None each call in case
+    # generate() restores it from the saved config between calls.
+    # For the original model: leave it as "hybrid" — HybridCache is required.
+    if _model_is_pruned(model):
+        _gen_cfg = getattr(model, "generation_config", None)
+        if _gen_cfg is not None:
+            _gen_cfg.cache_implementation = None
 
-    from transformers import DynamicCache
     with torch.inference_mode():
         output_ids = model.generate(
             input_ids=input_ids,
@@ -252,7 +272,6 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
             max_new_tokens=max_new_tokens,
             do_sample=False,
             use_cache=True,
-            past_key_values=DynamicCache(),
             eos_token_id=[
                 tokenizer.eos_token_id,
                 tokenizer.convert_tokens_to_ids("<end_of_turn>"),
