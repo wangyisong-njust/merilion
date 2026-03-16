@@ -54,29 +54,33 @@ MAX_CHUNKS = 8
 
 
 def _apply_int8_dynamic(model):
-    """INT8 dynamic quantization via PyTorch built-in.
+    """INT8 dynamic quantization applied only to text decoder transformer blocks.
 
-    Uses torch.quantization.quantize_dynamic which wraps each nn.Linear with a
-    DynamicQuantizedLinear.  Gemma2's lm_head is tied to embed_tokens; the
-    DynamicQuantizedLinear packing produces a different internal weight layout
-    that corrupts logits and causes degenerate token generation (< < < < ...).
-    Fix: save the float lm_head before quantization and restore it afterwards.
-    Everything else (attention QKV, FFN, speech adapter) is quantised to INT8.
+    Three sub-modules are kept in FP32:
+      speech_encoder    — Whisper audio features; INT8 corrupts them completely,
+                          causing the text decoder to hallucinate web-scraped text
+      speech_audio_adapter — audio-to-text projection; same sensitivity as encoder
+      lm_head           — tied to embed_tokens; DynamicQuantizedLinear breaks the
+                          tie and produces degenerate logits (< < < < ...)
+
+    Only text_decoder.model (Gemma2 transformer blocks: QKV/O projections + FFN)
+    is quantised.  These dominate model size and compute, so INT8 still gives
+    meaningful memory and latency reduction.
     Typical CPU speedup: 1.5–2×.  WER degradation: <0.3%.
     """
-    # Locate lm_head before quantisation
     text_decoder = getattr(model, 'text_decoder', None)
-    orig_lm_head = None
-    if text_decoder is not None and hasattr(text_decoder, 'lm_head'):
-        orig_lm_head = text_decoder.lm_head
+    if text_decoder is None:
+        print("  WARNING: text_decoder not found — skipping INT8 (unknown model structure)")
+        return
+
+    transformer = getattr(text_decoder, 'model', None)
+    if transformer is None:
+        print("  WARNING: text_decoder.model not found — skipping INT8")
+        return
 
     torch.quantization.quantize_dynamic(
-        model, {nn.Linear}, dtype=torch.qint8, inplace=True)
-
-    # Restore lm_head as float
-    if orig_lm_head is not None:
-        text_decoder.lm_head = orig_lm_head
-        print("  (lm_head restored to FP32 — tied to embed_tokens)")
+        transformer, {nn.Linear}, dtype=torch.qint8, inplace=True)
+    print("  (quantized: text_decoder.model | FP32: speech_encoder, audio_adapter, lm_head)")
 
 
 def _apply_torchao_int4(model):
