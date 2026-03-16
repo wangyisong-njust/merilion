@@ -160,13 +160,9 @@ def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True, compi
     )
     model = model.cpu()
     model.eval()
-    # For pruned models: clear cache_implementation so generate() does NOT
-    # pre-create a HybridCache; Gemma2Model.forward will then create DynamicCache
-    # automatically (it detects midblock_start/midblock_ratio in config).
-    # For the original model: leave cache_implementation="hybrid" intact so
-    # generate() creates the correct HybridCache before the forward pass.
-    if hasattr(model, "generation_config") and _model_is_pruned(model):
-        model.generation_config.cache_implementation = None
+    # cache_implementation is reset to None before every generate() call in
+    # transcribe() so we never trigger "Passing both cache_implementation and
+    # past_key_values".  No need to touch it here.
     print(f"  Loaded in {time.time()-t0:.1f}s")
 
     if int8 and not int4:
@@ -255,13 +251,33 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
         dtype=torch.long)
     attention_mask = torch.ones_like(input_ids)
 
-    # For pruned models: re-assert cache_implementation=None each call in case
-    # generate() restores it from the saved config between calls.
-    # For the original model: leave it as "hybrid" — HybridCache is required.
+    # Always clear cache_implementation to prevent the "Passing both
+    # cache_implementation and past_key_values" error in generate().
+    _gen_cfg = getattr(model, "generation_config", None)
+    if _gen_cfg is not None:
+        _gen_cfg.cache_implementation = None
+
+    # Create the right cache type and size before calling generate():
+    #   Original model  → HybridCache sized for prefill + generation
+    #   Pruned model    → DynamicCache (handles non-uniform KV heads)
+    #
+    # WHY pre-create instead of letting Gemma2Model.forward() create it:
+    #   forward() creates HybridCache with max_cache_len=seq_len (prefill only).
+    #   The first generated token overflows that cache → garbage output.
+    model_dtype = next(model.parameters()).dtype
+    max_cache = input_ids.shape[1] + max_new_tokens
     if _model_is_pruned(model):
-        _gen_cfg = getattr(model, "generation_config", None)
-        if _gen_cfg is not None:
-            _gen_cfg.cache_implementation = None
+        from transformers import DynamicCache
+        past_kv = DynamicCache()
+    else:
+        from transformers.cache_utils import HybridCache
+        past_kv = HybridCache(
+            model.text_decoder.model.config,
+            max_batch_size=1,
+            max_cache_len=max_cache,
+            dtype=model_dtype,
+            device=torch.device("cpu"),
+        )
 
     with torch.inference_mode():
         output_ids = model.generate(
@@ -272,6 +288,7 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
             max_new_tokens=max_new_tokens,
             do_sample=False,
             use_cache=True,
+            past_key_values=past_kv,
             eos_token_id=[
                 tokenizer.eos_token_id,
                 tokenizer.convert_tokens_to_ids("<end_of_turn>"),
