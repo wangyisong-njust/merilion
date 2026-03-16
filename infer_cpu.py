@@ -155,6 +155,7 @@ def load_model_cpu_native(model_path: str):
         model_path,
         trust_remote_code=True,
         torch_dtype=torch.float32,
+        attn_implementation="eager",
     )
     model = model.cpu()
     model.eval()
