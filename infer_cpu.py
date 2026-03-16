@@ -109,6 +109,24 @@ def _apply_int8_dynamic(model):
     print("  (quantized: text_decoder.model | FP32: speech_encoder, audio_adapter, lm_head)")
 
 
+def _apply_torchao_int8(model):
+    """INT8 weight-only quantization via torchao — compatible with torch.compile.
+
+    Unlike torch.quantization.quantize_dynamic (legacy QEngine, Dynamo-opaque),
+    torchao int8_weight_only() uses AffineQuantizedTensor which Dynamo can trace.
+    Typical speedup with compile: 1.3–1.8× vs FP32.
+    """
+    try:
+        from torchao.quantization import quantize_, int8_weight_only
+        quantize_(model, int8_weight_only())
+        return
+    except ImportError:
+        pass
+    raise RuntimeError(
+        "torchao not found or too old for int8_weight_only. "
+        "Upgrade with: pip install torchao --upgrade")
+
+
 def _apply_torchao_int4(model):
     """INT4 weight-only quantization via torchao (experimental for pruned models).
 
@@ -248,13 +266,15 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
     return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
 
 
-def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True, compile: bool = True):
-    """Load pruned model on CPU with torchao INT4 weight-only quantization.
+def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True,
+                   int8ao: bool = False, compile: bool = True):
+    """Load pruned model on CPU with optional quantization and torch.compile.
 
     Args:
-        int8:    apply PyTorch INT8 dynamic quantization (default, safe for tied weights)
-        int4:    apply torchao INT4 weight-only (experimental; may corrupt lm_head on tied models)
-        compile: apply torch.compile for kernel fusion
+        int8:    apply PyTorch INT8 dynamic quantization (default; NOT compile-compatible)
+        int8ao:  apply torchao INT8 weight-only (compile-compatible)
+        int4:    apply torchao INT4 weight-only (compile-compatible; experimental)
+        compile: apply torch.compile for kernel fusion (skipped automatically for int8)
     """
     from meralion2_bl.modeling_meralion2 import MERaLiON2ForConditionalGeneration
     from transformers import AutoProcessor
@@ -275,7 +295,7 @@ def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True, compi
     # past_key_values".  No need to touch it here.
     print(f"  Loaded in {time.time()-t0:.1f}s")
 
-    if int8 and not int4:
+    if int8 and not int4 and not int8ao:
         print("Applying INT8 dynamic quantization (torch.quantization.quantize_dynamic) …")
         t0 = time.time()
         _apply_int8_dynamic(model)
@@ -286,6 +306,13 @@ def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True, compi
         if compile:
             print("  (torch.compile skipped: not compatible with INT8 dynamic quant)")
         compile = False
+
+    if int8ao and not int4:
+        model = model.to(torch.device("cpu"))
+        print("Applying torchao INT8 weight-only quantization (compile-compatible) …")
+        t0 = time.time()
+        _apply_torchao_int8(model)
+        print(f"  Done in {time.time()-t0:.1f}s")
 
     if int4:
         # Verify all tensors are on CPU before packing
@@ -425,6 +452,8 @@ def main():
                         help="FP32 baseline, no quantization")
     parser.add_argument("--int4", action="store_true",
                         help="Use torchao INT4 (experimental; may break tied-weight models)")
+    parser.add_argument("--int8ao", action="store_true",
+                        help="Use torchao INT8 weight-only (compile-compatible, vs dynamic INT8)")
     parser.add_argument("--no_compile", action="store_true",
                         help="Skip torch.compile (faster startup, slower inference)")
     parser.add_argument("--trust_remote_code", action="store_true",
@@ -435,8 +464,9 @@ def main():
     args = parser.parse_args()
     args.model = os.path.abspath(args.model)
 
-    use_int8 = not args.no_quant and not args.int4 and not args.trust_remote_code
-    use_int4 = not args.no_quant and args.int4 and not args.trust_remote_code
+    use_int8ao = not args.no_quant and args.int8ao
+    use_int4   = not args.no_quant and args.int4
+    use_int8   = not args.no_quant and not args.int4 and not args.int8ao
 
     # Measure RSS before loading
     try:
@@ -447,15 +477,13 @@ def main():
         _proc = None
         _ram_before_mb = 0.0
 
-    if args.trust_remote_code:
-        model, processor = load_model_cpu_native(args.model)
-    else:
-        model, processor = load_model_cpu(
-            args.model,
-            int8=use_int8,
-            int4=use_int4,
-            compile=not args.no_compile,
-        )
+    model, processor = load_model_cpu(
+        args.model,
+        int8=use_int8,
+        int8ao=use_int8ao,
+        int4=use_int4,
+        compile=not args.no_compile,
+    )
 
     if _proc is not None:
         ram_after_mb = _proc.memory_info().rss / 1e6
@@ -517,17 +545,17 @@ def main():
         wer     = wer_metric.compute(predictions=norm_preds,
                                      references=norm_refs)
         avg_lat = float(np.mean(latencies))
+        suffix = "_native" if args.trust_remote_code else ""
+        quant_method = ("int4"   + suffix if use_int4
+                        else "int8ao" + suffix if use_int8ao
+                        else "int8"  + suffix if use_int8
+                        else "fp32"  + suffix)
         print(f"\n{'='*60}")
         print(f"WER:          {wer:.4f}  ({wer*100:.2f}%)  [normalized]")
         print(f"Avg latency:  {avg_lat:.2f} s/sample")
-        print(f"INT4:         {not args.no_quant}")
+        print(f"quant:        {quant_method}")
         print(f"compiled:     {not args.no_compile}")
         print(f"{'='*60}")
-
-        quant_method = ("fp32_native" if args.trust_remote_code
-                        else "int4" if use_int4
-                        else "int8" if use_int8
-                        else "fp32")
         with open(args.output, "w") as f:
             json.dump({
                 "model": args.model,

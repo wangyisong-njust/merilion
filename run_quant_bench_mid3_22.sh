@@ -40,3 +40,14 @@ $PYTHON_PATH -u vllm_benchmark_pruned.py \
 echo ""
 echo "Submitted to GPU $GPU — monitor: tail -f quant_bench_${NAME}.log"
 echo "Results: vllm_benchmark_${NAME}-{BF16,W8A16,W4A16-AWQ}.json"
+
+# ── CPU benchmark: INT8ao (torchao) + torch.compile ──────────────────────
+echo ""
+echo "========== CPU: INT8ao + torch.compile =========="
+$PYTHON_PATH -u infer_cpu.py \
+    --model       "$CKPT" \
+    --dataset     "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" \
+    --int8ao \
+    --output      "cpu_int8ao_${NAME}.json" \
+    | tee cpu_int8ao_${NAME}.log
