@@ -41,9 +41,10 @@ echo ""
 echo "Submitted to GPU $GPU — monitor: tail -f quant_bench_${NAME}.log"
 echo "Results: vllm_benchmark_${NAME}-{BF16,W8A16,W4A16-AWQ}.json"
 
-# ── CPU benchmark: INT8ao (torchao) + torch.compile ──────────────────────
+# ── CPU benchmarks ────────────────────────────────────────────────────────
+# Pruned mid3-22: INT8ao + torch.compile
 echo ""
-echo "========== CPU: INT8ao + torch.compile =========="
+echo "========== CPU pruned: INT8ao + torch.compile =========="
 $PYTHON_PATH -u infer_cpu.py \
     --model       "$CKPT" \
     --dataset     "$DATASET" \
@@ -51,3 +52,48 @@ $PYTHON_PATH -u infer_cpu.py \
     --int8ao \
     --output      "cpu_int8ao_${NAME}.json" \
     | tee cpu_int8ao_${NAME}.log
+
+# Original model — INT4 + compile, native inference path (HybridCache manual loop)
+echo ""
+echo "========== CPU original: INT4 + compile [native path] =========="
+$PYTHON_PATH -u infer_cpu.py \
+    --model            "$ORIGINAL" \
+    --dataset          "$DATASET" \
+    --num_samples      "$NUM_BENCH_SAMPLES" \
+    --trust_remote_code \
+    --int4 \
+    --output           "cpu_int4_original_native.json" \
+    | tee cpu_int4_original_native.log
+
+# Original model — INT4 + compile, meralion2_bl path (model.generate)
+echo ""
+echo "========== CPU original: INT4 + compile [meralion2_bl path] =========="
+$PYTHON_PATH -u infer_cpu.py \
+    --model            "$ORIGINAL" \
+    --dataset          "$DATASET" \
+    --num_samples      "$NUM_BENCH_SAMPLES" \
+    --int4 \
+    --output           "cpu_int4_original.json" \
+    | tee cpu_int4_original.log
+
+# Original model — INT8 dynamic (no compile) vs INT8ao + compile
+echo ""
+echo "========== CPU original: INT8 dynamic (no compile) =========="
+$PYTHON_PATH -u infer_cpu.py \
+    --model            "$ORIGINAL" \
+    --dataset          "$DATASET" \
+    --num_samples      "$NUM_BENCH_SAMPLES" \
+    --trust_remote_code \
+    --output           "cpu_int8_original.json" \
+    | tee cpu_int8_original.log
+
+echo ""
+echo "========== CPU original: INT8ao + compile =========="
+$PYTHON_PATH -u infer_cpu.py \
+    --model            "$ORIGINAL" \
+    --dataset          "$DATASET" \
+    --num_samples      "$NUM_BENCH_SAMPLES" \
+    --trust_remote_code \
+    --int8ao \
+    --output           "cpu_int8ao_original.json" \
+    | tee cpu_int8ao_original.log
