@@ -308,7 +308,6 @@ class Gemma2Attention(nn.Module):
 class Gemma2DecoderLayer(nn.Module):
     def __init__(self, config: Gemma2Config, layer_idx: int):
         super().__init__()
-        print(config)
         self.hidden_size = config.hidden_size
         self.config = config
         self.is_sliding = not bool(layer_idx % 2)
