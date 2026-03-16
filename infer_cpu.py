@@ -57,13 +57,26 @@ def _apply_int8_dynamic(model):
     """INT8 dynamic quantization via PyTorch built-in.
 
     Uses torch.quantization.quantize_dynamic which wraps each nn.Linear with a
-    DynamicQuantizedLinear that reads the original *float* weight at runtime and
-    quantises on-the-fly.  Because the weight tensor itself is never replaced,
-    tied-weight models (Gemma2 lm_head ↔ embed_tokens) stay numerically correct.
+    DynamicQuantizedLinear.  Gemma2's lm_head is tied to embed_tokens; the
+    DynamicQuantizedLinear packing produces a different internal weight layout
+    that corrupts logits and causes degenerate token generation (< < < < ...).
+    Fix: save the float lm_head before quantization and restore it afterwards.
+    Everything else (attention QKV, FFN, speech adapter) is quantised to INT8.
     Typical CPU speedup: 1.5–2×.  WER degradation: <0.3%.
     """
+    # Locate lm_head before quantisation
+    text_decoder = getattr(model, 'text_decoder', None)
+    orig_lm_head = None
+    if text_decoder is not None and hasattr(text_decoder, 'lm_head'):
+        orig_lm_head = text_decoder.lm_head
+
     torch.quantization.quantize_dynamic(
         model, {nn.Linear}, dtype=torch.qint8, inplace=True)
+
+    # Restore lm_head as float
+    if orig_lm_head is not None:
+        text_decoder.lm_head = orig_lm_head
+        print("  (lm_head restored to FP32 — tied to embed_tokens)")
 
 
 def _apply_torchao_int4(model):
