@@ -167,15 +167,19 @@ def load_model_cpu_native(model_path: str):
 def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: int,
                       instruction: str = "Transcribe the speech",
                       max_new_tokens: int = 128) -> str:
-    """Run ASR inference using the native processor interface.
+    """Run ASR inference using the native processor + manual prefill/decode loop.
 
-    Uses processor(text=..., audios=...) so the model's own processor handles
-    feature extraction and speech-token expansion — no manual prepare_audio.
-    Passes cache_implementation="hybrid" explicitly so generate() pre-creates
-    a HybridCache sized for prefill + max_new_tokens (avoids the overflow bug
-    that occurs when Gemma2Model.forward() creates it with max_cache_len=seq_len).
+    WHY manual loop instead of model.generate():
+      generate() with cache_implementation="hybrid" creates HybridCache(max_cache_len=
+      max_new_tokens=128), which is too small for the prefill (~137 tokens).  The
+      overflow corrupts attention from position 128 onward and produces degenerate
+      <Speaker1> output.  By pre-creating the cache with the correct size
+      (prefill_len + max_new_tokens) and calling model.forward() directly, we avoid
+      all generate() cache-size logic entirely.
     """
     import librosa
+    from transformers.cache_utils import HybridCache
+
     fe = processor.feature_extractor
     target_sr = fe.sampling_rate
     if sample_rate != target_sr:
@@ -193,42 +197,60 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
                        sampling_rate=target_sr, return_tensors="pt")
     inputs = {k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
 
-    # ── DEBUG (first call only) ───────────────────────────────────────────
-    if not getattr(transcribe_native, "_debug_done", False):
-        transcribe_native._debug_done = True
-        print(f"  [DEBUG] processor output keys: {list(inputs.keys())}")
-        for k, v in inputs.items():
-            if isinstance(v, torch.Tensor):
-                print(f"  [DEBUG]   {k}: shape={v.shape}  dtype={v.dtype}  "
-                      f"mean={v.float().mean():.4f}  std={v.float().std():.4f}")
-            else:
-                print(f"  [DEBUG]   {k}: {type(v).__name__} = {v}")
-        if "input_features" not in inputs:
-            print(f"  [DEBUG] WARNING: 'input_features' NOT in processor output — "
-                  "audio was not processed; model will hallucinate")
-    # ─────────────────────────────────────────────────────────────────────
-
     tokenizer = processor.tokenizer
+    input_ids          = inputs["input_ids"]
+    attention_mask     = inputs["attention_mask"]
+    input_features     = inputs.get("input_features")
+    feat_attn_mask     = inputs.get("feature_attention_mask")
+    seq_len            = input_ids.shape[1]
+
+    eos_ids = {tokenizer.eos_token_id,
+               tokenizer.convert_tokens_to_ids("<end_of_turn>")}
+
+    # Pre-create HybridCache sized for full prefill + all decode steps.
+    model_dtype = next(model.parameters()).dtype
+    cache = HybridCache(
+        model.text_decoder.model.config,
+        max_batch_size=1,
+        max_cache_len=seq_len + max_new_tokens,
+        dtype=model_dtype,
+        device=torch.device("cpu"),
+    )
+
+    generated_ids = []
     with torch.inference_mode():
-        output_ids = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=False,
+        # ── Prefill: inject audio features, fill cache for all prompt tokens ──
+        out = model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            input_features=input_features,
+            feature_attention_mask=feat_attn_mask,
+            past_key_values=cache,
             use_cache=True,
-            cache_implementation="hybrid",
-            eos_token_id=[
-                tokenizer.eos_token_id,
-                tokenizer.convert_tokens_to_ids("<end_of_turn>"),
-            ],
+            cache_position=torch.arange(0, seq_len),
+            return_dict=True,
         )
-    input_len = inputs["input_ids"].shape[1]
-    # ── DEBUG: first generated tokens ────────────────────────────────────
-    if not getattr(transcribe_native, "_debug_gen_done", False):
-        transcribe_native._debug_gen_done = True
-        gen_ids = output_ids[0][input_len:input_len+15].tolist()
-        print(f"  [DEBUG] first generated token IDs: {gen_ids}")
-    generated = output_ids[0][input_len:]
-    text = tokenizer.decode(generated, skip_special_tokens=True)
+        next_tok = int(out.logits[0, -1].argmax())
+        generated_ids.append(next_tok)
+
+        # ── Decode loop: one token at a time ────────────────────────────────
+        for step in range(max_new_tokens - 1):
+            if next_tok in eos_ids:
+                break
+            # attention_mask grows by 1 per step (no padding, all real tokens)
+            cur_attn = torch.ones(1, seq_len + step + 1, dtype=torch.long)
+            out = model(
+                input_ids=torch.tensor([[next_tok]]),
+                attention_mask=cur_attn,
+                past_key_values=cache,
+                use_cache=True,
+                cache_position=torch.tensor([seq_len + step]),
+                return_dict=True,
+            )
+            next_tok = int(out.logits[0, -1].argmax())
+            generated_ids.append(next_tok)
+
+    text = tokenizer.decode(generated_ids, skip_special_tokens=True)
     return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
 
 
