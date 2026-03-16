@@ -183,12 +183,16 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
     if len(audio_array) > target_sr * 30:
         audio_array = audio_array[:target_sr * 30]
 
-    prompt = (
-        "<start_of_turn>user\n"
-        f"Instruction: {instruction} \n"
-        "Follow the text instruction based on the following audio: <SpeechHere><end_of_turn>\n"
-        "<start_of_turn>model\n"
-    )
+    # Use apply_chat_template so <bos> is prepended (matches training format).
+    # Our manual "<start_of_turn>user..." prompt was missing <bos>, causing
+    # degenerate <Speaker> output regardless of cache or audio features.
+    conversation = [{"role": "user",
+                     "content": (f"Instruction: {instruction} \n"
+                                 "Follow the text instruction based on the "
+                                 "following audio: <SpeechHere>")}]
+    prompt = processor.tokenizer.apply_chat_template(
+        conversation, tokenize=False, add_generation_prompt=True)
+
     inputs = processor(text=prompt, audios=audio_array,
                        sampling_rate=target_sr, return_tensors="pt")
     inputs = {k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
@@ -317,13 +321,12 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
     tokenizer = processor.tokenizer
     speech_token_id = model.config.speech_token_index
 
-    prompt = (
-        "<start_of_turn>user\n"
-        f"Instruction: {instruction} \n"
-        "Follow the text instruction based on the following audio: "
-        "<SpeechHere><end_of_turn>\n"
-        "<start_of_turn>model\n"
-    )
+    conversation = [{"role": "user",
+                     "content": (f"Instruction: {instruction} \n"
+                                 "Follow the text instruction based on the "
+                                 "following audio: <SpeechHere>")}]
+    prompt = tokenizer.apply_chat_template(
+        conversation, tokenize=False, add_generation_prompt=True)
     raw_ids = tokenizer.encode(prompt, add_special_tokens=False)
     try:
         pos = raw_ids.index(speech_token_id)
