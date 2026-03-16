@@ -139,23 +139,24 @@ def _apply_torchao_int4(model):
 
 
 def load_model_cpu_native(model_path: str):
-    """Load original (non-pruned) model with trust_remote_code=True.
+    """Load original (non-pruned) model for default FP32 inference.
 
-    Uses the model's own modeling code and processor — no meralion2_bl, no
-    manual cache handling.  Only suitable for the un-pruned baseline.
+    Uses meralion2_bl for loading (the same path that works for pruned models)
+    but with no quantization.  transcribe_native() then uses the native
+    processor(text=..., audios=...) interface so audio preprocessing and
+    speech-token expansion are handled by the model's own processor code.
     """
-    from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
+    from meralion2_bl.modeling_meralion2 import MERaLiON2ForConditionalGeneration
+    from transformers import AutoProcessor
 
     print(f"Loading processor …")
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
 
-    print(f"Loading model (trust_remote_code=True) in FP32 on CPU …")
+    print(f"Loading model in FP32 on CPU …")
     t0 = time.time()
-    model = AutoModelForSpeechSeq2Seq.from_pretrained(
+    model = MERaLiON2ForConditionalGeneration.from_pretrained(
         model_path,
-        trust_remote_code=True,
         torch_dtype=torch.float32,
-        attn_implementation="eager",
     )
     model = model.cpu()
     model.eval()
@@ -166,11 +167,13 @@ def load_model_cpu_native(model_path: str):
 def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: int,
                       instruction: str = "Transcribe the speech",
                       max_new_tokens: int = 128) -> str:
-    """Run ASR inference using the model's native processor interface.
+    """Run ASR inference using the native processor interface.
 
-    Mirrors the reference meralion_2.py inference: passes raw audio and prompt
-    text to processor() which handles feature extraction and speech token
-    expansion, then calls model.generate(**inputs).
+    Uses processor(text=..., audios=...) so the model's own processor handles
+    feature extraction and speech-token expansion — no manual prepare_audio.
+    Passes cache_implementation="hybrid" explicitly so generate() pre-creates
+    a HybridCache sized for prefill + max_new_tokens (avoids the overflow bug
+    that occurs when Gemma2Model.forward() creates it with max_cache_len=seq_len).
     """
     import librosa
     fe = processor.feature_extractor
@@ -197,6 +200,7 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
             max_new_tokens=max_new_tokens,
             do_sample=False,
             use_cache=True,
+            cache_implementation="hybrid",
             eos_token_id=[
                 tokenizer.eos_token_id,
                 tokenizer.convert_tokens_to_ids("<end_of_turn>"),
