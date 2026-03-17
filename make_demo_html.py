@@ -32,17 +32,30 @@ def _audio_data_uri(path: str) -> str:
     return f"data:{mime};base64,{data}"
 
 
-_ORIG_LAYERS = 26  # Gemma2 text decoder layers before pruning
+_ORIG_LAYERS = 26  # Gemma2 text decoder layers (original, no pruning)
 
 
 def _config_note(model_path: str, quant_method: str) -> str:
-    """Human-readable description from model path + quant_method."""
+    """Human-readable description from model path + quant_method.
+
+    All 26 layers are kept. mid_start layers on the left are intact,
+    (n_layers - mid_start) mid-block layers are pruned 50% each,
+    and (26 - n_layers) layers on the right are intact.
+
+      retention = (left + right + mid * 0.5) / 26
+      pruning   = 1 - retention
+    """
     name = os.path.basename(model_path.rstrip("/"))
-    m = re.search(r"-mid\d+-(\d+)", name)
+    m = re.search(r"-mid(\d+)-(\d+)", name)
     if m:
-        n_layers = int(m.group(1))
-        ratio = round((1 - n_layers / _ORIG_LAYERS) * 100)
-        prune = f"{ratio}% pruning ratio ({n_layers}/{_ORIG_LAYERS} layers)"
+        mid_start = int(m.group(1))
+        n_layers  = int(m.group(2))
+        left      = mid_start
+        mid       = n_layers - mid_start
+        right     = _ORIG_LAYERS - n_layers
+        retention = (left + right + mid * 0.5) / _ORIG_LAYERS
+        ratio     = round((1 - retention) * 100)
+        prune = f"~{ratio}% theoretical pruning ratio"
     else:
         prune = name
     qmap = {
