@@ -1,9 +1,15 @@
-"""CPU inference for pruned MERaLiON-2 using torchao INT4 weight-only quantization.
+"""CPU inference for pruned MERaLiON-2 with torchao quantization.
 
-torchao int4_weight_only() stores weights as INT4 and dequantizes on-the-fly
-during each forward pass using optimized SIMD kernels (AVX-VNNI on x86,
-NEON on ARM).  Combined with torch.compile, this achieves real INT4 GEMM
-speedup — not just smaller storage.
+Supports multiple quantization schemes:
+  - W8A8  (--w8a8):   INT8 weights + INT8 dynamic activations → real INT8 GEMM
+                       via oneDNN.  Fastest on CPUs with VNNI/AMX.
+  - W8A16 (--int8ao):  INT8 weight-only, FP32 activations (torchao, compile-ok)
+  - W4A16 (--int4):    INT4 weight-only, FP32 activations (torchao, experimental)
+  - W8A16 (default):   INT8 dynamic quantization (legacy torch.quantization)
+
+torchao stores weights as INT4/INT8 and dequantizes on-the-fly during each
+forward pass using optimized SIMD kernels (AVX-VNNI on x86, NEON on ARM).
+Combined with torch.compile, this achieves real quantized GEMM speedup.
 
 The pruned model's non-uniform layer dimensions are fully supported since
 torchao quantizes each nn.Linear independently.
@@ -124,6 +130,49 @@ def _apply_torchao_int8(model):
         pass
     raise RuntimeError(
         "torchao not found or too old for int8_weight_only. "
+        "Upgrade with: pip install torchao --upgrade")
+
+
+def _apply_torchao_w8a8(model):
+    """W8A8 (INT8 weights + INT8 dynamic activations) via torchao.
+
+    Both weights and activations are quantized to INT8, enabling real INT8 GEMM
+    on CPU via oneDNN when combined with torch.compile.  Unlike weight-only
+    schemes (which dequantize to FP32 for GEMM), this keeps the entire matmul
+    in INT8 → significant speedup on CPUs with VNNI/AMX support.
+
+    Only text_decoder.model (Gemma2 transformer blocks) is quantized — same
+    scope as _apply_int8_dynamic — to avoid corrupting speech encoder features,
+    the audio adapter projection, and the tied lm_head weights.
+    """
+    text_decoder = getattr(model, 'text_decoder', None)
+    if text_decoder is None:
+        print("  WARNING: text_decoder not found — skipping W8A8")
+        return
+    transformer = getattr(text_decoder, 'model', None)
+    if transformer is None:
+        print("  WARNING: text_decoder.model not found — skipping W8A8")
+        return
+
+    try:
+        from torchao.quantization import quantize_, Int8DynamicActivationInt8WeightConfig
+        quantize_(transformer, Int8DynamicActivationInt8WeightConfig())
+        print("  (quantized: text_decoder.model W8A8 | FP32: speech_encoder, audio_adapter, lm_head)")
+        return
+    except ImportError:
+        pass
+
+    try:
+        from torchao.quantization import quantize_, int8_dynamic_activation_int8_weight
+        quantize_(transformer, int8_dynamic_activation_int8_weight())
+        print("  (quantized: text_decoder.model W8A8 | FP32: speech_encoder, audio_adapter, lm_head)")
+        return
+    except ImportError:
+        pass
+
+    raise RuntimeError(
+        "torchao W8A8 API not found (need Int8DynamicActivationInt8WeightConfig "
+        "or int8_dynamic_activation_int8_weight). "
         "Upgrade with: pip install torchao --upgrade")
 
 
@@ -267,12 +316,15 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
 
 
 def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True,
-                   int8ao: bool = False, compile: bool = True):
+                   int8ao: bool = False, w8a8: bool = False,
+                   compile: bool = True):
     """Load pruned model on CPU with optional quantization and torch.compile.
 
     Args:
         int8:    apply PyTorch INT8 dynamic quantization (default; NOT compile-compatible)
         int8ao:  apply torchao INT8 weight-only (compile-compatible)
+        w8a8:    apply torchao W8A8 dynamic activation + weight INT8 (compile-compatible;
+                 real INT8 GEMM via oneDNN — fastest on VNNI/AMX CPUs)
         int4:    apply torchao INT4 weight-only (compile-compatible; experimental)
         compile: apply torch.compile for kernel fusion (skipped automatically for int8)
     """
@@ -295,7 +347,7 @@ def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True,
     # past_key_values".  No need to touch it here.
     print(f"  Loaded in {time.time()-t0:.1f}s")
 
-    if int8 and not int4 and not int8ao:
+    if int8 and not int4 and not int8ao and not w8a8:
         print("Applying INT8 dynamic quantization (torch.quantization.quantize_dynamic) …")
         t0 = time.time()
         _apply_int8_dynamic(model)
@@ -307,11 +359,18 @@ def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True,
             print("  (torch.compile skipped: not compatible with INT8 dynamic quant)")
         compile = False
 
-    if int8ao and not int4:
+    if int8ao and not int4 and not w8a8:
         model = model.to(torch.device("cpu"))
         print("Applying torchao INT8 weight-only quantization (compile-compatible) …")
         t0 = time.time()
         _apply_torchao_int8(model)
+        print(f"  Done in {time.time()-t0:.1f}s")
+
+    if w8a8:
+        model = model.to(torch.device("cpu"))
+        print("Applying torchao W8A8 quantization (INT8 weights + INT8 dynamic activations) …")
+        t0 = time.time()
+        _apply_torchao_w8a8(model)
         print(f"  Done in {time.time()-t0:.1f}s")
 
     if int4:
@@ -454,6 +513,9 @@ def main():
                         help="Use torchao INT4 (experimental; may break tied-weight models)")
     parser.add_argument("--int8ao", action="store_true",
                         help="Use torchao INT8 weight-only (compile-compatible, vs dynamic INT8)")
+    parser.add_argument("--w8a8", action="store_true",
+                        help="Use torchao W8A8 (INT8 weights + INT8 dynamic activations). "
+                             "Real INT8 GEMM via oneDNN — fastest on VNNI/AMX CPUs.")
     parser.add_argument("--no_compile", action="store_true",
                         help="Skip torch.compile (faster startup, slower inference)")
     parser.add_argument("--trust_remote_code", action="store_true",
@@ -469,8 +531,9 @@ def main():
     args.model = os.path.abspath(args.model)
 
     use_int8ao = not args.no_quant and args.int8ao
+    use_w8a8   = not args.no_quant and args.w8a8
     use_int4   = not args.no_quant and args.int4
-    use_int8   = not args.no_quant and not args.int4 and not args.int8ao
+    use_int8   = not args.no_quant and not args.int4 and not args.int8ao and not args.w8a8
 
     # Measure RSS before loading
     try:
@@ -485,6 +548,7 @@ def main():
         args.model,
         int8=use_int8,
         int8ao=use_int8ao,
+        w8a8=use_w8a8,
         int4=use_int4,
         compile=not args.no_compile,
     )
@@ -565,6 +629,7 @@ def main():
         avg_lat = float(np.mean(latencies))
         suffix = "_native" if args.trust_remote_code else ""
         quant_method = ("int4"   + suffix if use_int4
+                        else "w8a8"  + suffix if use_w8a8
                         else "int8ao" + suffix if use_int8ao
                         else "int8"  + suffix if use_int8
                         else "fp32"  + suffix)
