@@ -323,7 +323,7 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
 
 def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True,
                    int8ao: bool = False, w8a8: bool = False,
-                   compile: bool = True):
+                   compile: bool = True, compile_mode: str = "max-autotune"):
     """Load pruned model on CPU with optional quantization and torch.compile.
 
     Args:
@@ -394,8 +394,8 @@ def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True,
         print(f"  Done in {time.time()-t0:.1f}s")
 
     if compile:
-        print("Compiling with torch.compile (first inference will be slow) …")
-        model = torch.compile(model, mode="max-autotune")
+        print(f"Compiling with torch.compile (mode={compile_mode!r}, first inference will be slow) …")
+        model = torch.compile(model, mode=compile_mode)
 
     return model, processor
 
@@ -579,7 +579,7 @@ def _load_tensors(header: dict, packed_path: str) -> dict:
 
 def load_model_packed(packed_path: str, int4: bool = False, int8: bool = True,
                       int8ao: bool = False, w8a8: bool = False,
-                      compile: bool = True):
+                      compile: bool = True, compile_mode: str = "max-autotune"):
     """Load a .mera packed checkpoint and return (model, processor).
 
     Pipeline:
@@ -673,8 +673,8 @@ def load_model_packed(packed_path: str, int4: bool = False, int8: bool = True,
         print(f"  Done in {time.time()-t1:.1f}s")
 
     if compile:
-        print("Compiling with torch.compile (first inference will be slow) …")
-        model = torch.compile(model, mode="max-autotune")
+        print(f"Compiling with torch.compile (mode={compile_mode!r}, first inference will be slow) …")
+        model = torch.compile(model, mode=compile_mode)
 
     return model, processor
 
@@ -803,6 +803,11 @@ def main():
                              "Real INT8 GEMM via oneDNN — fastest on VNNI/AMX CPUs.")
     parser.add_argument("--no_compile", action="store_true",
                         help="Skip torch.compile (faster startup, slower inference)")
+    parser.add_argument("--compile_mode", default="max-autotune",
+                        choices=["max-autotune", "reduce-overhead", "default"],
+                        help="torch.compile mode (default: max-autotune). "
+                             "reduce-overhead: faster startup, less tuning. "
+                             "default: minimal compilation, lowest RAM.")
     parser.add_argument("--trust_remote_code", action="store_true",
                         help="Use model's native code (trust_remote_code=True). "
                              "For the original un-pruned model only. "
@@ -837,6 +842,7 @@ def main():
             w8a8=use_w8a8,
             int4=use_int4,
             compile=not args.no_compile,
+            compile_mode=args.compile_mode,
         )
     else:
         model, processor = load_model_cpu(
@@ -846,6 +852,7 @@ def main():
             w8a8=use_w8a8,
             int4=use_int4,
             compile=not args.no_compile,
+            compile_mode=args.compile_mode,
         )
 
     if _proc is not None:
@@ -932,12 +939,13 @@ def main():
         print(f"WER:          {wer:.4f}  ({wer*100:.2f}%)  [normalized]")
         print(f"Avg latency:  {avg_lat:.2f} s/sample")
         print(f"quant:        {quant_method}")
-        print(f"compiled:     {not args.no_compile}")
+        print(f"compiled:     {not args.no_compile}  (mode={args.compile_mode})")
         print(f"{'='*60}")
         result = {
             "model": args.model,
             "quant_method": quant_method,
             "compiled": not args.no_compile,
+            "compile_mode": args.compile_mode if not args.no_compile else None,
             "num_samples": args.num_samples,
             "wer": wer,
             "avg_latency_s": avg_lat,
