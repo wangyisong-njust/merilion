@@ -7,6 +7,9 @@ Supports multiple quantization schemes:
   - W4A16 (--int4):    INT4 weight-only, FP32 activations (torchao, experimental)
   - W8A16 (default):   INT8 dynamic quantization (legacy torch.quantization)
 
+Also supports loading from a packed .mera checkpoint (produced by pack_model.py).
+Pass a .mera file path to --model and quantization/compile flags apply as usual.
+
 torchao stores weights as INT4/INT8 and dequantizes on-the-fly during each
 forward pass using optimized SIMD kernels (AVX-VNNI on x86, NEON on ARM).
 Combined with torch.compile, this achieves real quantized GEMM speedup.
@@ -24,6 +27,9 @@ Usage:
     python infer_cpu.py \
         --model meralion_tune_log/MERaLiON-2-3B-v3-td50-mid3-22-tune \
         --audio sample.wav
+
+    # From packed .mera checkpoint (no HuggingFace dir needed):
+    python infer_cpu.py --model model.mera --w8a8 --audio sample.wav
 
     # WER + latency benchmark on dataset:
     python infer_cpu.py \
@@ -394,6 +400,285 @@ def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True,
     return model, processor
 
 
+# ── .mera packed checkpoint loader ──────────────────────────────────────────
+
+_MERA_MAGIC   = b"MERA"
+_MERA_VERSION = 1
+
+
+def _read_mera_header(path: str) -> tuple:
+    """Parse the binary header of a .mera file.
+
+    Returns (header_dict, tensor_data_offset) where tensor_data_offset is the
+    byte position in the file where the raw tensor data begins.
+    """
+    import struct
+    with open(path, "rb") as fh:
+        magic = fh.read(4)
+        if magic != _MERA_MAGIC:
+            raise ValueError(f"{path}: not a valid .mera file (bad magic: {magic!r})")
+        version = struct.unpack("<I", fh.read(4))[0]
+        if version != _MERA_VERSION:
+            raise ValueError(f"{path}: unsupported .mera version {version}")
+        header_len = struct.unpack("<Q", fh.read(8))[0]
+        header_bytes = fh.read(header_len)
+        tensor_data_offset = fh.tell()
+
+    header = json.loads(header_bytes.rstrip(b"\x00"))
+    return header, tensor_data_offset
+
+
+def _reconstruct_processor(header: dict):
+    """Reconstruct the MERaLiON2Processor from configs bundled in the header.
+
+    Writes tokenizer files to a temp directory, loads them with AutoTokenizer,
+    builds the WhisperFeatureExtractor from the bundled preprocessor config,
+    then instantiates MERaLiON2Processor directly — no AutoProcessor needed.
+    """
+    import base64
+    import importlib.util
+    import tempfile
+    from transformers import AutoTokenizer, WhisperFeatureExtractor
+
+    configs      = header.get("configs", {})
+    source_files = header.get("source_files", {})
+    model_config = header["model_config"]
+
+    # ── tokenizer ─────────────────────────────────────────────────────────
+    tok_dir = tempfile.mkdtemp(prefix="mera_tok_")
+    try:
+        for fname in ("tokenizer.json", "tokenizer_config.json",
+                      "special_tokens_map.json", "chat_template.json"):
+            content = configs.get(fname)
+            if content is None:
+                continue
+            fpath = os.path.join(tok_dir, fname)
+            if isinstance(content, dict):
+                with open(fpath, "w") as fh:
+                    json.dump(content, fh)
+            else:
+                with open(fpath, "w") as fh:
+                    fh.write(content)
+
+        sp = configs.get("tokenizer.model")
+        if isinstance(sp, dict) and "_base64" in sp:
+            with open(os.path.join(tok_dir, "tokenizer.model"), "wb") as fh:
+                fh.write(base64.b64decode(sp["_base64"]))
+
+        tokenizer = AutoTokenizer.from_pretrained(tok_dir)
+    finally:
+        import shutil
+        shutil.rmtree(tok_dir, ignore_errors=True)
+
+    # ── feature extractor ─────────────────────────────────────────────────
+    fe_cfg = configs.get("preprocessor_config.json", {})
+    # Remove non-constructor keys that WhisperFeatureExtractor doesn't accept
+    fe_cfg = {k: v for k, v in fe_cfg.items()
+              if not k.startswith("_") and k != "processor_class"}
+    feature_extractor = WhisperFeatureExtractor(**fe_cfg)
+
+    # ── processor class ───────────────────────────────────────────────────
+    proc_src = source_files.get("processing_meralion2.py", "")
+    if proc_src:
+        with tempfile.NamedTemporaryFile(
+                suffix=".py", prefix="mera_proc_", delete=False, mode="w") as tf:
+            tf.write(proc_src)
+            tmp_py = tf.name
+        try:
+            spec = importlib.util.spec_from_file_location("_mera_proc", tmp_py)
+            mod  = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            MERaLiON2Processor = mod.MERaLiON2Processor
+        finally:
+            os.unlink(tmp_py)
+    else:
+        # Fallback: processor source wasn't bundled, use local copy
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        proc_path  = os.path.join(script_dir, "meralion2_bl", "processing_meralion2.py")
+        if not os.path.exists(proc_path):
+            raise RuntimeError(
+                "processing_meralion2.py not bundled in .mera file and not found "
+                "in meralion2_bl/. Re-pack with a model dir that contains it.")
+        spec = importlib.util.spec_from_file_location("_mera_proc", proc_path)
+        mod  = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        MERaLiON2Processor = mod.MERaLiON2Processor
+
+    speech_token_index = model_config.get("speech_token_index", 255999)
+    return MERaLiON2Processor(
+        feature_extractor=feature_extractor,
+        tokenizer=tokenizer,
+        speech_token_index=speech_token_index,
+    )
+
+
+def _load_tensors(header: dict, packed_path: str) -> dict:
+    """Read tensor data from the .mera file, dequantize INT8 → FP32.
+
+    Uses numpy memmap so only the requested byte ranges are faulted in —
+    the full tensor section is never loaded into RAM at once.
+
+    INT8 weight tensors are stored alongside a "<name>_scale" FP32 tensor.
+    Dequantization: w_fp32 = w_int8.float() * scale (per output channel).
+    All other tensors (FP16) are cast to FP32 before returning.
+    """
+    tensor_index = header["tensors"]
+
+    # Byte offset where tensor data starts inside the file
+    _, tensor_data_start = _read_mera_header(packed_path)
+
+    mm = np.memmap(packed_path, dtype="uint8", mode="r", offset=tensor_data_start)
+
+    # Collect scale tensors first so we can dequantize in one pass
+    scales: dict = {}
+    for name, info in tensor_index.items():
+        if name.endswith("_scale") and info["dtype"] == "float32":
+            raw   = mm[info["offset"]: info["offset"] + info["nbytes"]]
+            scale = torch.from_numpy(
+                np.frombuffer(raw, dtype=np.float32).copy()
+            ).reshape(info["shape"])
+            scales[name] = scale
+
+    state_dict: dict = {}
+    n = len(tensor_index)
+    skipped_scale = 0
+    for i, (name, info) in enumerate(tensor_index.items(), 1):
+        if name.endswith("_scale"):
+            skipped_scale += 1
+            continue                     # already loaded above
+
+        raw  = mm[info["offset"]: info["offset"] + info["nbytes"]]
+        np_dtype = {"int8": np.int8, "float16": np.float16,
+                    "float32": np.float32, "bfloat16": np.uint16}.get(info["dtype"])
+        if np_dtype is None:
+            raise ValueError(f"Unknown dtype {info['dtype']!r} for tensor {name!r}")
+
+        arr    = np.frombuffer(raw, dtype=np_dtype).copy().reshape(info["shape"])
+        tensor = torch.from_numpy(arr)
+
+        if info["dtype"] == "bfloat16":
+            tensor = tensor.view(torch.bfloat16)
+
+        if info["dtype"] == "int8":
+            scale_name = name + "_scale"
+            if scale_name not in scales:
+                raise RuntimeError(f"Missing scale tensor {scale_name!r} for INT8 weight {name!r}")
+            scale    = scales[scale_name]
+            scale_bc = scale.float().reshape(-1, *([1] * (tensor.ndim - 1)))
+            tensor   = tensor.float() * scale_bc
+        else:
+            tensor = tensor.float()
+
+        state_dict[name] = tensor
+
+        if i % 100 == 0 or (i - skipped_scale) == (n - len(scales)):
+            print(f"  [{i:4d}/{n}] tensors loaded")
+
+    return state_dict
+
+
+def load_model_packed(packed_path: str, int4: bool = False, int8: bool = True,
+                      int8ao: bool = False, w8a8: bool = False,
+                      compile: bool = True):
+    """Load a .mera packed checkpoint and return (model, processor).
+
+    Pipeline:
+        1. Parse binary header  → model config + bundled processor files
+        2. Reconstruct processor (tokenizer + feature extractor)
+        3. Instantiate model architecture from config (empty weights)
+        4. Read + dequantize tensors from file  → FP32 state_dict
+        5. load_state_dict + tie_weights
+        6. Optionally apply torchao quantization (w8a8 / int8ao / int4)
+        7. Optionally torch.compile
+
+    Quantization flags have the same semantics as load_model_cpu().
+    """
+    from meralion2_bl.modeling_meralion2 import MERaLiON2ForConditionalGeneration
+    from meralion2_bl.configuration_meralion2 import MERaLiON2Config
+
+    packed_path = os.path.abspath(packed_path)
+    print(f"Loading packed checkpoint: {packed_path}")
+
+    # ── 1. parse header ────────────────────────────────────────────────────
+    t0 = time.time()
+    header, _ = _read_mera_header(packed_path)
+    print(f"  Header parsed  (format v{header['format_version']}, "
+          f"storage={header.get('storage','?')})  "
+          f"{len(header['tensors'])} tensor entries")
+
+    # ── 2. processor ───────────────────────────────────────────────────────
+    print("Reconstructing processor …")
+    processor = _reconstruct_processor(header)
+    print(f"  OK  ({time.time()-t0:.1f}s)")
+
+    # ── 3. model architecture from config ──────────────────────────────────
+    print("Instantiating model from config …")
+    config = MERaLiON2Config.from_dict(header["model_config"])
+    model  = MERaLiON2ForConditionalGeneration(config)
+    model.eval()
+
+    # ── 4. load + dequantize tensors ───────────────────────────────────────
+    print("Reading tensors …")
+    t1 = time.time()
+    state_dict = _load_tensors(header, packed_path)
+    print(f"  {len(state_dict)} tensors dequantized  ({time.time()-t1:.1f}s)")
+
+    # ── 5. populate model weights ──────────────────────────────────────────
+    print("Loading state dict …")
+    if hasattr(model, "speech_encoder"):
+        model.speech_encoder.resize_to_match(state_dict, "speech_encoder")
+    if hasattr(model, "text_decoder"):
+        model.text_decoder.resize_to_match(state_dict, "text_decoder")
+
+    msg = model.load_state_dict(state_dict, strict=False)
+    if msg.missing_keys:
+        print(f"  Missing keys  : {len(msg.missing_keys)}")
+    if msg.unexpected_keys:
+        print(f"  Unexpected    : {len(msg.unexpected_keys)}")
+
+    if "text_decoder.lm_head.weight" not in state_dict:
+        model.tie_weights()
+
+    model = model.cpu().to(torch.float32)
+    del state_dict
+    print(f"  Loaded  ({time.time()-t0:.1f}s total)")
+
+    # ── 6 & 7. quantization + compile  (same as load_model_cpu) ────────────
+    if int8 and not int4 and not int8ao and not w8a8:
+        print("Applying INT8 dynamic quantization …")
+        t1 = time.time()
+        _apply_int8_dynamic(model)
+        print(f"  Done in {time.time()-t1:.1f}s")
+        if compile:
+            print("  (torch.compile skipped: not compatible with INT8 dynamic quant)")
+        compile = False
+
+    if int8ao and not int4 and not w8a8:
+        print("Applying torchao INT8 weight-only quantization …")
+        t1 = time.time()
+        _apply_torchao_int8(model)
+        print(f"  Done in {time.time()-t1:.1f}s")
+
+    if w8a8:
+        print("Applying torchao W8A8 quantization …")
+        t1 = time.time()
+        _apply_torchao_w8a8(model)
+        print(f"  Done in {time.time()-t1:.1f}s")
+
+    if int4:
+        model = model.to(torch.device("cpu"))
+        print("Applying torchao INT4 weight-only quantization …")
+        t1 = time.time()
+        _apply_torchao_int4(model)
+        print(f"  Done in {time.time()-t1:.1f}s")
+
+    if compile:
+        print("Compiling with torch.compile (first inference will be slow) …")
+        model = torch.compile(model, mode="reduce-overhead")
+
+    return model, processor
+
+
 def prepare_audio(audio_array: np.ndarray, sample_rate: int, processor):
     """Resample, chunk, extract mel features. Returns (input_features, mask, n_speech_tokens)."""
     import librosa
@@ -497,9 +782,9 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
 
 def main():
     parser = argparse.ArgumentParser(
-        description="CPU ASR inference — pruned MERaLiON-2 with torchao INT4")
+        description="CPU ASR inference — pruned MERaLiON-2 with torchao quantization")
     parser.add_argument("--model", required=True,
-                        help="Merged pruned model dir (NOT the AWQ dir)")
+                        help="Model directory OR packed .mera checkpoint file")
     parser.add_argument("--audio", default=None,
                         help="Single audio file (.wav/.flac/.mp3)")
     parser.add_argument("--instruction", default="Transcribe the speech")
@@ -544,14 +829,24 @@ def main():
         _proc = None
         _ram_before_mb = 0.0
 
-    model, processor = load_model_cpu(
-        args.model,
-        int8=use_int8,
-        int8ao=use_int8ao,
-        w8a8=use_w8a8,
-        int4=use_int4,
-        compile=not args.no_compile,
-    )
+    if args.model.endswith(".mera"):
+        model, processor = load_model_packed(
+            args.model,
+            int8=use_int8,
+            int8ao=use_int8ao,
+            w8a8=use_w8a8,
+            int4=use_int4,
+            compile=not args.no_compile,
+        )
+    else:
+        model, processor = load_model_cpu(
+            args.model,
+            int8=use_int8,
+            int8ao=use_int8ao,
+            w8a8=use_w8a8,
+            int4=use_int4,
+            compile=not args.no_compile,
+        )
 
     if _proc is not None:
         ram_after_mb = _proc.memory_info().rss / 1e6
