@@ -395,7 +395,7 @@ def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True,
 
     if compile:
         print("Compiling with torch.compile (first inference will be slow) …")
-        model = torch.compile(model, mode="reduce-overhead")
+        model = torch.compile(model, mode="max-autotune")
 
     return model, processor
 
@@ -674,7 +674,7 @@ def load_model_packed(packed_path: str, int4: bool = False, int8: bool = True,
 
     if compile:
         print("Compiling with torch.compile (first inference will be slow) …")
-        model = torch.compile(model, mode="reduce-overhead")
+        model = torch.compile(model, mode="max-autotune")
 
     return model, processor
 
