@@ -210,6 +210,7 @@ new Chart(paretoCtx, {{
         }},
       }},
     }},
+    layout: {{ padding: {{ top: 28 }} }},
     scales: {{
       x: {{ title: {{ display: true, text: "Speedup (×)" }}, min: 0 }},
       y: {{ title: {{ display: true, text: "Accuracy (%)" }} }},
@@ -241,7 +242,7 @@ SAMPLES.forEach((s, idx) => {{
       </div>
       ${{audioHtml}}
       <div class="ref-box"><span class="text-muted">Reference: </span>${{s.reference}}</div>
-      <div class="pred-box" id="pred-${{idx}}">—</div>
+      <div class="pred-box"><span class="text-muted">Prediction: </span><span id="pred-${{idx}}">—</span></div>
       <div class="lat-tag" id="lat-${{idx}}"></div>
     </div>`;
   container.appendChild(col);
