@@ -32,22 +32,18 @@ def _audio_data_uri(path: str) -> str:
     return f"data:{mime};base64,{data}"
 
 
-# Disk sizes (MB, BF16 on-disk) from benchmark — used to compute pruning ratio.
-# pruning_ratio = 1 - disk_pruned / disk_orig
-_DISK_MB = {"mid3-22": 5289, "mid3-23": 5215, "mid4-23": 5289}
-_ORIG_DISK_MB = 6622
+_ORIG_LAYERS = 26  # Gemma2 text decoder layers before pruning
 
 
 def _config_note(model_path: str, quant_method: str) -> str:
     """Human-readable description from model path + quant_method."""
     name = os.path.basename(model_path.rstrip("/"))
-    prune = None
-    for key, pruned_mb in _DISK_MB.items():
-        if key in name:
-            ratio = round((1 - pruned_mb / _ORIG_DISK_MB) * 100)
-            prune = f"{ratio}% overall pruning ratio"
-            break
-    if prune is None:
+    m = re.search(r"-mid\d+-(\d+)", name)
+    if m:
+        n_layers = int(m.group(1))
+        ratio = round((1 - n_layers / _ORIG_LAYERS) * 100)
+        prune = f"{ratio}% pruning ratio ({n_layers}/{_ORIG_LAYERS} layers)"
+    else:
         prune = name
     qmap = {
         "fp32":    "FP32, no quantization",
