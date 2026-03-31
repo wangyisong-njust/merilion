@@ -105,7 +105,8 @@ _HTML = """\
 <div class="container py-5">
 
   <h1 class="fw-bold mb-1">MERaLiON-2-3B &mdash; CPU Benchmark Demo</h1>
-  <p class="text-muted mb-4">Pruning &amp; quantization tradeoffs &middot; @@N_SAMPLES@@ samples &middot; IMDA PART1 ASR</p>
+  <p class="text-muted mb-1">Pruning &amp; quantization tradeoffs &middot; @@N_SAMPLES@@ samples &middot; IMDA PART1 ASR</p>
+  <p class="text-muted small mb-4">CPU: AMD EPYC 7742 64-Core Processor &nbsp;(on Nvidia A100 8-GPU server)</p>
 
   <!-- ── Performance Table ──────────────────────────────────────────────── -->
   <div class="card-section">
@@ -117,21 +118,21 @@ _HTML = """\
             <th>Configuration</th>
             <th>Avg Latency</th>
             <th>Speedup vs Original</th>
-            <th>Accuracy</th>
-            <th>&Delta;Accuracy vs Original</th>
+            <th>WER</th>
+            <th>&Delta;WER vs Original</th>
             <th>RAM (GB)</th>
           </tr>
         </thead>
         <tbody>@@TABLE_ROWS@@</tbody>
       </table>
     </div>
-    <p class="text-muted small mt-2 mb-0">Accuracy = 1 &minus; WER, computed on normalised text (lowercase, no punctuation).</p>
+    <p class="text-muted small mt-2 mb-0">WER computed on normalised text (lowercase, no punctuation).</p>
   </div>
 
   <!-- ── Pareto Chart ───────────────────────────────────────────────────── -->
   <div class="card-section">
-    <h4 class="mb-1">Pareto: Speedup vs Accuracy</h4>
-    <p class="text-muted small mb-3">Upper-right is better. Each point is one configuration; the dashed line
+    <h4 class="mb-1">Pareto: Speedup vs WER</h4>
+    <p class="text-muted small mb-3">Upper-left is better (higher speedup, lower WER). The dashed line
        connects the Pareto frontier where no other option beats it on <em>both</em> axes.</p>
     <canvas id="paretoChart"></canvas>
   </div>
@@ -183,7 +184,7 @@ new Chart(paretoCtx, {{
       /* Individual config points */
       ...CHART_PTS.map((pt, i) => ({{
         label: pt.label,
-        data: [{{ x: pt.speedup, y: pt.acc }}],
+        data: [{{ x: pt.speedup, y: pt.wer }}],
         backgroundColor: COLORS[i % COLORS.length],
         borderColor:     COLORS[i % COLORS.length],
         pointRadius: 9,
@@ -205,7 +206,7 @@ new Chart(paretoCtx, {{
           label: (item) => {{
             const pt = CHART_PTS[item.datasetIndex - 1];
             if (!pt) return "";
-            return `${{pt.label}} — Speedup: ${{pt.speedup.toFixed(2)}}×  Accuracy: ${{pt.acc.toFixed(2)}}%`;
+            return `${{pt.label}} — Speedup: ${{pt.speedup.toFixed(2)}}×  WER: ${{pt.wer.toFixed(1)}}%`;
           }},
         }},
       }},
@@ -213,7 +214,7 @@ new Chart(paretoCtx, {{
     layout: {{ padding: {{ top: 28 }} }},
     scales: {{
       x: {{ title: {{ display: true, text: "Speedup (×)" }}, min: 0 }},
-      y: {{ title: {{ display: true, text: "Accuracy (%)" }} }},
+      y: {{ title: {{ display: true, text: "WER (%)" }}, min: 0 }},
     }},
   }},
 }});
@@ -265,16 +266,16 @@ SAMPLES.forEach((s, idx) => {{
 # ── build ─────────────────────────────────────────────────────────────────
 
 def _pareto_frontier(points):
-    """Pareto frontier for (speedup, acc) — both higher is better.
+    """Pareto frontier for (speedup higher=better, wer lower=better).
 
-    Sort by speedup ascending; a point is non-dominated if no other point
-    has both higher speedup AND higher accuracy.
+    A point is non-dominated if no other point has both higher speedup
+    AND lower (or equal) WER.
     """
     non_dom = []
     for p in points:
         dominated = any(
-            q["speedup"] >= p["speedup"] and q["acc"] >= p["acc"]
-            and (q["speedup"] > p["speedup"] or q["acc"] > p["acc"])
+            q["speedup"] >= p["speedup"] and q["wer"] <= p["wer"]
+            and (q["speedup"] > p["speedup"] or q["wer"] < p["wer"])
             for q in points if q is not p
         )
         if not dominated:
@@ -288,37 +289,35 @@ def build_html(configs: dict, n_samples: int) -> str:
     orig_labels = list(configs.keys())
     label_map = {}
     for i, lbl in enumerate(orig_labels):
-        label_map[lbl] = "Original Model" if i == 0 else letters[i - 1]
+        label_map[lbl] = "Original Model" if i == 0 else f"Compression Plan {letters[i - 1]}"
 
     base_data = next(iter(configs.values()))
     base_lat  = base_data.get("avg_latency_s", 1.0)
-    base_acc  = (1 - base_data.get("wer", 0.0)) * 100
+    base_wer  = base_data.get("wer", 0.0) * 100
 
     # ── summary table rows ────────────────────────────────────────────────
     table_rows = ""
     for i, (orig_lbl, data) in enumerate(configs.items()):
         disp  = label_map[orig_lbl]
         lat   = data.get("avg_latency_s", 0)
-        acc   = (1 - data.get("wer", float("nan"))) * 100
+        wer   = data.get("wer", float("nan")) * 100
         ram   = data.get("ram_mb", 0) / 1024
         spd   = base_lat / lat if lat > 0 else 0
-        dacc  = acc - base_acc
+        dwer  = wer - base_wer
         row_cls = ' class="best-row"' if i == 0 else ""
         if i == 0:
-            dacc_str = "—"
+            dwer_str = "—"
             spd_str  = "—"
         else:
-            # accuracy drop → grey (not red); accuracy gain → green
-            color = "success" if dacc > 0 else "secondary"
-            dacc_str = f'<span class="text-{color}">{dacc:+.2f}%</span>'
+            dwer_str = f"{dwer:+.1f}%"
             spd_str  = f"{spd:.2f}×"
         table_rows += f"""
         <tr{row_cls}>
           <td><strong>{disp}</strong></td>
           <td>{lat:.2f} s</td>
           <td>{spd_str}</td>
-          <td class="acc-cell">{acc:.2f}%</td>
-          <td>{dacc_str}</td>
+          <td class="acc-cell">{round(wer)}%</td>
+          <td>{dwer_str}</td>
           <td>{ram:.2f} GB</td>
         </tr>"""
 
@@ -326,11 +325,11 @@ def build_html(configs: dict, n_samples: int) -> str:
     chart_pts = [
         {"label":   label_map[lbl],
          "speedup": base_lat / data.get("avg_latency_s", 1),
-         "acc":     (1 - data.get("wer", 0)) * 100}
+         "wer":     data.get("wer", 0) * 100}
         for lbl, data in configs.items()
     ]
-    pareto     = _pareto_frontier(chart_pts)
-    pareto_line = [{"x": p["speedup"], "y": p["acc"]} for p in pareto]
+    pareto      = _pareto_frontier(chart_pts)
+    pareto_line = [{"x": p["speedup"], "y": p["wer"]} for p in pareto]
 
     # ── samples data (embedded audio) ─────────────────────────────────────
     ref_data = next(
