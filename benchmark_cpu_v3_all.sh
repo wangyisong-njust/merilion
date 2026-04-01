@@ -52,52 +52,40 @@ SKIPPED=()
 
 # ── Step 1a: original model FP32 baseline (run once) ─────────────────────
 ORIG_FP32_OUT="cpu_fp32_original.json"
-if [ -f "$ORIG_FP32_OUT" ]; then
-    echo "Step 1a: original FP32 baseline already exists ($ORIG_FP32_OUT), skipping."
-else
-    echo "Step 1a: running original MERaLiON-2-3B FP32 baseline …"
-    "$PYTHON_PATH" -u infer_cpu.py \
-        --model            "$ORIGINAL" \
-        --dataset          "$DATASET" \
-        --num_samples      "$NUM_SAMPLES" \
-        --trust_remote_code \
-        --no_quant \
-        --no_compile \
-        --output           "$ORIG_FP32_OUT" \
-        || { echo "[FAIL] original FP32 baseline — aborting"; exit 1; }
-fi
+echo "Step 1a: running original MERaLiON-2-3B FP32 baseline …"
+"$PYTHON_PATH" -u infer_cpu.py \
+    --model            "$ORIGINAL" \
+    --dataset          "$DATASET" \
+    --num_samples      "$NUM_SAMPLES" \
+    --trust_remote_code \
+    --no_quant \
+    --no_compile \
+    --output           "$ORIG_FP32_OUT" \
+    || { echo "[FAIL] original FP32 baseline — aborting"; exit 1; }
 echo ""
 
 # ── Step 1b: original model INT8 (run once) ───────────────────────────────
 ORIG_INT8_OUT="cpu_int8_original.json"
-if [ -f "$ORIG_INT8_OUT" ]; then
-    echo "Step 1b: original INT8 already exists ($ORIG_INT8_OUT), skipping."
-else
-    echo "Step 1b: running original MERaLiON-2-3B INT8 …"
-    "$PYTHON_PATH" -u infer_cpu.py \
-        --model            "$ORIGINAL" \
-        --dataset          "$DATASET" \
-        --num_samples      "$NUM_SAMPLES" \
-        --trust_remote_code \
-        --output           "$ORIG_INT8_OUT" \
-        || { echo "[FAIL] original INT8 — skipping"; }
-fi
+echo "Step 1b: running original MERaLiON-2-3B INT8 …"
+"$PYTHON_PATH" -u infer_cpu.py \
+    --model            "$ORIGINAL" \
+    --dataset          "$DATASET" \
+    --num_samples      "$NUM_SAMPLES" \
+    --trust_remote_code \
+    --output           "$ORIG_INT8_OUT" \
+    || { echo "[FAIL] original INT8 — skipping"; }
 echo ""
 
 # ── Step 1c: original model INT4+compile (run once) ───────────────────────
 ORIG_INT4_OUT="cpu_int4_original.json"
-if [ -f "$ORIG_INT4_OUT" ]; then
-    echo "Step 1c: original INT4 already exists ($ORIG_INT4_OUT), skipping."
-else
-    echo "Step 1c: running original MERaLiON-2-3B INT4+compile …"
-    "$PYTHON_PATH" -u infer_cpu.py \
-        --model            "$ORIGINAL" \
-        --dataset          "$DATASET" \
-        --num_samples      "$NUM_SAMPLES" \
-        --int4 \
-        --output           "$ORIG_INT4_OUT" \
-        || { echo "[FAIL] original INT4 — skipping"; }
-fi
+echo "Step 1c: running original MERaLiON-2-3B INT4+compile …"
+"$PYTHON_PATH" -u infer_cpu.py \
+    --model            "$ORIGINAL" \
+    --dataset          "$DATASET" \
+    --num_samples      "$NUM_SAMPLES" \
+    --int4 \
+    --output           "$ORIG_INT4_OUT" \
+    || { echo "[FAIL] original INT4 — skipping"; }
 echo ""
 
 # ── Step 2+: per-config INT8 + INT4 benchmark ────────────────────────────

@@ -316,7 +316,7 @@ def build_html(configs: dict, n_samples: int) -> str:
           <td><strong>{disp}</strong></td>
           <td>{lat:.2f} s</td>
           <td>{spd_str}</td>
-          <td class="acc-cell">{round(wer)}%</td>
+          <td class="acc-cell">{wer:.2f}%</td>
           <td>{dwer_str}</td>
           <td>{ram:.2f} GB</td>
         </tr>"""
