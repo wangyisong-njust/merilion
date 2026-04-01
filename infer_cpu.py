@@ -287,7 +287,8 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
 
     generated_ids = []
     with torch.inference_mode():
-        # Prefill: process full prompt with audio features
+        # ── Prefill ──────────────────────────────────────────────────────────
+        t0 = time.time()
         out = model(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -300,8 +301,9 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
         )
         next_tok = int(out.logits[0, -1].argmax())
         generated_ids.append(next_tok)
+        t1 = time.time()
 
-        # Decode: one token at a time
+        # ── Decode ───────────────────────────────────────────────────────────
         for step in range(max_new_tokens - 1):
             if next_tok in eos_ids:
                 break
@@ -316,9 +318,17 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
             )
             next_tok = int(out.logits[0, -1].argmax())
             generated_ids.append(next_tok)
+        t2 = time.time()
+
+    prefill_s  = t1 - t0
+    decode_s   = t2 - t1
+    n_decode   = max(len(generated_ids) - 1, 1)
+    decode_tps = n_decode / decode_s if decode_s > 0 else 0.0
+    stats = {"n_tokens": len(generated_ids), "prefill_s": prefill_s,
+             "decode_s": decode_s, "decode_tps": decode_tps}
 
     text = tokenizer.decode(generated_ids, skip_special_tokens=True)
-    return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
+    return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip(), stats
 
 
 def load_model_cpu(model_path: str, int4: bool = False, int8: bool = True,
@@ -759,6 +769,7 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
             device=torch.device("cpu"),
         )
 
+    t0 = time.time()
     with torch.inference_mode():
         output_ids = model.generate(
             input_ids=input_ids,
@@ -774,10 +785,16 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
                 tokenizer.convert_tokens_to_ids("<end_of_turn>"),
             ],
         )
+    total_s = time.time() - t0
 
-    generated = output_ids[0][input_ids.shape[1]:]
+    generated  = output_ids[0][input_ids.shape[1]:]
+    n_tokens   = max(len(generated), 1)
+    # generate() fuses prefill+decode; tps is slightly conservative (lower bound)
+    decode_tps = n_tokens / total_s if total_s > 0 else 0.0
+    stats = {"n_tokens": n_tokens, "decode_tps": decode_tps}
+
     text = tokenizer.decode(generated, skip_special_tokens=True)
-    return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
+    return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip(), stats
 
 
 def main():
@@ -871,10 +888,10 @@ def main():
             audio = audio.mean(axis=-1)
         audio = audio.astype(np.float32)
         t0 = time.time()
-        text = _infer(model, processor, audio, sr,
-                      instruction=args.instruction,
-                      max_new_tokens=args.max_new_tokens)
-        print(f"\nTranscription ({time.time()-t0:.2f}s):\n  {text}")
+        text, stats = _infer(model, processor, audio, sr,
+                             instruction=args.instruction,
+                             max_new_tokens=args.max_new_tokens)
+        print(f"\nTranscription ({time.time()-t0:.2f}s, {stats['decode_tps']:.1f} tok/s):\n  {text}")
         return
 
     # ── dataset benchmark + WER ────────────────────────────────────────────
@@ -910,15 +927,17 @@ def main():
                     _sf.write(audio_file, audio, sr)
 
             t0 = time.time()
-            pred = _infer(model, processor, audio, sr,
-                          instruction=instr,
-                          max_new_tokens=args.max_new_tokens)
+            pred, stats = _infer(model, processor, audio, sr,
+                                 instruction=instr,
+                                 max_new_tokens=args.max_new_tokens)
             elapsed = time.time() - t0
             predictions.append(pred)
             references.append(ref)
             latencies.append(elapsed)
-            print(f"  [{i+1:3d}/{args.num_samples}] {elapsed:5.1f}s | {pred[:70]}")
-            entry = {"idx": i, "reference": ref, "prediction": pred, "latency_s": elapsed}
+            tps_str = f"{stats['decode_tps']:.1f} tok/s"
+            print(f"  [{i+1:3d}/{args.num_samples}] {elapsed:5.1f}s  {tps_str:>12} | {pred[:60]}")
+            entry = {"idx": i, "reference": ref, "prediction": pred,
+                     "latency_s": elapsed, **stats}
             if audio_file:
                 entry["audio_file"] = audio_file
             samples_out.append(entry)
@@ -926,9 +945,10 @@ def main():
         wer_metric = evaluate.load("wer")
         norm_preds = [_normalize_text(p) for p in predictions]
         norm_refs  = [_normalize_text(r) for r in references]
-        wer     = wer_metric.compute(predictions=norm_preds,
-                                     references=norm_refs)
-        avg_lat = float(np.mean(latencies))
+        wer         = wer_metric.compute(predictions=norm_preds, references=norm_refs)
+        avg_lat     = float(np.mean(latencies))
+        avg_tps     = float(np.mean([s["decode_tps"] for s in
+                                     [e for e in samples_out if "decode_tps" in e]]))
         suffix = "_native" if args.trust_remote_code else ""
         quant_method = ("int4"   + suffix if use_int4
                         else "w8a8"  + suffix if use_w8a8
@@ -936,10 +956,11 @@ def main():
                         else "int8"  + suffix if use_int8
                         else "fp32"  + suffix)
         print(f"\n{'='*60}")
-        print(f"WER:          {wer:.4f}  ({wer*100:.2f}%)  [normalized]")
-        print(f"Avg latency:  {avg_lat:.2f} s/sample")
-        print(f"quant:        {quant_method}")
-        print(f"compiled:     {not args.no_compile}  (mode={args.compile_mode})")
+        print(f"WER:           {wer:.4f}  ({wer*100:.2f}%)  [normalized]")
+        print(f"Avg latency:   {avg_lat:.2f} s/sample")
+        print(f"Avg decode:    {avg_tps:.2f} tok/s")
+        print(f"quant:         {quant_method}")
+        print(f"compiled:      {not args.no_compile}  (mode={args.compile_mode})")
         print(f"{'='*60}")
         result = {
             "model": args.model,
@@ -949,6 +970,7 @@ def main():
             "num_samples": args.num_samples,
             "wer": wer,
             "avg_latency_s": avg_lat,
+            "avg_decode_tps": avg_tps,
             "ram_mb": ram_after_mb,
             "latencies": latencies,
         }
