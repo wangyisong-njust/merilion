@@ -120,6 +120,7 @@ _HTML = """\
             <th>Speedup vs Original</th>
             <th>WER</th>
             <th>&Delta;WER vs Original</th>
+            <th>Decode Speed</th>
             <th>RAM (GB)</th>
           </tr>
         </thead>
@@ -302,6 +303,7 @@ def build_html(configs: dict, n_samples: int) -> str:
         lat   = data.get("avg_latency_s", 0)
         wer   = data.get("wer", float("nan")) * 100
         ram   = data.get("ram_mb", 0) / 1024
+        tps   = data.get("avg_decode_tps", None)
         spd   = base_lat / lat if lat > 0 else 0
         dwer  = wer - base_wer
         row_cls = ' class="best-row"' if i == 0 else ""
@@ -318,6 +320,7 @@ def build_html(configs: dict, n_samples: int) -> str:
           <td>{spd_str}</td>
           <td class="acc-cell">{wer:.2f}%</td>
           <td>{dwer_str}</td>
+          <td>{f"{tps:.2f} tok/s" if tps is not None else "—"}</td>
           <td>{ram:.2f} GB</td>
         </tr>"""
 
