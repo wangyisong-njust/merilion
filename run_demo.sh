@@ -40,10 +40,6 @@ INT4_MID3_22_JSON="demo_int4_mid3-22.json"
 # ── helper ────────────────────────────────────────────────────────────────
 run_if_missing() {
     local json="$1"; shift
-    if [ -f "$json" ]; then
-        echo "  [skip] $json already exists"
-        return 0
-    fi
     "$PYTHON_PATH" -u infer_cpu.py \
         --dataset     "$DATASET" \
         --num_samples "$NUM_SAMPLES" \
