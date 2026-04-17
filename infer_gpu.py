@@ -48,6 +48,36 @@ if script_dir not in sys.path:
 
 # ── shared helpers (same as infer_cpu.py) ────────────────────────────────────
 
+class NGramDraft:
+    """4-gram/3-gram draft predictor — operates on generated tokens only."""
+
+    def __init__(self, ngram_sizes: tuple = (3, 4)):
+        self.ngram_sizes = sorted(ngram_sizes, reverse=True)
+
+    def propose(self, ctx: list, gamma: int) -> list:
+        draft: list = []
+        cur = list(ctx)
+        for _ in range(gamma):
+            tok = self._next(cur)
+            if tok is None:
+                break
+            draft.append(tok)
+            cur.append(tok)
+        return draft
+
+    def _next(self, ctx: list):
+        n = len(ctx)
+        for ng in self.ngram_sizes:
+            plen = ng - 1
+            if n < ng:
+                continue
+            prefix = ctx[-plen:]
+            for i in range(n - ng):
+                if ctx[i: i + plen] == prefix:
+                    return ctx[i + plen]
+        return None
+
+
 def _normalize_text(text: str) -> str:
     text = text.lower()
     text = re.sub(r"[^\w\s]", "", text)
@@ -290,33 +320,152 @@ def transcribe_gpu(model, processor, audio_array: np.ndarray, sample_rate: int,
             device=_actual_device,
         )
 
-    gen_kwargs = dict(
-        input_ids=input_ids,
-        attention_mask=attention_mask,
-        input_features=input_features,
-        feature_attention_mask=feature_attention_mask,
-        max_new_tokens=max_new_tokens,
-        do_sample=False,
-        use_cache=True,
-        past_key_values=past_kv,
-        eos_token_id=[
-            tokenizer.eos_token_id,
-            tokenizer.convert_tokens_to_ids("<end_of_turn>"),
-        ],
-    )
-    if speculative:
-        # n-gram prompt-lookup speculative decoding — GPU batches the K+1
-        # verification step cheaply; acceptance rate typically 40-70%.
-        gen_kwargs["prompt_lookup_num_tokens"] = gamma
+    eos_ids = {
+        tokenizer.eos_token_id,
+        tokenizer.convert_tokens_to_ids("<end_of_turn>"),
+    }
+    seq_len = input_ids.shape[1]
 
+    if speculative:
+        # Manual decode loop — n-gram context built from generated tokens ONLY.
+        # prompt_lookup_num_tokens (HF built-in) searches the full input_ids which
+        # contains ~100 repeated speech_token_id (255999) placeholders; those match
+        # everywhere and always propose speech tokens → acceptance = 0.
+        # This loop mirrors transcribe_native() in infer_cpu.py, ported to CUDA.
+        ngram = NGramDraft()
+        generated_ids = []
+        n_spec_acc = n_spec_tot = 0
+
+        torch.cuda.synchronize()
+        t0 = time.time()
+        with torch.inference_mode():
+            # Prefill
+            out = model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                input_features=input_features,
+                feature_attention_mask=feature_attention_mask,
+                past_key_values=past_kv,
+                use_cache=True,
+                cache_position=torch.arange(0, seq_len, device=_actual_device),
+                return_dict=True,
+            )
+            next_tok = int(out.logits[0, -1].argmax())
+            generated_ids.append(next_tok)
+            torch.cuda.synchronize()
+            t1 = time.time()
+
+            all_ctx = list(generated_ids)
+            cur_pos = seq_len
+
+            while len(generated_ids) < max_new_tokens:
+                if next_tok in eos_ids:
+                    break
+
+                draft = ngram.propose(all_ctx, gamma)
+
+                if draft:
+                    K        = len(draft)
+                    spec_ids = torch.tensor([[next_tok] + draft],
+                                            dtype=torch.long, device=_actual_device)
+                    spec_attn = torch.ones(1, cur_pos + K + 1,
+                                           dtype=torch.long, device=_actual_device)
+                    spec_cpos = torch.arange(cur_pos, cur_pos + K + 1,
+                                             device=_actual_device)
+
+                    out = model(
+                        input_ids=spec_ids,
+                        attention_mask=spec_attn,
+                        past_key_values=past_kv,
+                        use_cache=True,
+                        cache_position=spec_cpos,
+                        return_dict=True,
+                    )
+                    n_spec_tot += K
+
+                    n_acc = 0
+                    stopped = False
+                    for i in range(K):
+                        if len(generated_ids) >= max_new_tokens:
+                            stopped = True
+                            break
+                        pred = int(out.logits[0, i].argmax())
+                        if pred == draft[i]:
+                            generated_ids.append(draft[i])
+                            all_ctx.append(draft[i])
+                            n_acc += 1
+                            n_spec_acc += 1
+                            if draft[i] in eos_ids:
+                                next_tok = draft[i]
+                                stopped = True
+                                break
+                        else:
+                            generated_ids.append(pred)
+                            all_ctx.append(pred)
+                            next_tok = pred
+                            n_acc += 1
+                            stopped = True
+                            break
+
+                    if not stopped and len(generated_ids) < max_new_tokens:
+                        bonus = int(out.logits[0, K].argmax())
+                        generated_ids.append(bonus)
+                        all_ctx.append(bonus)
+                        next_tok = bonus
+                        n_acc += 1
+
+                    cur_pos += n_acc
+
+                else:
+                    cur_attn = torch.ones(1, cur_pos + 1,
+                                          dtype=torch.long, device=_actual_device)
+                    out = model(
+                        input_ids=torch.tensor([[next_tok]],
+                                               dtype=torch.long, device=_actual_device),
+                        attention_mask=cur_attn,
+                        past_key_values=past_kv,
+                        use_cache=True,
+                        cache_position=torch.tensor([cur_pos], device=_actual_device),
+                        return_dict=True,
+                    )
+                    next_tok = int(out.logits[0, -1].argmax())
+                    generated_ids.append(next_tok)
+                    all_ctx.append(next_tok)
+                    cur_pos += 1
+
+            torch.cuda.synchronize()
+            t2 = time.time()
+
+        total_s    = t2 - t0
+        generated  = generated_ids
+        n_tokens   = max(len(generated), 1)
+        decode_tps = max(len(generated) - 1, 1) / (t2 - t1) if t2 > t1 else 0.0
+        stats = {"n_tokens": n_tokens, "decode_tps": decode_tps}
+        if n_spec_tot > 0:
+            stats["spec_accept_rate"] = n_spec_acc / n_spec_tot
+
+        text = tokenizer.decode(generated, skip_special_tokens=True)
+        return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip(), stats
+
+    # ── Non-speculative: use model.generate() ────────────────────────────────
     torch.cuda.synchronize()
     t0 = time.time()
     with torch.inference_mode():
-        output_ids = model.generate(**gen_kwargs)
+        output_ids = model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            input_features=input_features,
+            feature_attention_mask=feature_attention_mask,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            use_cache=True,
+            past_key_values=past_kv,
+            eos_token_id=list(eos_ids),
+        )
     torch.cuda.synchronize()
     total_s = time.time() - t0
 
-    generated  = output_ids[0][input_ids.shape[1]:]
+    generated  = output_ids[0][seq_len:]
     n_tokens   = max(len(generated), 1)
     decode_tps = n_tokens / total_s if total_s > 0 else 0.0
     stats = {"n_tokens": n_tokens, "decode_tps": decode_tps}
@@ -444,29 +593,35 @@ def main():
         avg_lat    = float(np.mean(latencies))
         avg_tps    = float(np.mean([s["decode_tps"] for s in samples_out]))
         gpu_peak_gb = torch.cuda.max_memory_allocated(args.device) / 1e9
+        acc_rates  = [s["spec_accept_rate"] for s in samples_out
+                      if "spec_accept_rate" in s]
+        avg_acc    = float(np.mean(acc_rates)) if acc_rates else None
 
         print(f"\n{'='*60}")
         print(f"WER:           {wer:.4f}  ({wer*100:.2f}%)  [normalized]")
         print(f"Avg latency:   {avg_lat:.2f} s/sample")
         print(f"Avg decode:    {avg_tps:.2f} tok/s")
+        if avg_acc is not None:
+            print(f"Spec acc rate: {avg_acc:.1%}")
         print(f"GPU VRAM peak: {gpu_peak_gb:.2f} GB")
         print(f"quant:         {args.quant}")
         print(f"device:        {args.device}")
         print(f"{'='*60}")
 
         result = {
-            "model":           args.model,
-            "quant_method":    args.quant,
-            "device":          args.device,
-            "num_samples":     args.num_samples,
-            "speculative":     args.speculative,
-            "gamma":           args.gamma if args.speculative else None,
-            "wer":             wer,
-            "avg_latency_s":   avg_lat,
-            "avg_decode_tps":  avg_tps,
-            "gpu_mem_load_gb": gpu_mem_load_gb,
-            "gpu_mem_peak_gb": gpu_peak_gb,
-            "latencies":       latencies,
+            "model":              args.model,
+            "quant_method":       args.quant,
+            "device":             args.device,
+            "num_samples":        args.num_samples,
+            "speculative":        args.speculative,
+            "gamma":              args.gamma if args.speculative else None,
+            "wer":                wer,
+            "avg_latency_s":      avg_lat,
+            "avg_decode_tps":     avg_tps,
+            "avg_spec_accept_rate": avg_acc,
+            "gpu_mem_load_gb":    gpu_mem_load_gb,
+            "gpu_mem_peak_gb":    gpu_peak_gb,
+            "latencies":          latencies,
         }
         if args.save_samples:
             result["samples"] = samples_out
