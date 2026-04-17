@@ -121,10 +121,12 @@ def load_model_gpu(model_path: str,
         )
         print("Loading model BnB INT8 on GPU …")
         t0 = time.time()
+        # device_map="auto" is required for BnB; device_map=device string fails
+        # on some transformers versions.
         model = MERaLiON2ForConditionalGeneration.from_pretrained(
             model_path,
             quantization_config=bnb_cfg,
-            device_map=device,
+            device_map="auto",
             **common_kwargs,
         )
 
@@ -135,16 +137,13 @@ def load_model_gpu(model_path: str,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_compute_dtype=torch.bfloat16,
             bnb_4bit_use_double_quant=True,
-            # INT4 skip_modules is not supported in BitsAndBytesConfig;
-            # speech encoder has relatively few weights — quantizing it is
-            # acceptable and WER impact on GPU NF4 is small in practice.
         )
         print("Loading model BnB INT4/NF4 on GPU …")
         t0 = time.time()
         model = MERaLiON2ForConditionalGeneration.from_pretrained(
             model_path,
             quantization_config=bnb_cfg,
-            device_map=device,
+            device_map="auto",
             **common_kwargs,
         )
 
@@ -153,12 +152,14 @@ def load_model_gpu(model_path: str,
         attn_impl = "flash_attention_2" if flash_attn else "sdpa"
         print(f"Loading model {quant.upper()} (attn={attn_impl}) on GPU …")
         t0 = time.time()
+        # Load to CPU first, then move to target device.
+        # device_map=<device-string> is unreliable in older transformers +
+        # meralion2_bl — model silently stays on CPU → 0.00 GB VRAM reported.
         try:
             model = MERaLiON2ForConditionalGeneration.from_pretrained(
                 model_path,
                 torch_dtype=dtype,
                 attn_implementation=attn_impl,
-                device_map=device,
                 **common_kwargs,
             )
         except Exception as e:
@@ -168,11 +169,11 @@ def load_model_gpu(model_path: str,
                     model_path,
                     torch_dtype=dtype,
                     attn_implementation="sdpa",
-                    device_map=device,
                     **common_kwargs,
                 )
             else:
                 raise
+        model = model.to(device)
 
     model.eval()
     print(f"  Loaded in {time.time()-t0:.1f}s")
@@ -218,19 +219,27 @@ def transcribe_gpu(model, processor, audio_array: np.ndarray, sample_rate: int,
         dtype=torch.long)
     attention_mask = torch.ones_like(input_ids)
 
-    # Move inputs to GPU
-    input_ids          = input_ids.to(device)
-    attention_mask     = attention_mask.to(device)
-    input_features     = input_features.to(device)
-    feature_attention_mask = feature_attention_mask.to(device)
-
-    # Cast audio features to model dtype (BnB models stay in BF16 for compute)
+    # Detect actual device from model parameters (BnB device_map="auto" may
+    # place the model on cuda:0 regardless of the `device` argument).
     try:
-        _dtype = next(p for p in model.parameters() if p.dtype in
-                      (torch.float16, torch.bfloat16)).dtype
+        _actual_device = next(p.device for p in model.parameters()
+                              if p.device.type != "cpu")
+    except StopIteration:
+        _actual_device = torch.device(device)
+
+    # Detect compute dtype (BnB quantized params report int8/uint8;
+    # fall back to bfloat16 as the safe compute dtype).
+    try:
+        _dtype = next(p.dtype for p in model.parameters()
+                      if p.dtype in (torch.float16, torch.bfloat16))
     except StopIteration:
         _dtype = torch.bfloat16
-    input_features = input_features.to(_dtype)
+
+    # Move inputs to the model's actual device
+    input_ids              = input_ids.to(_actual_device)
+    attention_mask         = attention_mask.to(_actual_device)
+    input_features         = input_features.to(_actual_device).to(_dtype)
+    feature_attention_mask = feature_attention_mask.to(_actual_device)
 
     # Pre-create cache to avoid the Gemma2 HybridCache overflow issue
     # (same workaround as infer_cpu.py:transcribe()).
@@ -249,7 +258,7 @@ def transcribe_gpu(model, processor, audio_array: np.ndarray, sample_rate: int,
             max_batch_size=1,
             max_cache_len=max_cache,
             dtype=_dtype,
-            device=torch.device(device),
+            device=_actual_device,
         )
 
     torch.cuda.synchronize()
