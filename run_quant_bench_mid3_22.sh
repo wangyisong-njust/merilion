@@ -85,3 +85,48 @@ $PYTHON_PATH -u infer_cpu.py \
     --int8ao \
     --output           "cpu_int8ao_original.json" \
     | tee cpu_int8ao_original.log
+
+# ── GPU speculative decoding benchmarks ──────────────────────────────────
+GAMMA=5
+
+echo ""
+echo "========== GPU pruned BF16: no-spec =========="
+CUDA_VISIBLE_DEVICES=$GPU $PYTHON_PATH -u infer_gpu.py \
+    --model       "$CKPT" \
+    --dataset     "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" \
+    --quant       bf16 \
+    --output      "gpu_bf16_${NAME}_nospec.json" \
+    | tee gpu_bf16_${NAME}_nospec.log
+
+echo ""
+echo "========== GPU pruned BF16: +spec γ=${GAMMA} =========="
+CUDA_VISIBLE_DEVICES=$GPU $PYTHON_PATH -u infer_gpu.py \
+    --model       "$CKPT" \
+    --dataset     "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" \
+    --quant       bf16 \
+    --speculative --gamma "$GAMMA" \
+    --output      "gpu_bf16_${NAME}_spec${GAMMA}.json" \
+    | tee gpu_bf16_${NAME}_spec${GAMMA}.log
+
+echo ""
+echo "========== GPU original BF16: no-spec =========="
+CUDA_VISIBLE_DEVICES=$GPU $PYTHON_PATH -u infer_gpu.py \
+    --model       "$ORIGINAL" \
+    --dataset     "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" \
+    --quant       bf16 \
+    --output      "gpu_bf16_original_nospec.json" \
+    | tee gpu_bf16_original_nospec.log
+
+echo ""
+echo "========== GPU original BF16: +spec γ=${GAMMA} =========="
+CUDA_VISIBLE_DEVICES=$GPU $PYTHON_PATH -u infer_gpu.py \
+    --model       "$ORIGINAL" \
+    --dataset     "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" \
+    --quant       bf16 \
+    --speculative --gamma "$GAMMA" \
+    --output      "gpu_bf16_original_spec${GAMMA}.json" \
+    | tee gpu_bf16_original_spec${GAMMA}.log

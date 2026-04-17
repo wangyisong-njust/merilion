@@ -212,7 +212,9 @@ def load_model_gpu(model_path: str,
 def transcribe_gpu(model, processor, audio_array: np.ndarray, sample_rate: int,
                    instruction: str = "Transcribe the speech",
                    max_new_tokens: int = 128,
-                   device: str = "cuda") -> tuple:
+                   device: str = "cuda",
+                   speculative: bool = False,
+                   gamma: int = 5) -> tuple:
     """Run ASR inference on GPU for a single audio sample.
 
     Uses the same audio preprocessing and input-building logic as
@@ -288,23 +290,29 @@ def transcribe_gpu(model, processor, audio_array: np.ndarray, sample_rate: int,
             device=_actual_device,
         )
 
+    gen_kwargs = dict(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+        input_features=input_features,
+        feature_attention_mask=feature_attention_mask,
+        max_new_tokens=max_new_tokens,
+        do_sample=False,
+        use_cache=True,
+        past_key_values=past_kv,
+        eos_token_id=[
+            tokenizer.eos_token_id,
+            tokenizer.convert_tokens_to_ids("<end_of_turn>"),
+        ],
+    )
+    if speculative:
+        # n-gram prompt-lookup speculative decoding — GPU batches the K+1
+        # verification step cheaply; acceptance rate typically 40-70%.
+        gen_kwargs["prompt_lookup_num_tokens"] = gamma
+
     torch.cuda.synchronize()
     t0 = time.time()
     with torch.inference_mode():
-        output_ids = model.generate(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            input_features=input_features,
-            feature_attention_mask=feature_attention_mask,
-            max_new_tokens=max_new_tokens,
-            do_sample=False,
-            use_cache=True,
-            past_key_values=past_kv,
-            eos_token_id=[
-                tokenizer.eos_token_id,
-                tokenizer.convert_tokens_to_ids("<end_of_turn>"),
-            ],
-        )
+        output_ids = model.generate(**gen_kwargs)
     torch.cuda.synchronize()
     total_s = time.time() - t0
 
@@ -341,6 +349,10 @@ def main():
     parser.add_argument("--output", default="gpu_results.json")
     parser.add_argument("--save_samples", action="store_true",
                         help="Include per-sample predictions + references in JSON output")
+    parser.add_argument("--speculative", action="store_true",
+                        help="Enable n-gram prompt-lookup speculative decoding on GPU")
+    parser.add_argument("--gamma", type=int, default=5,
+                        help="Spec decoding lookahead window (default: 5)")
     args = parser.parse_args()
     args.model = os.path.abspath(args.model)
 
@@ -364,7 +376,9 @@ def main():
         return transcribe_gpu(model, processor, audio, sr,
                               instruction=instruction,
                               max_new_tokens=args.max_new_tokens,
-                              device=args.device)
+                              device=args.device,
+                              speculative=args.speculative,
+                              gamma=args.gamma)
 
     # ── single audio file ──────────────────────────────────────────────────
     if args.audio:
@@ -445,6 +459,8 @@ def main():
             "quant_method":    args.quant,
             "device":          args.device,
             "num_samples":     args.num_samples,
+            "speculative":     args.speculative,
+            "gamma":           args.gamma if args.speculative else None,
             "wer":             wer,
             "avg_latency_s":   avg_lat,
             "avg_decode_tps":  avg_tps,
