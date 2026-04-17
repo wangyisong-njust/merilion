@@ -113,47 +113,65 @@ def load_model_gpu(model_path: str,
 
     # meralion2_bl's from_pretrained() ignores device_map and quantization_config;
     # it always loads on CPU.  For BF16/FP16 we just move to GPU afterwards.
-    # For BnB INT8/INT4 we load in FP16 on CPU, apply BnB quantization post-hoc
-    # via transformers.integrations.bitsandbytes.replace_with_bnb_linear, then
-    # move to GPU (which triggers the actual weight packing).
+    # For BnB INT8/INT4: load weights in FP16 on CPU, then manually swap each
+    # nn.Linear into a BnB-typed layer (copying the FP16 data into Int8Params /
+    # Params4bit), then .to(device) triggers BnB's cuda() hook which does the
+    # actual quantization.  This avoids the meta-tensor issue that arises when
+    # replace_with_bnb_linear() is called after weights are already loaded.
 
     # Modules to leave in FP16 — Whisper encoder + audio adapter + tied lm_head.
     BNB_SKIP = ["speech_encoder", "speech_audio_adapter", "lm_head"]
 
     if quant in ("int8", "int4"):
-        from transformers import BitsAndBytesConfig
-        from transformers.integrations.bitsandbytes import replace_with_bnb_linear
+        import bitsandbytes as bnb
+        from torch import nn as _nn
 
-        if quant == "int8":
-            bnb_cfg = BitsAndBytesConfig(
-                load_in_8bit=True,
-                llm_int8_skip_modules=BNB_SKIP,
-            )
-            print("Loading model → CPU FP16, will apply BnB INT8 post-hoc …")
-        else:
-            bnb_cfg = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype=torch.bfloat16,
-                bnb_4bit_use_double_quant=True,
-            )
-            print("Loading model → CPU FP16, will apply BnB INT4/NF4 post-hoc …")
-
+        print(f"Loading model → CPU FP16, will apply BnB {quant.upper()} post-hoc …")
         t0 = time.time()
         model = MERaLiON2ForConditionalGeneration.from_pretrained(
             model_path,
             torch_dtype=torch.float16,
             **common_kwargs,
         )
-        # Replace nn.Linear layers with BnB quantized equivalents (except skip list).
-        model = replace_with_bnb_linear(
-            model,
-            modules_to_not_convert=BNB_SKIP,
-            quantization_config=bnb_cfg,
-        )
-        model.is_loaded_in_8bit  = (quant == "int8")
-        model.is_loaded_in_4bit  = (quant == "int4")
-        # Moving to GPU triggers weight packing / quantization in BnB.
+
+        for mod_name, module in list(model.named_modules()):
+            if not isinstance(module, _nn.Linear):
+                continue
+            if any(skip in mod_name for skip in BNB_SKIP):
+                continue
+
+            # Navigate to parent
+            parts = mod_name.split(".")
+            parent = model
+            for part in parts[:-1]:
+                parent = getattr(parent, part)
+            child = parts[-1]
+
+            w = module.weight.data.cpu()   # FP16 on CPU
+            has_bias = module.bias is not None
+
+            if quant == "int8":
+                new_layer = bnb.nn.Linear8bitLt(
+                    module.in_features, module.out_features,
+                    bias=has_bias, has_fp16_weights=False, threshold=6.0,
+                )
+                new_layer.weight = bnb.nn.Int8Params(
+                    w, requires_grad=False, has_fp16_weights=False)
+            else:  # int4 NF4
+                new_layer = bnb.nn.Linear4bit(
+                    module.in_features, module.out_features,
+                    bias=has_bias, quant_type="nf4",
+                    compute_dtype=torch.bfloat16,
+                )
+                new_layer.weight = bnb.nn.Params4bit(
+                    w, requires_grad=False, quant_type="nf4")
+
+            if has_bias:
+                new_layer.bias = _nn.Parameter(module.bias.data)
+            setattr(parent, child, new_layer)
+
+        # .to(device) calls Int8Params.cuda() / Params4bit.cuda() which
+        # performs the actual weight quantization on GPU.
         model = model.to(device)
 
     else:
