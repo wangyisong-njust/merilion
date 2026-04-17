@@ -358,9 +358,13 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
         t1 = time.time()
 
         # ── Decode ───────────────────────────────────────────────────────────
-        # all_ctx: full token sequence seen so far (prompt + generated).
+        # all_ctx: generated tokens ONLY (no prompt).
+        # The prompt contains ~100 repeated speech_token_id (255999) placeholders
+        # which pollute n-gram lookup: the lookup finds speech-token prefixes
+        # everywhere and drafts 255999 forever → acceptance = 0.
+        # Using only generated text tokens avoids this entirely.
         # cur_pos: next write position in the KV cache.
-        all_ctx = list(input_ids[0].tolist()) + generated_ids
+        all_ctx = list(generated_ids)
         cur_pos = seq_len          # next_tok will be written here
         ngram   = NGramDraft() if speculative else None
 
