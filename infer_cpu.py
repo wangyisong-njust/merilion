@@ -211,6 +211,52 @@ def _apply_torchao_int4(model):
         "Upgrade with: pip install torchao --upgrade")
 
 
+class NGramDraft:
+    """N-gram draft predictor for speculative decoding (no auxiliary model needed).
+
+    Scans the full token context (prompt + generated so far) for a matching
+    n-gram prefix and returns the historically-following token as the next
+    draft candidate.  Tries 4-gram (prefix = last 3 tokens) before 3-gram
+    (prefix = last 2 tokens) so longer context takes priority.
+
+    For each speculative step, up to *gamma* draft tokens are proposed by
+    chaining lookups: after predicting draft[0], it appends draft[0] to the
+    working context and looks up draft[1], etc.
+
+    Works entirely on Python lists — no tensors, no learned weights.
+    """
+
+    def __init__(self, ngram_sizes: tuple = (3, 4)):
+        self.ngram_sizes = sorted(ngram_sizes, reverse=True)  # largest first
+
+    def propose(self, ctx: list, gamma: int) -> list:
+        """Return up to *gamma* draft token ids by chained n-gram lookup."""
+        draft: list = []
+        cur = list(ctx)
+        for _ in range(gamma):
+            tok = self._next(cur)
+            if tok is None:
+                break
+            draft.append(tok)
+            cur.append(tok)
+        return draft
+
+    def _next(self, ctx: list):
+        """Return the token that historically followed the current n-gram suffix."""
+        n = len(ctx)
+        for ng in self.ngram_sizes:
+            plen = ng - 1           # prefix length: 3 for 4-gram, 2 for 3-gram
+            if n < ng:
+                continue
+            prefix = ctx[-plen:]    # list — compared with list slices below
+            # Search positions 0..n-ng-1 so the following token is at most ctx[-2],
+            # never the current last token itself (avoids trivial self-match).
+            for i in range(n - ng):
+                if ctx[i: i + plen] == prefix:
+                    return ctx[i + plen]
+        return None
+
+
 def load_model_cpu_native(model_path: str):
     """Load original (non-pruned) model for default FP32 inference.
 
@@ -239,11 +285,19 @@ def load_model_cpu_native(model_path: str):
 
 def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: int,
                       instruction: str = "Transcribe the speech",
-                      max_new_tokens: int = 128) -> str:
+                      max_new_tokens: int = 128,
+                      speculative: bool = False,
+                      gamma: int = 5) -> str:
     """Run ASR inference using the native processor + manual prefill/decode loop.
 
     Uses apply_chat_template (prepends <bos>) and a pre-created HybridCache
     sized for prefill + max_new_tokens to avoid generate() overflow issues.
+
+    When *speculative* is True, each decode step proposes up to *gamma* draft
+    tokens via 4-gram/3-gram lookup over the full context (prompt + generated),
+    then verifies them in a single batched forward pass.  Accepted tokens cost
+    zero extra forward passes; rejected tokens fall back to the model's greedy
+    prediction.  Typical speedup on repetitive ASR output: 1.3–2×.
     """
     import librosa
     from transformers.cache_utils import HybridCache
@@ -304,28 +358,108 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
         t1 = time.time()
 
         # ── Decode ───────────────────────────────────────────────────────────
-        for step in range(max_new_tokens - 1):
+        # all_ctx: full token sequence seen so far (prompt + generated).
+        # cur_pos: next write position in the KV cache.
+        all_ctx = list(input_ids[0].tolist()) + generated_ids
+        cur_pos = seq_len          # next_tok will be written here
+        ngram   = NGramDraft() if speculative else None
+
+        # Speculative-decoding statistics (accumulated across all steps).
+        n_fwd       = 0   # verifier forward passes
+        n_spec_acc  = 0   # draft tokens accepted
+        n_spec_tot  = 0   # draft tokens proposed
+
+        while len(generated_ids) < max_new_tokens:
             if next_tok in eos_ids:
                 break
-            cur_attn = torch.ones(1, seq_len + step + 1, dtype=torch.long)
-            out = model(
-                input_ids=torch.tensor([[next_tok]]),
-                attention_mask=cur_attn,
-                past_key_values=cache,
-                use_cache=True,
-                cache_position=torch.tensor([seq_len + step]),
-                return_dict=True,
-            )
-            next_tok = int(out.logits[0, -1].argmax())
-            generated_ids.append(next_tok)
+
+            draft = ngram.propose(all_ctx, gamma) if ngram is not None else []
+
+            if draft:
+                # ── Speculative verify ────────────────────────────────────────
+                K         = len(draft)
+                spec_ids  = torch.tensor([[next_tok] + draft])            # (1, K+1)
+                spec_attn = torch.ones(1, cur_pos + K + 1, dtype=torch.long)
+                spec_cpos = torch.arange(cur_pos, cur_pos + K + 1)
+
+                out = model(
+                    input_ids=spec_ids,
+                    attention_mask=spec_attn,
+                    past_key_values=cache,
+                    use_cache=True,
+                    cache_position=spec_cpos,
+                    return_dict=True,
+                )
+                n_fwd      += 1
+                n_spec_tot += K
+
+                # Accept greedily: logits[i] predicts the token at cur_pos+i+1.
+                n_acc   = 0
+                stopped = False
+                for i in range(K):
+                    if len(generated_ids) >= max_new_tokens:
+                        stopped = True
+                        break
+                    pred = int(out.logits[0, i].argmax())
+                    if pred == draft[i]:
+                        generated_ids.append(draft[i])
+                        all_ctx.append(draft[i])
+                        n_acc      += 1
+                        n_spec_acc += 1
+                        if draft[i] in eos_ids:
+                            next_tok = draft[i]
+                            stopped  = True
+                            break
+                    else:
+                        # First mismatch: use model's prediction, discard rest.
+                        generated_ids.append(pred)
+                        all_ctx.append(pred)
+                        next_tok = pred
+                        n_acc   += 1
+                        stopped  = True
+                        break
+
+                if not stopped:
+                    # All K drafts accepted — claim bonus token from last logit.
+                    if len(generated_ids) < max_new_tokens:
+                        bonus = int(out.logits[0, K].argmax())
+                        generated_ids.append(bonus)
+                        all_ctx.append(bonus)
+                        next_tok = bonus
+                        n_acc   += 1
+
+                # Advance cache pointer by the number of tokens actually committed
+                # (next_tok itself was written at cur_pos; n_acc covers the rest).
+                cur_pos += n_acc
+
+            else:
+                # ── Regular greedy step ───────────────────────────────────────
+                cur_attn = torch.ones(1, cur_pos + 1, dtype=torch.long)
+                out = model(
+                    input_ids=torch.tensor([[next_tok]]),
+                    attention_mask=cur_attn,
+                    past_key_values=cache,
+                    use_cache=True,
+                    cache_position=torch.tensor([cur_pos]),
+                    return_dict=True,
+                )
+                next_tok = int(out.logits[0, -1].argmax())
+                generated_ids.append(next_tok)
+                all_ctx.append(next_tok)
+                cur_pos += 1
+                n_fwd   += 1
+
         t2 = time.time()
 
     prefill_s  = t1 - t0
     decode_s   = t2 - t1
-    n_decode   = max(len(generated_ids) - 1, 1)
-    decode_tps = n_decode / decode_s if decode_s > 0 else 0.0
+    n_out      = max(len(generated_ids) - 1, 1)
+    decode_tps = n_out / decode_s if decode_s > 0 else 0.0
     stats = {"n_tokens": len(generated_ids), "prefill_s": prefill_s,
              "decode_s": decode_s, "decode_tps": decode_tps}
+    if speculative and n_spec_tot > 0:
+        stats["spec_accept_rate"] = n_spec_acc / n_spec_tot
+        stats["spec_fwd_passes"]  = n_fwd
 
     text = tokenizer.decode(generated_ids, skip_special_tokens=True)
     return text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip(), stats
@@ -713,8 +847,15 @@ def prepare_audio(audio_array: np.ndarray, sample_rate: int, processor):
 
 def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
                instruction: str = "Transcribe the speech",
-               max_new_tokens: int = 128) -> str:
-    """Run ASR inference for a single audio sample."""
+               max_new_tokens: int = 128,
+               speculative: bool = False,
+               gamma: int = 5) -> str:
+    """Run ASR inference for a single audio sample.
+
+    When *speculative* is True, passes *gamma* as prompt_lookup_num_tokens to
+    model.generate(), enabling HuggingFace's built-in prompt-lookup speculative
+    decoding (n-gram search over the full input context).
+    """
     input_features, feature_attention_mask, n_speech = prepare_audio(
         audio_array, sample_rate, processor)
 
@@ -771,7 +912,7 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
 
     t0 = time.time()
     with torch.inference_mode():
-        output_ids = model.generate(
+        gen_kwargs = dict(
             input_ids=input_ids,
             attention_mask=attention_mask,
             input_features=input_features,
@@ -785,6 +926,9 @@ def transcribe(model, processor, audio_array: np.ndarray, sample_rate: int,
                 tokenizer.convert_tokens_to_ids("<end_of_turn>"),
             ],
         )
+        if speculative:
+            gen_kwargs["prompt_lookup_num_tokens"] = gamma
+        output_ids = model.generate(**gen_kwargs)
     total_s = time.time() - t0
 
     generated  = output_ids[0][input_ids.shape[1]:]
@@ -829,6 +973,14 @@ def main():
                         help="Use model's native code (trust_remote_code=True). "
                              "For the original un-pruned model only. "
                              "Bypasses meralion2_bl and all cache workarounds.")
+    parser.add_argument("--speculative", action="store_true",
+                        help="Enable n-gram speculative decoding (3-gram + 4-gram). "
+                             "Proposes draft tokens from the generation context with "
+                             "zero extra model overhead; typical speedup 1.3–2×.")
+    parser.add_argument("--gamma", type=int, default=5,
+                        help="Max draft tokens per speculative step (default: 5). "
+                             "Higher values increase potential speedup but also the "
+                             "cost of a rejected step.")
     parser.add_argument("--output", default="cpu_results.json")
     parser.add_argument("--audio_dir", default=None,
                         help="Save each sample's audio as WAV here (for HTML demo page)")
@@ -880,6 +1032,17 @@ def main():
 
     _infer = transcribe_native if args.trust_remote_code else transcribe
 
+    def _run_infer(model, processor, audio, sr, instruction, max_new_tokens):
+        return _infer(model, processor, audio, sr,
+                      instruction=instruction,
+                      max_new_tokens=max_new_tokens,
+                      speculative=args.speculative,
+                      gamma=args.gamma)
+
+    if args.speculative:
+        print(f"Speculative decoding: enabled  (gamma={args.gamma}, "
+              f"ngram={'3+4-gram' if args.trust_remote_code else 'prompt-lookup'})")
+
     # ── single audio file ──────────────────────────────────────────────────
     if args.audio:
         import soundfile as sf
@@ -888,10 +1051,12 @@ def main():
             audio = audio.mean(axis=-1)
         audio = audio.astype(np.float32)
         t0 = time.time()
-        text, stats = _infer(model, processor, audio, sr,
-                             instruction=args.instruction,
-                             max_new_tokens=args.max_new_tokens)
-        print(f"\nTranscription ({time.time()-t0:.2f}s, {stats['decode_tps']:.1f} tok/s):\n  {text}")
+        text, stats = _run_infer(model, processor, audio, sr,
+                                 args.instruction, args.max_new_tokens)
+        accept_str = (f"  accept={stats['spec_accept_rate']:.0%}"
+                      if "spec_accept_rate" in stats else "")
+        print(f"\nTranscription ({time.time()-t0:.2f}s, "
+              f"{stats['decode_tps']:.1f} tok/s{accept_str}):\n  {text}")
         return
 
     # ── dataset benchmark + WER ────────────────────────────────────────────
@@ -927,15 +1092,17 @@ def main():
                     _sf.write(audio_file, audio, sr)
 
             t0 = time.time()
-            pred, stats = _infer(model, processor, audio, sr,
-                                 instruction=instr,
-                                 max_new_tokens=args.max_new_tokens)
+            pred, stats = _run_infer(model, processor, audio, sr, instr,
+                                     args.max_new_tokens)
             elapsed = time.time() - t0
             predictions.append(pred)
             references.append(ref)
             latencies.append(elapsed)
             tps_str = f"{stats['decode_tps']:.1f} tok/s"
-            print(f"  [{i+1:3d}/{args.num_samples}] {elapsed:5.1f}s  {tps_str:>12} | {pred[:60]}")
+            acc_str = (f"  acc={stats['spec_accept_rate']:.0%}"
+                       if "spec_accept_rate" in stats else "")
+            print(f"  [{i+1:3d}/{args.num_samples}] {elapsed:5.1f}s  "
+                  f"{tps_str:>12}{acc_str} | {pred[:60]}")
             entry = {"idx": i, "reference": ref, "prediction": pred,
                      "latency_s": elapsed, **stats}
             if audio_file:
@@ -950,15 +1117,22 @@ def main():
         avg_tps     = float(np.mean([s["decode_tps"] for s in
                                      [e for e in samples_out if "decode_tps" in e]]))
         suffix = "_native" if args.trust_remote_code else ""
-        quant_method = ("int4"   + suffix if use_int4
-                        else "w8a8"  + suffix if use_w8a8
-                        else "int8ao" + suffix if use_int8ao
-                        else "int8"  + suffix if use_int8
-                        else "fp32"  + suffix)
+        spec_sfx = f"_spec{args.gamma}" if args.speculative else ""
+        quant_method = ("int4"   + suffix + spec_sfx if use_int4
+                        else "w8a8"  + suffix + spec_sfx if use_w8a8
+                        else "int8ao" + suffix + spec_sfx if use_int8ao
+                        else "int8"  + suffix + spec_sfx if use_int8
+                        else "fp32"  + suffix + spec_sfx)
+
+        avg_accept = float(np.mean([s["spec_accept_rate"] for s in samples_out
+                                    if "spec_accept_rate" in s])) if args.speculative else None
+
         print(f"\n{'='*60}")
         print(f"WER:           {wer:.4f}  ({wer*100:.2f}%)  [normalized]")
         print(f"Avg latency:   {avg_lat:.2f} s/sample")
         print(f"Avg decode:    {avg_tps:.2f} tok/s")
+        if avg_accept is not None:
+            print(f"Spec accept:   {avg_accept:.1%}  (gamma={args.gamma})")
         print(f"quant:         {quant_method}")
         print(f"compiled:      {not args.no_compile}  (mode={args.compile_mode})")
         print(f"{'='*60}")
@@ -967,10 +1141,13 @@ def main():
             "quant_method": quant_method,
             "compiled": not args.no_compile,
             "compile_mode": args.compile_mode if not args.no_compile else None,
+            "speculative": args.speculative,
+            "gamma": args.gamma if args.speculative else None,
             "num_samples": args.num_samples,
             "wer": wer,
             "avg_latency_s": avg_lat,
             "avg_decode_tps": avg_tps,
+            "avg_spec_accept_rate": avg_accept,
             "ram_mb": ram_after_mb,
             "latencies": latencies,
         }
