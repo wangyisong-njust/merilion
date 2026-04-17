@@ -111,41 +111,50 @@ def load_model_gpu(model_path: str,
 
     common_kwargs = dict(use_safetensors=True)
 
-    if quant == "int8":
-        from transformers import BitsAndBytesConfig
-        bnb_cfg = BitsAndBytesConfig(
-            load_in_8bit=True,
-            # Keep Whisper encoder + audio adapter + tied lm_head in FP16:
-            # INT8 corrupts the audio feature space and the tied-weight head.
-            llm_int8_skip_modules=["speech_encoder", "speech_audio_adapter", "lm_head"],
-        )
-        print("Loading model BnB INT8 on GPU …")
-        t0 = time.time()
-        # device_map="auto" is required for BnB; device_map=device string fails
-        # on some transformers versions.
-        model = MERaLiON2ForConditionalGeneration.from_pretrained(
-            model_path,
-            quantization_config=bnb_cfg,
-            device_map="auto",
-            **common_kwargs,
-        )
+    # meralion2_bl's from_pretrained() ignores device_map and quantization_config;
+    # it always loads on CPU.  For BF16/FP16 we just move to GPU afterwards.
+    # For BnB INT8/INT4 we load in FP16 on CPU, apply BnB quantization post-hoc
+    # via transformers.integrations.bitsandbytes.replace_with_bnb_linear, then
+    # move to GPU (which triggers the actual weight packing).
 
-    elif quant == "int4":
+    # Modules to leave in FP16 — Whisper encoder + audio adapter + tied lm_head.
+    BNB_SKIP = ["speech_encoder", "speech_audio_adapter", "lm_head"]
+
+    if quant in ("int8", "int4"):
         from transformers import BitsAndBytesConfig
-        bnb_cfg = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-            bnb_4bit_use_double_quant=True,
-        )
-        print("Loading model BnB INT4/NF4 on GPU …")
+        from transformers.integrations.bitsandbytes import replace_with_bnb_linear
+
+        if quant == "int8":
+            bnb_cfg = BitsAndBytesConfig(
+                load_in_8bit=True,
+                llm_int8_skip_modules=BNB_SKIP,
+            )
+            print("Loading model → CPU FP16, will apply BnB INT8 post-hoc …")
+        else:
+            bnb_cfg = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_use_double_quant=True,
+            )
+            print("Loading model → CPU FP16, will apply BnB INT4/NF4 post-hoc …")
+
         t0 = time.time()
         model = MERaLiON2ForConditionalGeneration.from_pretrained(
             model_path,
-            quantization_config=bnb_cfg,
-            device_map="auto",
+            torch_dtype=torch.float16,
             **common_kwargs,
         )
+        # Replace nn.Linear layers with BnB quantized equivalents (except skip list).
+        model = replace_with_bnb_linear(
+            model,
+            modules_to_not_convert=BNB_SKIP,
+            quantization_config=bnb_cfg,
+        )
+        model.is_loaded_in_8bit  = (quant == "int8")
+        model.is_loaded_in_4bit  = (quant == "int4")
+        # Moving to GPU triggers weight packing / quantization in BnB.
+        model = model.to(device)
 
     else:
         dtype = torch.bfloat16 if quant == "bf16" else torch.float16
