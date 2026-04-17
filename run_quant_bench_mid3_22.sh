@@ -22,6 +22,25 @@ NUM_BENCH_SAMPLES=50
 
 echo "[GPU $GPU] Quantization benchmark: $NAME"
 
+# ── helper: skip if JSON already exists ──────────────────────────────────
+run_cpu_if_missing() {
+    local json="$1"; shift
+    if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
+    echo "  running → $json"
+    "$PYTHON_PATH" -u infer_cpu.py --output "$json" "$@" \
+        | tee "${json%.json}.log" \
+        || { echo "[FAIL] $json"; return 1; }
+}
+
+run_gpu_if_missing() {
+    local json="$1"; shift
+    if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
+    echo "  running → $json"
+    CUDA_VISIBLE_DEVICES=$GPU "$PYTHON_PATH" -u infer_gpu.py --output "$json" "$@" \
+        | tee "${json%.json}.log" \
+        || { echo "[FAIL] $json"; return 1; }
+}
+
 CUDA_VISIBLE_DEVICES=$GPU nohup bash -c "
 echo '========== Quantize → W4A16 (AutoAWQ, calibrated) ==========' && \
 $PYTHON_PATH -u quantize_pruned_awq.py \
@@ -42,91 +61,55 @@ echo "Submitted to GPU $GPU — monitor: tail -f quant_bench_${NAME}.log"
 echo "Results: vllm_benchmark_${NAME}-{BF16,W8A16,W4A16-AWQ}.json"
 
 # ── CPU benchmarks ────────────────────────────────────────────────────────
-# Pruned mid3-22: INT8ao + torch.compile
 echo ""
 echo "========== CPU pruned: INT8ao + torch.compile =========="
-$PYTHON_PATH -u infer_cpu.py \
-    --model       "$CKPT" \
-    --dataset     "$DATASET" \
-    --num_samples "$NUM_BENCH_SAMPLES" \
-    --int8ao \
-    --output      "cpu_int8ao_${NAME}.json" \
-    | tee cpu_int8ao_${NAME}.log
+run_cpu_if_missing "cpu_int8ao_${NAME}.json" \
+    --model "$CKPT" --dataset "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" --int8ao
 
-# Original model — INT4 + compile, meralion2_bl path (model.generate)
 echo ""
-echo "========== CPU original: INT4 + compile [meralion2_bl path] =========="
-$PYTHON_PATH -u infer_cpu.py \
-    --model            "$ORIGINAL" \
-    --dataset          "$DATASET" \
-    --num_samples      "$NUM_BENCH_SAMPLES" \
-    --int4 \
-    --output           "cpu_int4_original.json" \
-    | tee cpu_int4_original.log
+echo "========== CPU original: INT4 + compile =========="
+run_cpu_if_missing "cpu_int4_original.json" \
+    --model "$ORIGINAL" --dataset "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" --int4
 
-# Original model — INT8 dynamic (no compile) vs INT8ao + compile
 echo ""
-echo "========== CPU original: INT8 dynamic (no compile) =========="
-$PYTHON_PATH -u infer_cpu.py \
-    --model            "$ORIGINAL" \
-    --dataset          "$DATASET" \
-    --num_samples      "$NUM_BENCH_SAMPLES" \
-    --trust_remote_code \
-    --output           "cpu_int8_original.json" \
-    | tee cpu_int8_original.log
+echo "========== CPU original: INT8 dynamic =========="
+run_cpu_if_missing "cpu_int8_original.json" \
+    --model "$ORIGINAL" --dataset "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" --trust_remote_code
 
 echo ""
 echo "========== CPU original: INT8ao + compile =========="
-$PYTHON_PATH -u infer_cpu.py \
-    --model            "$ORIGINAL" \
-    --dataset          "$DATASET" \
-    --num_samples      "$NUM_BENCH_SAMPLES" \
-    --trust_remote_code \
-    --int8ao \
-    --output           "cpu_int8ao_original.json" \
-    | tee cpu_int8ao_original.log
+run_cpu_if_missing "cpu_int8ao_original.json" \
+    --model "$ORIGINAL" --dataset "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" --trust_remote_code --int8ao
 
 # ── GPU speculative decoding benchmarks ──────────────────────────────────
 GAMMA=5
 
 echo ""
 echo "========== GPU pruned BF16: no-spec =========="
-CUDA_VISIBLE_DEVICES=$GPU $PYTHON_PATH -u infer_gpu.py \
-    --model       "$CKPT" \
-    --dataset     "$DATASET" \
-    --num_samples "$NUM_BENCH_SAMPLES" \
-    --quant       bf16 \
-    --output      "gpu_bf16_${NAME}_nospec.json" \
-    | tee gpu_bf16_${NAME}_nospec.log
+run_gpu_if_missing "gpu_bf16_${NAME}_nospec.json" \
+    --model "$CKPT" --dataset "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" --quant bf16
 
 echo ""
 echo "========== GPU pruned BF16: +spec γ=${GAMMA} =========="
-CUDA_VISIBLE_DEVICES=$GPU $PYTHON_PATH -u infer_gpu.py \
-    --model       "$CKPT" \
-    --dataset     "$DATASET" \
-    --num_samples "$NUM_BENCH_SAMPLES" \
-    --quant       bf16 \
-    --speculative --gamma "$GAMMA" \
-    --output      "gpu_bf16_${NAME}_spec${GAMMA}.json" \
-    | tee gpu_bf16_${NAME}_spec${GAMMA}.log
+run_gpu_if_missing "gpu_bf16_${NAME}_spec${GAMMA}.json" \
+    --model "$CKPT" --dataset "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" --quant bf16 \
+    --speculative --gamma "$GAMMA"
 
 echo ""
 echo "========== GPU original BF16: no-spec =========="
-CUDA_VISIBLE_DEVICES=$GPU $PYTHON_PATH -u infer_gpu.py \
-    --model       "$ORIGINAL" \
-    --dataset     "$DATASET" \
-    --num_samples "$NUM_BENCH_SAMPLES" \
-    --quant       bf16 \
-    --output      "gpu_bf16_original_nospec.json" \
-    | tee gpu_bf16_original_nospec.log
+run_gpu_if_missing "gpu_bf16_original_nospec.json" \
+    --model "$ORIGINAL" --dataset "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" --quant bf16
 
 echo ""
 echo "========== GPU original BF16: +spec γ=${GAMMA} =========="
-CUDA_VISIBLE_DEVICES=$GPU $PYTHON_PATH -u infer_gpu.py \
-    --model       "$ORIGINAL" \
-    --dataset     "$DATASET" \
-    --num_samples "$NUM_BENCH_SAMPLES" \
-    --quant       bf16 \
-    --speculative --gamma "$GAMMA" \
-    --output      "gpu_bf16_original_spec${GAMMA}.json" \
-    | tee gpu_bf16_original_spec${GAMMA}.log
+run_gpu_if_missing "gpu_bf16_original_spec${GAMMA}.json" \
+    --model "$ORIGINAL" --dataset "$DATASET" \
+    --num_samples "$NUM_BENCH_SAMPLES" --quant bf16 \
+    --speculative --gamma "$GAMMA"
