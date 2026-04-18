@@ -30,19 +30,19 @@ run_if_missing() {
         || { echo "[FAIL] $json"; return 1; }
 }
 
-echo "========================================"
-echo "  1. Original MERaLiON-2-3B  BF16"
-echo "========================================"
-run_if_missing "wer_original_bf16.json" \
-    --model "$ORIGINAL" --quant bf16 || exit 1
+# echo "========================================"
+# echo "  1. Original MERaLiON-2-3B  BF16"
+# echo "========================================"
+# run_if_missing "wer_original_bf16.json" \
+#     --model "$ORIGINAL" --quant bf16 || exit 1
 
-echo ""
-echo "========================================"
-echo "  2. MLX-4bit simulation (int4 group=64)"
-echo "     decoder only, encoder+adapter FP16"
-echo "========================================"
-run_if_missing "wer_mlx4_original.json" \
-    --model "$ORIGINAL" --quant mlx4 || exit 1
+# echo ""
+# echo "========================================"
+# echo "  2. MLX-4bit simulation (int4 group=64)"
+# echo "     decoder only, encoder+adapter FP16"
+# echo "========================================"
+# run_if_missing "wer_mlx4_original.json" \
+#     --model "$ORIGINAL" --quant mlx4 || exit 1
 
 echo ""
 echo "========================================"
