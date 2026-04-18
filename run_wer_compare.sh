@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# WER comparison:
+# WER comparison (full dataset):
 #   1. MERaLiON-2-3B original      — BF16 GPU (reference)
 #   2. MERaLiON-2-3B-MLX-4bit sim — MLX affine int4 (group=64)
 #      Matches majentik/MERaLiON-2-3B-MLX-4bit quantization spec:
@@ -14,7 +14,6 @@ ORIGINAL="/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
 TUNE_ROOT="meralion_tune_log"
 PRUNED="${TUNE_ROOT}/MERaLiON-2-3B-v3-td50-mid3-22-tune"
 DATASET="/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR"
-NUM_SAMPLES=200
 GPU=0
 
 export CUDA_VISIBLE_DEVICES=$GPU
@@ -25,30 +24,30 @@ run_if_missing() {
     if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
     echo "  running → $json"
     "$PYTHON_PATH" -u infer_gpu.py --output "$json" \
-        --dataset "$DATASET" --num_samples "$NUM_SAMPLES" --save_samples \
+        --dataset "$DATASET" --save_samples \
         "$@" | tee "${json%.json}.log" \
         || { echo "[FAIL] $json"; return 1; }
 }
 
-# echo "========================================"
-# echo "  1. Original MERaLiON-2-3B  BF16"
-# echo "========================================"
-# run_if_missing "wer_original_bf16.json" \
-#     --model "$ORIGINAL" --quant bf16 || exit 1
+echo "========================================"
+echo "  1. Original MERaLiON-2-3B  BF16"
+echo "========================================"
+run_if_missing "wer_full_original_bf16.json" \
+    --model "$ORIGINAL" --quant bf16 || exit 1
 
-# echo ""
-# echo "========================================"
-# echo "  2. MLX-4bit simulation (int4 group=64)"
-# echo "     decoder only, encoder+adapter FP16"
-# echo "========================================"
-# run_if_missing "wer_mlx4_original.json" \
-#     --model "$ORIGINAL" --quant mlx4 || exit 1
+echo ""
+echo "========================================"
+echo "  2. MLX-4bit simulation (int4 group=64)"
+echo "     decoder only, encoder+adapter FP16"
+echo "========================================"
+run_if_missing "wer_full_mlx4_original.json" \
+    --model "$ORIGINAL" --quant mlx4 || exit 1
 
 echo ""
 echo "========================================"
 echo "  3. Pruned mid3-22 + BnB INT8"
 echo "========================================"
-run_if_missing "wer_pruned_mid3-22_int8.json" \
+run_if_missing "wer_full_pruned_mid3-22_int8.json" \
     --model "$PRUNED" --quant int8 || exit 1
 
 echo ""
@@ -60,9 +59,9 @@ echo "========================================"
 import json, os
 
 rows = [
-    ("Original BF16 (reference)",    "wer_original_bf16.json"),
-    ("MLX-4bit sim  (decoder int4)", "wer_mlx4_original.json"),
-    ("Pruned mid3-22 + INT8",        "wer_pruned_mid3-22_int8.json"),
+    ("Original BF16 (reference)",    "wer_full_original_bf16.json"),
+    ("MLX-4bit sim  (decoder int4)", "wer_full_mlx4_original.json"),
+    ("Pruned mid3-22 + INT8",        "wer_full_pruned_mid3-22_int8.json"),
 ]
 
 ref_wer = None
