@@ -119,6 +119,137 @@ def prepare_audio(audio_array: np.ndarray, sample_rate: int, processor):
     return out.input_features, out.attention_mask, len(chunks) * SPEECH_TOKENS_PER_CHUNK
 
 
+# ── MLX-style int4 quantization ──────────────────────────────────────────────
+
+class _MLX4Linear(torch.nn.Module):
+    """Per-group asymmetric int4 linear layer matching MLX affine quantization.
+
+    Mimics mlx.nn.QuantizedLinear:
+        scale = (w_max - w_min) / 15
+        bias  = w_min
+        q     = round((w - bias) / scale)  ∈ [0, 15]
+        w_rec = scale * q + bias
+
+    Weights packed as uint8 (2×int4 per byte). Dequantized on every forward().
+    """
+    def __init__(self, in_features: int, out_features: int,
+                 has_bias: bool, group_size: int = 64):
+        super().__init__()
+        self.in_features  = in_features
+        self.out_features = out_features
+        self.group_size   = group_size
+        # Padding: in_features rounded up to nearest multiple of group_size
+        self._pad = (-in_features) % group_size
+        I_pad     = in_features + self._pad
+        n_groups  = I_pad // group_size
+        # Packed 4-bit: 2 values per byte (low nibble first)
+        self.register_buffer("weight_q",
+            torch.zeros(out_features, I_pad // 2, dtype=torch.uint8))
+        self.register_buffer("scales",
+            torch.zeros(out_features, n_groups, dtype=torch.float16))
+        self.register_buffer("zeros",
+            torch.zeros(out_features, n_groups, dtype=torch.float16))
+        if has_bias:
+            self.register_buffer("linear_bias",
+                torch.zeros(out_features, dtype=torch.float16))
+        else:
+            self.linear_bias = None
+
+    @staticmethod
+    def from_linear(module: torch.nn.Linear, group_size: int = 64) -> "_MLX4Linear":
+        O, I     = module.weight.shape
+        new      = _MLX4Linear(I, O, module.bias is not None, group_size)
+        w        = module.weight.detach().float()       # (O, I)
+        I_pad    = I + new._pad
+        n_groups = I_pad // group_size
+
+        # Pad if needed
+        if new._pad:
+            w = torch.nn.functional.pad(w, (0, new._pad))
+
+        # Per-group min/max → scale + zero
+        wg     = w.view(O, n_groups, group_size)       # (O, G_n, 64)
+        w_min  = wg.min(dim=-1).values                  # (O, G_n)
+        w_max  = wg.max(dim=-1).values
+        scale  = (w_max - w_min) / 15.0
+        scale  = scale.clamp(min=1e-8)                  # avoid /0
+        zero   = w_min                                  # = bias in MLX notation
+
+        # Quantize
+        q = ((wg - zero.unsqueeze(-1)) / scale.unsqueeze(-1))
+        q = q.round().clamp(0, 15).to(torch.uint8)     # (O, G_n, 64)
+        q = q.view(O, I_pad)
+
+        # Pack: even indices → low nibble, odd → high nibble
+        q_low  = q[:, 0::2]                            # (O, I_pad//2)
+        q_high = q[:, 1::2]
+        packed = (q_high << 4) | q_low                 # uint8
+
+        new.weight_q.copy_(packed)
+        new.scales.copy_(scale.to(torch.float16))
+        new.zeros.copy_(zero.to(torch.float16))
+        if module.bias is not None:
+            new.linear_bias.copy_(module.bias.detach().to(torch.float16))
+        return new
+
+    def _dequantize(self) -> torch.Tensor:
+        O        = self.out_features
+        I_pad    = self.weight_q.shape[1] * 2
+        n_groups = self.scales.shape[1]
+
+        # Unpack nibbles
+        lo = (self.weight_q & 0x0F).to(torch.float16)  # (O, I_pad//2)
+        hi = (self.weight_q >> 4).to(torch.float16)
+        q  = torch.stack([lo, hi], dim=-1).view(O, I_pad)  # (O, I_pad)
+
+        # Dequantize per group
+        q  = q.view(O, n_groups, self.group_size)
+        s  = self.scales.unsqueeze(-1)   # (O, G_n, 1)
+        z  = self.zeros.unsqueeze(-1)    # (O, G_n, 1)
+        w  = s * q + z                   # (O, G_n, 64)
+        w  = w.view(O, I_pad)[:, :self.in_features]  # trim pad
+        return w
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        w    = self._dequantize().to(x.dtype)
+        bias = self.linear_bias.to(x.dtype) if self.linear_bias is not None else None
+        return torch.nn.functional.linear(x, w, bias)
+
+
+def _apply_mlx4_quant(model, group_size: int = 64) -> None:
+    """Replace nn.Linear layers in text_decoder (excluding lm_head) with
+    _MLX4Linear.  speech_encoder and speech_audio_adapter are left in FP16.
+
+    Matches the quantization spec from majentik/MERaLiON-2-3B-MLX-4bit:
+        Components quantized : Decoder (Gemma2-2B) only
+        Components kept full : Whisper encoder, multi-modal adaptor
+        Bits: 4, Group size: 64
+    """
+    SKIP = {"speech_encoder", "speech_audio_adapter", "lm_head"}
+    n_replaced = 0
+    for name, module in list(model.named_modules()):
+        if not isinstance(module, torch.nn.Linear):
+            continue
+        if any(s in name for s in SKIP):
+            continue
+        if "text_decoder" not in name:
+            continue
+
+        # Navigate to parent
+        parts  = name.split(".")
+        parent = model
+        for part in parts[:-1]:
+            parent = getattr(parent, part)
+        child  = parts[-1]
+
+        setattr(parent, child,
+                _MLX4Linear.from_linear(module, group_size=group_size))
+        n_replaced += 1
+
+    print(f"  MLX4 quant: replaced {n_replaced} Linear layers "
+          f"(group_size={group_size})")
+
+
 # ── model loading ─────────────────────────────────────────────────────────────
 
 def load_model_gpu(model_path: str,
@@ -152,7 +283,18 @@ def load_model_gpu(model_path: str,
     # Modules to leave in FP16 — Whisper encoder + audio adapter + tied lm_head.
     BNB_SKIP = ["speech_encoder", "speech_audio_adapter", "lm_head"]
 
-    if quant in ("int8", "int4"):
+    if quant == "mlx4":
+        print("Loading model → CPU FP16, will apply MLX-style int4 (group=64) post-hoc …")
+        t0 = time.time()
+        model = MERaLiON2ForConditionalGeneration.from_pretrained(
+            model_path,
+            torch_dtype=torch.float16,
+            **common_kwargs,
+        )
+        _apply_mlx4_quant(model, group_size=64)
+        model = model.to(device)
+
+    elif quant in ("int8", "int4"):
         import bitsandbytes as bnb
         from torch import nn as _nn
 
@@ -489,8 +631,8 @@ def main():
     parser.add_argument("--num_samples", type=int, default=20)
     parser.add_argument("--max_new_tokens", type=int, default=128)
     parser.add_argument("--quant", default="bf16",
-                        choices=["bf16", "fp16", "int8", "int4"],
-                        help="Quantization: bf16 (default) | fp16 | int8 (BnB) | int4 (BnB NF4)")
+                        choices=["bf16", "fp16", "int8", "int4", "mlx4"],
+                        help="Quantization: bf16 (default) | fp16 | int8 (BnB) | int4 (BnB NF4) | mlx4 (MLX affine int4 group=64)")
     parser.add_argument("--no_flash_attn", action="store_true",
                         help="Use SDPA instead of FlashAttention-2")
     parser.add_argument("--device", default="cuda",
