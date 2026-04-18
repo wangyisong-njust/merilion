@@ -689,8 +689,10 @@ def main():
         import evaluate
 
         data = load_from_disk(os.path.abspath(args.dataset))
-        subset = data.shuffle(seed=42).select(
-            range(10500, 10500 + args.num_samples))
+        shuffled = data.shuffle(seed=42)
+        start = min(10500, len(shuffled))
+        end   = min(start + args.num_samples, len(shuffled))
+        subset = shuffled.select(range(start, end))
 
         # Warm up (first GPU call is slower due to kernel JIT)
         print("Warming up GPU …")
@@ -705,7 +707,8 @@ def main():
 
         predictions, references, latencies = [], [], []
         samples_out = []
-        for i in range(args.num_samples):
+        n_actual = len(subset)
+        for i in range(n_actual):
             sample = subset[i]
             audio = np.asarray(sample["context"]["audio"]["array"], dtype=np.float32)
             sr    = sample["context"]["audio"]["sampling_rate"]
@@ -722,7 +725,7 @@ def main():
             predictions.append(pred)
             references.append(ref)
             latencies.append(elapsed)
-            print(f"  [{i+1:3d}/{args.num_samples}] {elapsed:5.2f}s  "
+            print(f"  [{i+1:3d}/{n_actual}] {elapsed:5.2f}s  "
                   f"{stats['decode_tps']:6.1f} tok/s | {pred[:60]}")
             entry = {"idx": i, "reference": ref, "prediction": pred,
                      "latency_s": elapsed, **stats}

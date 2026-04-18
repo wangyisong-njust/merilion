@@ -24,7 +24,7 @@ run_if_missing() {
     if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
     echo "  running → $json"
     "$PYTHON_PATH" -u infer_gpu.py --output "$json" \
-        --dataset "$DATASET" --save_samples \
+        --dataset "$DATASET" --num_samples 999999 --save_samples \
         "$@" | tee "${json%.json}.log" \
         || { echo "[FAIL] $json"; return 1; }
 }
