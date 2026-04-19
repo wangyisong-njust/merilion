@@ -14,18 +14,15 @@ ORIGINAL="/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
 TUNE_ROOT="meralion_tune_log"
 PRUNED="${TUNE_ROOT}/MERaLiON-2-3B-v3-td50-mid3-22-tune"
 DATASET="/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR"
-GPU=0
-
-export CUDA_VISIBLE_DEVICES=$GPU
 cd "$WORKDIR"
 
-BATCH_SIZE=8
+BATCH_SIZE=256
 
 run_if_missing() {
-    local json="$1"; shift
+    local json="$1"; local gpu="$2"; shift 2
     if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
-    echo "  running → $json"
-    "$PYTHON_PATH" -u eval_wer_batch.py --output "$json" \
+    echo "  running → $json  (GPU${gpu})"
+    CUDA_VISIBLE_DEVICES=$gpu "$PYTHON_PATH" -u eval_wer_batch.py --output "$json" \
         --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
         "$@" | tee "${json%.json}.log" \
         || { echo "[FAIL] $json"; return 1; }
@@ -34,7 +31,7 @@ run_if_missing() {
 echo "========================================"
 echo "  1. Original MERaLiON-2-3B  BF16"
 echo "========================================"
-run_if_missing "wer_full_original_bf16.json" \
+run_if_missing "wer_full_original_bf16.json" 6 \
     --model "$ORIGINAL" --quant bf16 || exit 1
 
 echo ""
@@ -42,14 +39,14 @@ echo "========================================"
 echo "  2. MLX-4bit simulation (int4 group=64)"
 echo "     decoder only, encoder+adapter FP16"
 echo "========================================"
-run_if_missing "wer_full_mlx4_original.json" \
+run_if_missing "wer_full_mlx4_original.json" 6 \
     --model "$ORIGINAL" --quant mlx4 || exit 1
 
 echo ""
 echo "========================================"
 echo "  3. Pruned mid3-22 + BnB INT8"
 echo "========================================"
-run_if_missing "wer_full_pruned_mid3-22_int8.json" \
+run_if_missing "wer_full_pruned_mid3-22_int8.json" 7 \
     --model "$PRUNED" --quant int8 || exit 1
 
 echo ""
