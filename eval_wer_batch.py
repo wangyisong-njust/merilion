@@ -399,7 +399,7 @@ def main():
     else:
         shuffled = data.shuffle(seed=42)
         start    = min(10500, len(shuffled))
-        end      = min(start + args.num_samples, len(shuffled))
+        end      = len(shuffled)  # full dataset after offset
         subset   = shuffled.select(range(start, end))
     n_actual = len(subset)
     print(f"  Dataset: {n_actual} samples (batch_size={args.batch_size})")
