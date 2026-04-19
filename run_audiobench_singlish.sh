@@ -18,7 +18,7 @@ DATASET_ROOT="/home/jinchao/runtao/meralion_datasets/ASR"
 BATCH_SIZE=256
 
 # Which AudioBench Singlish parts to evaluate (space-separated)
-PARTS="imda_part1_asr_test imda_part2_asr_test imda_part3_30s_asr_test"
+PARTS="imda_part2_asr_test imda_part3_30s_asr_test"
 
 cd "$WORKDIR"
 
