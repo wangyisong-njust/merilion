@@ -375,6 +375,9 @@ def main():
     parser.add_argument("--audiobench", action="store_true",
                         help="Use AudioBench field names (context.array / answer) "
                              "and AudioBench WER normalization")
+    parser.add_argument("--resume", default=None,
+                        help="Path to existing output JSON to resume from; "
+                             "already-evaluated samples are loaded, eval continues from next idx")
     args = parser.parse_args()
     args.model = os.path.abspath(args.model)
 
@@ -433,7 +436,21 @@ def main():
     samples_out = []
     batch_size  = args.batch_size
 
-    i = 0
+    # Resume: load previously evaluated samples and skip them
+    resume_from = 0
+    if args.resume and os.path.exists(args.resume):
+        with open(args.resume) as f:
+            prev = json.load(f)
+        for entry in prev.get("samples", []):
+            predictions.append(entry["prediction"])
+            references.append(entry["reference"])
+            latencies.append(entry["latency_s"])
+            n_tokens_list.append(entry["n_tokens"])
+            samples_out.append(entry)
+        resume_from = len(samples_out)
+        print(f"  Resumed {resume_from} samples from {args.resume}, continuing from idx {resume_from}")
+
+    i = resume_from
     while i < n_actual:
         batch_end = min(i + batch_size, n_actual)
         batch     = [subset[j] for j in range(i, batch_end)]
