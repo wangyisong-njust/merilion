@@ -19,12 +19,14 @@ GPU=0
 export CUDA_VISIBLE_DEVICES=$GPU
 cd "$WORKDIR"
 
+BATCH_SIZE=8
+
 run_if_missing() {
     local json="$1"; shift
     if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
     echo "  running → $json"
-    "$PYTHON_PATH" -u infer_gpu.py --output "$json" \
-        --dataset "$DATASET" --num_samples 999999 --save_samples \
+    "$PYTHON_PATH" -u eval_wer_batch.py --output "$json" \
+        --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
         "$@" | tee "${json%.json}.log" \
         || { echo "[FAIL] $json"; return 1; }
 }
