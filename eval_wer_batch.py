@@ -38,6 +38,31 @@ def _normalize_text(text: str) -> str:
     return text.strip()
 
 
+# AudioBench normalization (matches AudioLLMs/AudioBench preprocess_text_asr)
+def _normalize_text_audiobench(text: str) -> str:
+    import jiwer
+    from whisper.normalizers import EnglishTextNormalizer
+    _jiwer_pipeline = jiwer.Compose([
+        jiwer.RemoveMultipleSpaces(),
+        jiwer.ExpandCommonEnglishContractions(),
+        jiwer.RemoveKaldiNonWords(),
+        jiwer.RemovePunctuation(),
+    ])
+    _whisper_norm = EnglishTextNormalizer()
+    text = text.lower()
+    text = _whisper_norm(text)
+    # digits to words (0-9 only; Whisper handles larger numbers)
+    for digit, word in [("0","zero"),("1","one"),("2","two"),("3","three"),
+                        ("4","four"),("5","five"),("6","six"),("7","seven"),
+                        ("8","eight"),("9","nine")]:
+        text = re.sub(r'\b' + digit + r'\b', word, text)
+    # remove bracket content [] () {} <>
+    text = re.sub(r'[\(\[\{\<][^\n\(\)\[\]\{\}\<\>]*[\)\]\}\>]', "", text)
+    text = _jiwer_pipeline(text)
+    text = re.sub(r'\b(uh|umm|um|er|ah)\b', '', text)
+    return text.strip()
+
+
 def _model_is_pruned(model) -> bool:
     try:
         cfg = model.text_decoder.model.config
@@ -347,6 +372,9 @@ def main():
     parser.add_argument("--device",     default="cuda")
     parser.add_argument("--output",     default="wer_batch.json")
     parser.add_argument("--no_flash_attn", action="store_true")
+    parser.add_argument("--audiobench", action="store_true",
+                        help="Use AudioBench field names (context.array / answer) "
+                             "and AudioBench WER normalization")
     args = parser.parse_args()
     args.model = os.path.abspath(args.model)
 
@@ -362,22 +390,41 @@ def main():
     print(f"  GPU VRAM after load: {gpu_mem_load_gb:.2f} GB")
 
     from datasets import load_from_disk
-    import evaluate
 
-    data     = load_from_disk(os.path.abspath(args.dataset))
-    shuffled = data.shuffle(seed=42)
-    start    = min(10500, len(shuffled))
-    end      = min(start + args.num_samples, len(shuffled))
-    subset   = shuffled.select(range(start, end))
+    data    = load_from_disk(os.path.abspath(args.dataset))
+    if args.audiobench:
+        # AudioBench: use all samples, no offset
+        end    = min(args.num_samples, len(data))
+        subset = data.select(range(end))
+    else:
+        shuffled = data.shuffle(seed=42)
+        start    = min(10500, len(shuffled))
+        end      = min(start + args.num_samples, len(shuffled))
+        subset   = shuffled.select(range(start, end))
     n_actual = len(subset)
     print(f"  Dataset: {n_actual} samples (batch_size={args.batch_size})")
 
+    _AUDIOBENCH_INSTR = "Please help me transcribe the speech into text."
+
+    def _get_audio_sr_ref(s):
+        if args.audiobench:
+            a   = np.asarray(s["context"]["array"], dtype=np.float32)
+            sr  = s["context"]["sampling_rate"]
+            ref = s["answer"]
+            ins = _AUDIOBENCH_INSTR
+        else:
+            a   = np.asarray(s["context"]["audio"]["array"], dtype=np.float32)
+            sr  = s["context"]["audio"]["sampling_rate"]
+            ref = s["other_attributes"]["Transcription"]
+            ins = s["instruction"]["text"] if isinstance(s["instruction"], dict) else s["instruction"]
+        if a.ndim == 2:
+            a = a.mean(axis=-1)
+        return a, sr, ref, ins
+
     # Warm up with a single sample
     print("Warming up GPU …")
-    s0    = subset[0]
-    a0    = np.asarray(s0["context"]["audio"]["array"], dtype=np.float32)
-    sr0   = s0["context"]["audio"]["sampling_rate"]
-    inst0 = s0["instruction"]["text"] if isinstance(s0["instruction"], dict) else s0["instruction"]
+    s0 = subset[0]
+    a0, sr0, _, inst0 = _get_audio_sr_ref(s0)
     infer_batch(model, processor, [a0], [sr0], inst0,
                 max_new_tokens=args.max_new_tokens, device=args.device)
     torch.cuda.reset_peak_memory_stats(args.device)
@@ -397,14 +444,11 @@ def main():
         ref_list   = []
         instr_list = []
         for s in batch:
-            a = np.asarray(s["context"]["audio"]["array"], dtype=np.float32)
-            if a.ndim == 2:
-                a = a.mean(axis=-1)
+            a, sr, ref, ins = _get_audio_sr_ref(s)
             audio_list.append(a)
-            sr_list.append(s["context"]["audio"]["sampling_rate"])
-            ref_list.append(s["other_attributes"]["Transcription"])
-            instr = s["instruction"]["text"] if isinstance(s["instruction"], dict) else s["instruction"]
-            instr_list.append(instr)
+            sr_list.append(sr)
+            ref_list.append(ref)
+            instr_list.append(ins)
 
         instr = instr_list[0]  # same instruction for all WER samples
 
@@ -443,10 +487,20 @@ def main():
                                     "latency_s": total_s, "n_tokens": n_tok, "decode_tps": tps})
         i = batch_end
 
-    wer_metric = evaluate.load("wer")
-    norm_preds  = [_normalize_text(p) for p in predictions]
-    norm_refs   = [_normalize_text(r) for r in references]
-    wer         = wer_metric.compute(predictions=norm_preds, references=norm_refs)
+    _norm_fn = _normalize_text_audiobench if args.audiobench else _normalize_text
+    norm_preds = [_norm_fn(p) or "empty" for p in predictions]
+    norm_refs  = [_norm_fn(r) or "empty" for r in references]
+    if args.audiobench:
+        from jiwer import compute_measures
+        incorrect, total = 0, 0
+        for p, r in zip(norm_preds, norm_refs):
+            m = compute_measures(r, p)
+            incorrect += m["substitutions"] + m["deletions"] + m["insertions"]
+            total     += m["substitutions"] + m["deletions"] + m["hits"]
+        wer = incorrect / total if total > 0 else 0.0
+    else:
+        import evaluate as _ev
+        wer = _ev.load("wer").compute(predictions=norm_preds, references=norm_refs)
     avg_lat     = float(np.mean(latencies))
     avg_tps     = float(np.mean([n / l for n, l in zip(n_tokens_list, latencies) if l > 0]))
     gpu_peak_gb = torch.cuda.max_memory_allocated(args.device) / 1e9
