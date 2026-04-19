@@ -21,53 +21,34 @@ BATCH_SIZE=256
 echo "========================================"
 echo "  1. Original MERaLiON-2-3B  BF16"
 echo "========================================"
-PID1=""
-if [ -f "wer_full_original_bf16.json" ]; then
-    echo "  [skip] wer_full_original_bf16.json already exists"
-else
-    echo "  launching → wer_full_original_bf16.json  (GPU6)"
-    CUDA_VISIBLE_DEVICES=6 "$PYTHON_PATH" -u eval_wer_batch.py \
-        --model "$ORIGINAL" --quant bf16 \
-        --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
-        --output wer_full_original_bf16.json \
-        > wer_full_original_bf16.log 2>&1 &
-    PID1=$!
-fi
+_resume_flag() { [ -f "$1" ] && echo "--resume $1" || echo ""; }
 
-echo ""
-echo "========================================"
-echo "  2. MLX-4bit simulation (int4 group=64)"
-echo "     decoder only, encoder+adapter FP16"
-echo "========================================"
-PID2=""
-if [ -f "wer_full_mlx4_original.json" ]; then
-    echo "  [skip] wer_full_mlx4_original.json already exists"
-else
-    echo "  launching → wer_full_mlx4_original.json  (GPU6)"
-    CUDA_VISIBLE_DEVICES=6 "$PYTHON_PATH" -u eval_wer_batch.py \
-        --model "$ORIGINAL" --quant mlx4 \
-        --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
-        --output wer_full_mlx4_original.json \
-        > wer_full_mlx4_original.log 2>&1 &
-    PID2=$!
-fi
+JSON1=wer_full_original_bf16.json
+[ -f "$JSON1" ] && echo "  resuming → $JSON1  (GPU6)" || echo "  launching → $JSON1  (GPU6)"
+CUDA_VISIBLE_DEVICES=6 "$PYTHON_PATH" -u eval_wer_batch.py \
+    --model "$ORIGINAL" --quant bf16 \
+    --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
+    --output "$JSON1" $(_resume_flag "$JSON1") \
+    > "${JSON1%.json}.log" 2>&1 &
+PID1=$!
 
-echo ""
-echo "========================================"
-echo "  3. Pruned mid3-22 + BnB INT8"
-echo "========================================"
-PID3=""
-if [ -f "wer_full_pruned_mid3-22_int8.json" ]; then
-    echo "  [skip] wer_full_pruned_mid3-22_int8.json already exists"
-else
-    echo "  launching → wer_full_pruned_mid3-22_int8.json  (GPU7)"
-    CUDA_VISIBLE_DEVICES=7 "$PYTHON_PATH" -u eval_wer_batch.py \
-        --model "$PRUNED" --quant int8 \
-        --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
-        --output wer_full_pruned_mid3-22_int8.json \
-        > wer_full_pruned_mid3-22_int8.log 2>&1 &
-    PID3=$!
-fi
+JSON2=wer_full_mlx4_original.json
+[ -f "$JSON2" ] && echo "  resuming → $JSON2  (GPU6)" || echo "  launching → $JSON2  (GPU6)"
+CUDA_VISIBLE_DEVICES=6 "$PYTHON_PATH" -u eval_wer_batch.py \
+    --model "$ORIGINAL" --quant mlx4 \
+    --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
+    --output "$JSON2" $(_resume_flag "$JSON2") \
+    > "${JSON2%.json}.log" 2>&1 &
+PID2=$!
+
+JSON3=wer_full_pruned_mid3-22_int8.json
+[ -f "$JSON3" ] && echo "  resuming → $JSON3  (GPU7)" || echo "  launching → $JSON3  (GPU7)"
+CUDA_VISIBLE_DEVICES=7 "$PYTHON_PATH" -u eval_wer_batch.py \
+    --model "$PRUNED" --quant int8 \
+    --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
+    --output "$JSON3" $(_resume_flag "$JSON3") \
+    > "${JSON3%.json}.log" 2>&1 &
+PID3=$!
 
 echo ""
 echo "Waiting for jobs …  (tail -f *.log to monitor)"
