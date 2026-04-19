@@ -18,36 +18,42 @@ cd "$WORKDIR"
 
 BATCH_SIZE=256
 
-run_if_missing() {
+launch_if_missing() {
     local json="$1"; local gpu="$2"; shift 2
-    if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
-    echo "  running → $json  (GPU${gpu})"
+    if [ -f "$json" ]; then echo "  [skip] $json already exists"; echo ""; return; fi
+    echo "  launching → $json  (GPU${gpu})"
     CUDA_VISIBLE_DEVICES=$gpu "$PYTHON_PATH" -u eval_wer_batch.py --output "$json" \
         --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
-        "$@" | tee "${json%.json}.log" \
-        || { echo "[FAIL] $json"; return 1; }
+        "$@" > "${json%.json}.log" 2>&1 &
+    echo $!
 }
 
 echo "========================================"
 echo "  1. Original MERaLiON-2-3B  BF16"
 echo "========================================"
-run_if_missing "wer_full_original_bf16.json" 6 \
-    --model "$ORIGINAL" --quant bf16 || exit 1
+PID1=$(launch_if_missing "wer_full_original_bf16.json" 6 \
+    --model "$ORIGINAL" --quant bf16)
 
 echo ""
 echo "========================================"
 echo "  2. MLX-4bit simulation (int4 group=64)"
 echo "     decoder only, encoder+adapter FP16"
 echo "========================================"
-run_if_missing "wer_full_mlx4_original.json" 6 \
-    --model "$ORIGINAL" --quant mlx4 || exit 1
+PID2=$(launch_if_missing "wer_full_mlx4_original.json" 6 \
+    --model "$ORIGINAL" --quant mlx4)
 
 echo ""
 echo "========================================"
 echo "  3. Pruned mid3-22 + BnB INT8"
 echo "========================================"
-run_if_missing "wer_full_pruned_mid3-22_int8.json" 7 \
-    --model "$PRUNED" --quant int8 || exit 1
+PID3=$(launch_if_missing "wer_full_pruned_mid3-22_int8.json" 7 \
+    --model "$PRUNED" --quant int8)
+
+echo ""
+echo "Waiting for jobs …  (tail -f *.log to monitor)"
+[ -n "$PID1" ] && wait $PID1 && echo "  [done] Original BF16"
+[ -n "$PID2" ] && wait $PID2 && echo "  [done] MLX-4bit"
+[ -n "$PID3" ] && wait $PID3 && echo "  [done] Pruned+INT8"
 
 echo ""
 echo "========================================"
