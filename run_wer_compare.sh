@@ -18,36 +18,56 @@ cd "$WORKDIR"
 
 BATCH_SIZE=256
 
-launch_if_missing() {
-    local json="$1"; local gpu="$2"; shift 2
-    if [ -f "$json" ]; then echo "  [skip] $json already exists"; echo ""; return; fi
-    echo "  launching → $json  (GPU${gpu})"
-    CUDA_VISIBLE_DEVICES=$gpu "$PYTHON_PATH" -u eval_wer_batch.py --output "$json" \
-        --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
-        "$@" > "${json%.json}.log" 2>&1 &
-    echo $!
-}
-
 echo "========================================"
 echo "  1. Original MERaLiON-2-3B  BF16"
 echo "========================================"
-PID1=$(launch_if_missing "wer_full_original_bf16.json" 6 \
-    --model "$ORIGINAL" --quant bf16)
+PID1=""
+if [ -f "wer_full_original_bf16.json" ]; then
+    echo "  [skip] wer_full_original_bf16.json already exists"
+else
+    echo "  launching → wer_full_original_bf16.json  (GPU6)"
+    CUDA_VISIBLE_DEVICES=6 "$PYTHON_PATH" -u eval_wer_batch.py \
+        --model "$ORIGINAL" --quant bf16 \
+        --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
+        --output wer_full_original_bf16.json \
+        > wer_full_original_bf16.log 2>&1 &
+    PID1=$!
+fi
 
 echo ""
 echo "========================================"
 echo "  2. MLX-4bit simulation (int4 group=64)"
 echo "     decoder only, encoder+adapter FP16"
 echo "========================================"
-PID2=$(launch_if_missing "wer_full_mlx4_original.json" 6 \
-    --model "$ORIGINAL" --quant mlx4)
+PID2=""
+if [ -f "wer_full_mlx4_original.json" ]; then
+    echo "  [skip] wer_full_mlx4_original.json already exists"
+else
+    echo "  launching → wer_full_mlx4_original.json  (GPU6)"
+    CUDA_VISIBLE_DEVICES=6 "$PYTHON_PATH" -u eval_wer_batch.py \
+        --model "$ORIGINAL" --quant mlx4 \
+        --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
+        --output wer_full_mlx4_original.json \
+        > wer_full_mlx4_original.log 2>&1 &
+    PID2=$!
+fi
 
 echo ""
 echo "========================================"
 echo "  3. Pruned mid3-22 + BnB INT8"
 echo "========================================"
-PID3=$(launch_if_missing "wer_full_pruned_mid3-22_int8.json" 7 \
-    --model "$PRUNED" --quant int8)
+PID3=""
+if [ -f "wer_full_pruned_mid3-22_int8.json" ]; then
+    echo "  [skip] wer_full_pruned_mid3-22_int8.json already exists"
+else
+    echo "  launching → wer_full_pruned_mid3-22_int8.json  (GPU7)"
+    CUDA_VISIBLE_DEVICES=7 "$PYTHON_PATH" -u eval_wer_batch.py \
+        --model "$PRUNED" --quant int8 \
+        --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
+        --output wer_full_pruned_mid3-22_int8.json \
+        > wer_full_pruned_mid3-22_int8.log 2>&1 &
+    PID3=$!
+fi
 
 echo ""
 echo "Waiting for jobs …  (tail -f *.log to monitor)"
