@@ -104,6 +104,25 @@ def _normalize_text(text: str) -> str:
     return text.strip()
 
 
+def _normalize_text_audiobench(text: str) -> str:
+    import jiwer
+    _pipeline = jiwer.Compose([
+        jiwer.RemoveMultipleSpaces(),
+        jiwer.ExpandCommonEnglishContractions(),
+        jiwer.RemoveKaldiNonWords(),
+        jiwer.RemovePunctuation(),
+    ])
+    text = text.lower()
+    for digit, word in [("0","zero"),("1","one"),("2","two"),("3","three"),
+                        ("4","four"),("5","five"),("6","six"),("7","seven"),
+                        ("8","eight"),("9","nine")]:
+        text = re.sub(r'\b' + digit + r'\b', word, text)
+    text = re.sub(r'[\(\[\{\<][^\n\(\)\[\]\{\}\<\>]*[\)\]\}\>]', "", text)
+    text = _pipeline(text)
+    text = re.sub(r'\b(uh|umm|um|er|ah)\b', '', text)
+    return text.strip()
+
+
 def _model_is_pruned(model) -> bool:
     try:
         cfg = model.text_decoder.model.config
@@ -693,6 +712,8 @@ def main():
                         help="Spec decoding lookahead window (default: 5)")
     parser.add_argument("--corpus", default=None,
                         help="Path to n-gram corpus .pkl built by build_ngram_corpus.py")
+    parser.add_argument("--audiobench_norm", action="store_true",
+                        help="Use AudioBench normalization for WER (digit→word, contractions, fillers)")
     parser.add_argument("--compile", action="store_true",
                         help="torch.compile the text decoder (best with int8/int4, non-spec path)")
     args = parser.parse_args()
@@ -801,8 +822,9 @@ def main():
             samples_out.append(entry)
 
         wer_metric = evaluate.load("wer")
-        norm_preds = [_normalize_text(p) for p in predictions]
-        norm_refs  = [_normalize_text(r) for r in references]
+        _norm = _normalize_text_audiobench if args.audiobench_norm else _normalize_text
+        norm_preds = [_norm(p) for p in predictions]
+        norm_refs  = [_norm(r) for r in references]
         wer        = wer_metric.compute(predictions=norm_preds, references=norm_refs)
         avg_lat    = float(np.mean(latencies))
         avg_tps    = float(np.mean([s["decode_tps"] for s in samples_out]))
