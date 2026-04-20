@@ -41,17 +41,14 @@ def _normalize_text(text: str) -> str:
 # AudioBench normalization (matches AudioLLMs/AudioBench preprocess_text_asr)
 def _normalize_text_audiobench(text: str) -> str:
     import jiwer
-    from whisper.normalizers import EnglishTextNormalizer
     _jiwer_pipeline = jiwer.Compose([
         jiwer.RemoveMultipleSpaces(),
         jiwer.ExpandCommonEnglishContractions(),
         jiwer.RemoveKaldiNonWords(),
         jiwer.RemovePunctuation(),
     ])
-    _whisper_norm = EnglishTextNormalizer()
     text = text.lower()
-    text = _whisper_norm(text)
-    # digits to words (0-9 only; Whisper handles larger numbers)
+    # digits to words (0-9)
     for digit, word in [("0","zero"),("1","one"),("2","two"),("3","three"),
                         ("4","four"),("5","five"),("6","six"),("7","seven"),
                         ("8","eight"),("9","nine")]:

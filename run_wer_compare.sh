@@ -91,14 +91,15 @@ def wer_on_samples(samples, n):
     from jiwer import compute_measures
     import re
     def norm(t):
-        from whisper.normalizers import EnglishTextNormalizer
+        import re as _re, jiwer as _j
         t = t.lower()
-        t = EnglishTextNormalizer()(t)
-        t = re.sub(r'[\(\[\{\<][^\n\(\)\[\]\{\}\<\>]*[\)\]\}\>]', "", t)
-        t = re.sub(r'\b(uh|umm|um|er|ah)\b', '', t)
-        import jiwer as _j
+        for d, w in [("0","zero"),("1","one"),("2","two"),("3","three"),("4","four"),
+                     ("5","five"),("6","six"),("7","seven"),("8","eight"),("9","nine")]:
+            t = _re.sub(r'\b' + d + r'\b', w, t)
+        t = _re.sub(r'[\(\[\{\<][^\n\(\)\[\]\{\}\<\>]*[\)\]\}\>]', "", t)
         t = _j.Compose([_j.RemoveMultipleSpaces(), _j.ExpandCommonEnglishContractions(),
                         _j.RemoveKaldiNonWords(), _j.RemovePunctuation()])(t)
+        t = _re.sub(r'\b(uh|umm|um|er|ah)\b', '', t)
         return t.strip() or "empty"
     inc, tot = 0, 0
     for s in samples[:n]:
