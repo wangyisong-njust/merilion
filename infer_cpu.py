@@ -226,11 +226,20 @@ class NGramDraft:
     Works entirely on Python lists — no tensors, no learned weights.
     """
 
-    def __init__(self, ngram_sizes: tuple = (3, 4)):
-        self.ngram_sizes = sorted(ngram_sizes, reverse=True)  # largest first
+    def __init__(self, ngram_sizes: tuple = (3, 4), index: dict = None):
+        self.ngram_sizes = sorted(ngram_sizes, reverse=True)
+        self.index = index or {}   # prefix_tuple → next_token_id
+
+    @classmethod
+    def from_corpus_file(cls, path: str) -> "NGramDraft":
+        import pickle
+        with open(path, "rb") as f:
+            data = pickle.load(f)
+        obj = cls(ngram_sizes=tuple(data["ngram_sizes"]), index=data["index"])
+        print(f"  NGramDraft: loaded {len(obj.index):,} prefixes from {path}")
+        return obj
 
     def propose(self, ctx: list, gamma: int) -> list:
-        """Return up to *gamma* draft token ids by chained n-gram lookup."""
         draft: list = []
         cur = list(ctx)
         for _ in range(gamma):
@@ -242,18 +251,20 @@ class NGramDraft:
         return draft
 
     def _next(self, ctx: list):
-        """Return the token that historically followed the current n-gram suffix."""
-        n = len(ctx)
         for ng in self.ngram_sizes:
-            plen = ng - 1           # prefix length: 3 for 4-gram, 2 for 3-gram
-            if n < ng:
+            plen = ng - 1
+            if len(ctx) < plen:
                 continue
-            prefix = ctx[-plen:]    # list — compared with list slices below
-            # Search positions 0..n-ng-1 so the following token is at most ctx[-2],
-            # never the current last token itself (avoids trivial self-match).
-            for i in range(n - ng):
-                if ctx[i: i + plen] == prefix:
-                    return ctx[i + plen]
+            prefix = tuple(ctx[-plen:])
+            # 1) corpus index lookup (O(1))
+            if prefix in self.index:
+                return self.index[prefix]
+            # 2) fallback: scan current generated context
+            n = len(ctx)
+            if n >= ng:
+                for i in range(n - ng):
+                    if ctx[i: i + plen] == list(prefix):
+                        return ctx[i + plen]
         return None
 
 
@@ -287,7 +298,8 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
                       instruction: str = "Transcribe the speech",
                       max_new_tokens: int = 128,
                       speculative: bool = False,
-                      gamma: int = 5) -> str:
+                      gamma: int = 5,
+                      ngram: "NGramDraft | None" = None) -> str:
     """Run ASR inference using the native processor + manual prefill/decode loop.
 
     Uses apply_chat_template (prepends <bos>) and a pre-created HybridCache
@@ -366,7 +378,7 @@ def transcribe_native(model, processor, audio_array: np.ndarray, sample_rate: in
         # cur_pos: next write position in the KV cache.
         all_ctx = list(generated_ids)
         cur_pos = seq_len          # next_tok will be written here
-        ngram   = NGramDraft() if speculative else None
+        ngram   = ngram if ngram is not None else (NGramDraft() if speculative else None)
 
         # Speculative-decoding statistics (accumulated across all steps).
         n_fwd       = 0   # verifier forward passes
@@ -985,6 +997,8 @@ def main():
                         help="Max draft tokens per speculative step (default: 5). "
                              "Higher values increase potential speedup but also the "
                              "cost of a rejected step.")
+    parser.add_argument("--corpus", default=None,
+                        help="Path to n-gram corpus .pkl built by build_ngram_corpus.py")
     parser.add_argument("--output", default="cpu_results.json")
     parser.add_argument("--audio_dir", default=None,
                         help="Save each sample's audio as WAV here (for HTML demo page)")
@@ -1037,15 +1051,25 @@ def main():
     _infer = transcribe_native if args.trust_remote_code else transcribe
 
     def _run_infer(model, processor, audio, sr, instruction, max_new_tokens):
-        return _infer(model, processor, audio, sr,
-                      instruction=instruction,
+        kwargs = dict(instruction=instruction,
                       max_new_tokens=max_new_tokens,
                       speculative=args.speculative,
                       gamma=args.gamma)
+        if args.trust_remote_code:
+            kwargs["ngram"] = _ngram
+        return _infer(model, processor, audio, sr, **kwargs)
+
+    _ngram = None
+    if args.speculative and args.trust_remote_code:
+        if args.corpus:
+            _ngram = NGramDraft.from_corpus_file(args.corpus)
+        else:
+            _ngram = NGramDraft()
 
     if args.speculative:
+        corpus_str = f", corpus={args.corpus}" if args.corpus else ""
         print(f"Speculative decoding: enabled  (gamma={args.gamma}, "
-              f"ngram={'3+4-gram' if args.trust_remote_code else 'prompt-lookup'})")
+              f"ngram={'3+4-gram' if args.trust_remote_code else 'prompt-lookup'}{corpus_str})")
 
     # ── single audio file ──────────────────────────────────────────────────
     if args.audio:
