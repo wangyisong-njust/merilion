@@ -1,9 +1,8 @@
 #!/bin/bash
 # ============================================================
-# torch.compile benchmark
-# Compares no-compile vs --compile for BF16 models:
-#   - Original MERaLiON-2-3B  BF16  (no-spec and +spec)
-#   - Pruned mid3-23           BF16  (no-spec and +spec)
+# MLX4 benchmark: no-spec vs +spec (no torch.compile)
+#   - Original MERaLiON-2-3B  MLX4
+#   - Pruned mid3-23           MLX4
 # ============================================================
 export PYTHONUNBUFFERED=1
 PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
@@ -32,66 +31,40 @@ run_if_missing() {
 
 # ════════════════════════════════════════════════════════════════════════════
 echo "========================================"
-echo "  Original MERaLiON-2-3B  BF16"
+echo "  Original MERaLiON-2-3B  MLX4"
 echo "========================================"
 
 echo ""
-echo "--- BF16 no-compile no-spec ---"
-run_if_missing "cmp_bf16_original_nospec.json" \
+echo "--- MLX4 no-spec ---"
+run_if_missing "cmp_mlx4_original_nospec.json" \
     --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 || exit 1
+    --num_samples "$NUM_SAMPLES" --quant mlx4 || exit 1
 
 echo ""
-echo "--- BF16 compile   no-spec ---"
-run_if_missing "cmp_bf16_original_nospec_compiled.json" \
+echo "--- MLX4 +spec γ=${GAMMA} ---"
+run_if_missing "cmp_mlx4_original_spec_g${GAMMA}.json" \
     --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 --compile || exit 1
-
-echo ""
-echo "--- BF16 no-compile +spec γ=${GAMMA} ---"
-run_if_missing "cmp_bf16_original_spec_g${GAMMA}.json" \
-    --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 \
+    --num_samples "$NUM_SAMPLES" --quant mlx4 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
-
-echo ""
-echo "--- BF16 compile   +spec γ=${GAMMA} ---"
-run_if_missing "cmp_bf16_original_spec_g${GAMMA}_compiled.json" \
-    --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 \
-    --speculative --gamma "$GAMMA" --corpus "$CORPUS" --compile || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "========================================"
-echo "  Pruned mid3-23  BF16"
+echo "  Pruned mid3-23  MLX4"
 echo "========================================"
 
 echo ""
-echo "--- BF16 no-compile no-spec ---"
-run_if_missing "cmp_bf16_mid3-23_nospec.json" \
+echo "--- MLX4 no-spec ---"
+run_if_missing "cmp_mlx4_mid3-23_nospec.json" \
     --model "$MID3_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 || exit 1
+    --num_samples "$NUM_SAMPLES" --quant mlx4 || exit 1
 
 echo ""
-echo "--- BF16 compile   no-spec ---"
-run_if_missing "cmp_bf16_mid3-23_nospec_compiled.json" \
+echo "--- MLX4 +spec γ=${GAMMA} ---"
+run_if_missing "cmp_mlx4_mid3-23_spec_g${GAMMA}.json" \
     --model "$MID3_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 --compile || exit 1
-
-echo ""
-echo "--- BF16 no-compile +spec γ=${GAMMA} ---"
-run_if_missing "cmp_bf16_mid3-23_spec_g${GAMMA}.json" \
-    --model "$MID3_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 \
+    --num_samples "$NUM_SAMPLES" --quant mlx4 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
-
-echo ""
-echo "--- BF16 compile   +spec γ=${GAMMA} ---"
-run_if_missing "cmp_bf16_mid3-23_spec_g${GAMMA}_compiled.json" \
-    --model "$MID3_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 \
-    --speculative --gamma "$GAMMA" --corpus "$CORPUS" --compile || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
@@ -105,35 +78,33 @@ import json, os, sys
 G = sys.argv[1]
 
 rows = [
-    ("Original BF16  no-spec",             "cmp_bf16_original_nospec.json",                False, False),
-    ("Original BF16  no-spec  +compile",   "cmp_bf16_original_nospec_compiled.json",       False, True),
-    (f"Original BF16  +spec γ={G}",        f"cmp_bf16_original_spec_g{G}.json",            True,  False),
-    (f"Original BF16  +spec γ={G} +cmp",   f"cmp_bf16_original_spec_g{G}_compiled.json",   True,  True),
-    ("mid3-23  BF16  no-spec",             "cmp_bf16_mid3-23_nospec.json",                  False, False),
-    ("mid3-23  BF16  no-spec  +compile",   "cmp_bf16_mid3-23_nospec_compiled.json",         False, True),
-    (f"mid3-23  BF16  +spec γ={G}",        f"cmp_bf16_mid3-23_spec_g{G}.json",              True,  False),
-    (f"mid3-23  BF16  +spec γ={G} +cmp",   f"cmp_bf16_mid3-23_spec_g{G}_compiled.json",     True,  True),
+    ("Original MLX4  no-spec",          "cmp_mlx4_original_nospec.json",        False),
+    (f"Original MLX4  +spec γ={G}",     f"cmp_mlx4_original_spec_g{G}.json",    True),
+    ("mid3-23  MLX4  no-spec",          "cmp_mlx4_mid3-23_nospec.json",          False),
+    (f"mid3-23  MLX4  +spec γ={G}",     f"cmp_mlx4_mid3-23_spec_g{G}.json",     True),
 ]
 
 ref_lat = None
-hdr = f"  {'Config':<40} {'Lat(s)':>7} {'Speedup':>8} {'tok/s':>7} {'WER%':>6} {'AccRate':>8}"
+hdr = f"  {'Config':<36} {'Lat(s)':>7} {'Speedup':>8} {'tok/s':>7} {'WER%':>6} {'VRAM(GB)':>9} {'AccRate':>8}"
 print(hdr)
 print("  " + "-" * (len(hdr) - 2))
 
-for label, path, is_spec, is_compiled in rows:
+for label, path, is_spec in rows:
     if not os.path.exists(path):
-        print(f"  {label:<40}  [missing]")
+        print(f"  {label:<36}  [missing]")
         continue
     with open(path) as f:
         d = json.load(f)
     lat  = d.get("avg_latency_s", 0)
     tps  = d.get("avg_decode_tps", 0)
     wer  = d.get("wer", 0) * 100
+    vram = d.get("gpu_mem_peak_gb")
     acc  = d.get("avg_spec_accept_rate")
     if ref_lat is None:
         ref_lat = lat
-    ratio = ref_lat / lat if lat > 0 else 0
-    acc_s = f"{acc:.1%}" if acc is not None else "  —"
-    marker = (" ◀" if is_spec else "  ") + ("⚡" if is_compiled else " ")
-    print(f"  {label:<40} {lat:7.2f}  {ratio:7.2f}x  {tps:7.1f}  {wer:6.2f}  {acc_s:>8}{marker}")
+    ratio  = ref_lat / lat if lat > 0 else 0
+    vram_s = f"{vram:.1f}" if vram else "  —"
+    acc_s  = f"{acc:.1%}" if acc is not None else "  —"
+    marker = " ◀" if is_spec else "  "
+    print(f"  {label:<36} {lat:7.2f}  {ratio:7.2f}x  {tps:7.1f}  {wer:6.2f}  {vram_s:>9}  {acc_s:>8}{marker}")
 PYEOF
