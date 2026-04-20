@@ -2,8 +2,8 @@
 # ============================================================
 # GPU speculative decoding benchmark
 # Compares no-spec vs n-gram +spec on GPU for:
-#   - Original MERaLiON-2-3B  (BF16 and INT8)
-#   - Pruned mid3-23           (BF16 and INT8)
+#   - Original MERaLiON-2-3B  (BF16 and MLX4)
+#   - Pruned mid3-23           (BF16 and MLX4)
 # ============================================================
 export PYTHONUNBUFFERED=1
 PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
@@ -51,20 +51,20 @@ run_if_missing "gpu_bf16_original_spec_g${GAMMA}.json" \
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "========================================"
-echo "  Original MERaLiON-2-3B  INT8"
+echo "  Original MERaLiON-2-3B  MLX4"
 echo "========================================"
 
 echo ""
-echo "--- INT8 no-spec ---"
-run_if_missing "gpu_int8_original_nospec.json" \
+echo "--- MLX4 no-spec ---"
+run_if_missing "gpu_mlx4_original_nospec.json" \
     --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant int8 || exit 1
+    --num_samples "$NUM_SAMPLES" --quant mlx4 || exit 1
 
 echo ""
-echo "--- INT8 +spec γ=${GAMMA} ---"
-run_if_missing "gpu_int8_original_spec_g${GAMMA}.json" \
+echo "--- MLX4 +spec γ=${GAMMA} ---"
+run_if_missing "gpu_mlx4_original_spec_g${GAMMA}.json" \
     --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant int8 \
+    --num_samples "$NUM_SAMPLES" --quant mlx4 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -89,20 +89,20 @@ run_if_missing "gpu_bf16_mid3-23_spec_g${GAMMA}.json" \
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "========================================"
-echo "  Pruned mid3-23  INT8"
+echo "  Pruned mid3-23  MLX4"
 echo "========================================"
 
 echo ""
-echo "--- INT8 no-spec ---"
-run_if_missing "gpu_int8_mid3-23_nospec.json" \
+echo "--- MLX4 no-spec ---"
+run_if_missing "gpu_mlx4_mid3-23_nospec.json" \
     --model "$MID3_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant int8 || exit 1
+    --num_samples "$NUM_SAMPLES" --quant mlx4 || exit 1
 
 echo ""
-echo "--- INT8 +spec γ=${GAMMA} ---"
-run_if_missing "gpu_int8_mid3-23_spec_g${GAMMA}.json" \
+echo "--- MLX4 +spec γ=${GAMMA} ---"
+run_if_missing "gpu_mlx4_mid3-23_spec_g${GAMMA}.json" \
     --model "$MID3_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant int8 \
+    --num_samples "$NUM_SAMPLES" --quant mlx4 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -119,12 +119,12 @@ G = sys.argv[1]
 rows = [
     ("Original  BF16  no-spec",      "gpu_bf16_original_nospec.json",        False),
     (f"Original  BF16  +spec γ={G}", f"gpu_bf16_original_spec_g{G}.json",    True),
-    ("Original  INT8  no-spec",      "gpu_int8_original_nospec.json",         False),
-    (f"Original  INT8  +spec γ={G}", f"gpu_int8_original_spec_g{G}.json",     True),
+    ("Original  MLX4  no-spec",      "gpu_mlx4_original_nospec.json",         False),
+    (f"Original  MLX4  +spec γ={G}", f"gpu_mlx4_original_spec_g{G}.json",     True),
     ("mid3-23   BF16  no-spec",      "gpu_bf16_mid3-23_nospec.json",          False),
     (f"mid3-23   BF16  +spec γ={G}", f"gpu_bf16_mid3-23_spec_g{G}.json",     True),
-    ("mid3-23   INT8  no-spec",      "gpu_int8_mid3-23_nospec.json",          False),
-    (f"mid3-23   INT8  +spec γ={G}", f"gpu_int8_mid3-23_spec_g{G}.json",     True),
+    ("mid3-23   MLX4  no-spec",      "gpu_mlx4_mid3-23_nospec.json",          False),
+    (f"mid3-23   MLX4  +spec γ={G}", f"gpu_mlx4_mid3-23_spec_g{G}.json",     True),
 ]
 
 ref_lat = None
