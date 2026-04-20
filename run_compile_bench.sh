@@ -1,9 +1,9 @@
 #!/bin/bash
 # ============================================================
 # torch.compile benchmark
-# Compares no-compile vs --compile for MLX4 models:
-#   - Original MERaLiON-2-3B  MLX4  (no-spec and +spec)
-#   - Pruned mid3-23           MLX4  (no-spec and +spec)
+# Compares no-compile vs --compile for BF16 models:
+#   - Original MERaLiON-2-3B  BF16  (no-spec and +spec)
+#   - Pruned mid3-23           BF16  (no-spec and +spec)
 # ============================================================
 export PYTHONUNBUFFERED=1
 PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
@@ -32,65 +32,65 @@ run_if_missing() {
 
 # ════════════════════════════════════════════════════════════════════════════
 echo "========================================"
-echo "  Original MERaLiON-2-3B  MLX4"
+echo "  Original MERaLiON-2-3B  BF16"
 echo "========================================"
 
 echo ""
-echo "--- MLX4 no-compile no-spec ---"
-run_if_missing "cmp_mlx4_original_nospec.json" \
+echo "--- BF16 no-compile no-spec ---"
+run_if_missing "cmp_bf16_original_nospec.json" \
     --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant mlx4 || exit 1
+    --num_samples "$NUM_SAMPLES" --quant bf16 || exit 1
 
 echo ""
-echo "--- MLX4 compile   no-spec ---"
-run_if_missing "cmp_mlx4_original_nospec_compiled.json" \
+echo "--- BF16 compile   no-spec ---"
+run_if_missing "cmp_bf16_original_nospec_compiled.json" \
     --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant mlx4 --compile || exit 1
+    --num_samples "$NUM_SAMPLES" --quant bf16 --compile || exit 1
 
 echo ""
-echo "--- MLX4 no-compile +spec γ=${GAMMA} ---"
-run_if_missing "cmp_mlx4_original_spec_g${GAMMA}.json" \
+echo "--- BF16 no-compile +spec γ=${GAMMA} ---"
+run_if_missing "cmp_bf16_original_spec_g${GAMMA}.json" \
     --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant mlx4 \
+    --num_samples "$NUM_SAMPLES" --quant bf16 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
 
 echo ""
-echo "--- MLX4 compile   +spec γ=${GAMMA} ---"
-run_if_missing "cmp_mlx4_original_spec_g${GAMMA}_compiled.json" \
+echo "--- BF16 compile   +spec γ=${GAMMA} ---"
+run_if_missing "cmp_bf16_original_spec_g${GAMMA}_compiled.json" \
     --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant mlx4 \
+    --num_samples "$NUM_SAMPLES" --quant bf16 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" --compile || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "========================================"
-echo "  Pruned mid3-23  MLX4"
+echo "  Pruned mid3-23  BF16"
 echo "========================================"
 
 echo ""
-echo "--- MLX4 no-compile no-spec ---"
-run_if_missing "cmp_mlx4_mid3-23_nospec.json" \
+echo "--- BF16 no-compile no-spec ---"
+run_if_missing "cmp_bf16_mid3-23_nospec.json" \
     --model "$MID3_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant mlx4 || exit 1
+    --num_samples "$NUM_SAMPLES" --quant bf16 || exit 1
 
 echo ""
-echo "--- MLX4 compile   no-spec ---"
-run_if_missing "cmp_mlx4_mid3-23_nospec_compiled.json" \
+echo "--- BF16 compile   no-spec ---"
+run_if_missing "cmp_bf16_mid3-23_nospec_compiled.json" \
     --model "$MID3_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant mlx4 --compile || exit 1
+    --num_samples "$NUM_SAMPLES" --quant bf16 --compile || exit 1
 
 echo ""
-echo "--- MLX4 no-compile +spec γ=${GAMMA} ---"
-run_if_missing "cmp_mlx4_mid3-23_spec_g${GAMMA}.json" \
+echo "--- BF16 no-compile +spec γ=${GAMMA} ---"
+run_if_missing "cmp_bf16_mid3-23_spec_g${GAMMA}.json" \
     --model "$MID3_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant mlx4 \
+    --num_samples "$NUM_SAMPLES" --quant bf16 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
 
 echo ""
-echo "--- MLX4 compile   +spec γ=${GAMMA} ---"
-run_if_missing "cmp_mlx4_mid3-23_spec_g${GAMMA}_compiled.json" \
+echo "--- BF16 compile   +spec γ=${GAMMA} ---"
+run_if_missing "cmp_bf16_mid3-23_spec_g${GAMMA}_compiled.json" \
     --model "$MID3_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant mlx4 \
+    --num_samples "$NUM_SAMPLES" --quant bf16 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" --compile || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -105,14 +105,14 @@ import json, os, sys
 G = sys.argv[1]
 
 rows = [
-    ("Original MLX4  no-spec",             "cmp_mlx4_original_nospec.json",                False, False),
-    ("Original MLX4  no-spec  +compile",   "cmp_mlx4_original_nospec_compiled.json",       False, True),
-    (f"Original MLX4  +spec γ={G}",        f"cmp_mlx4_original_spec_g{G}.json",            True,  False),
-    (f"Original MLX4  +spec γ={G} +cmp",   f"cmp_mlx4_original_spec_g{G}_compiled.json",   True,  True),
-    ("mid3-23  MLX4  no-spec",             "cmp_mlx4_mid3-23_nospec.json",                  False, False),
-    ("mid3-23  MLX4  no-spec  +compile",   "cmp_mlx4_mid3-23_nospec_compiled.json",         False, True),
-    (f"mid3-23  MLX4  +spec γ={G}",        f"cmp_mlx4_mid3-23_spec_g{G}.json",              True,  False),
-    (f"mid3-23  MLX4  +spec γ={G} +cmp",   f"cmp_mlx4_mid3-23_spec_g{G}_compiled.json",     True,  True),
+    ("Original BF16  no-spec",             "cmp_bf16_original_nospec.json",                False, False),
+    ("Original BF16  no-spec  +compile",   "cmp_bf16_original_nospec_compiled.json",       False, True),
+    (f"Original BF16  +spec γ={G}",        f"cmp_bf16_original_spec_g{G}.json",            True,  False),
+    (f"Original BF16  +spec γ={G} +cmp",   f"cmp_bf16_original_spec_g{G}_compiled.json",   True,  True),
+    ("mid3-23  BF16  no-spec",             "cmp_bf16_mid3-23_nospec.json",                  False, False),
+    ("mid3-23  BF16  no-spec  +compile",   "cmp_bf16_mid3-23_nospec_compiled.json",         False, True),
+    (f"mid3-23  BF16  +spec γ={G}",        f"cmp_bf16_mid3-23_spec_g{G}.json",              True,  False),
+    (f"mid3-23  BF16  +spec γ={G} +cmp",   f"cmp_bf16_mid3-23_spec_g{G}_compiled.json",     True,  True),
 ]
 
 ref_lat = None
