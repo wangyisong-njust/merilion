@@ -11,6 +11,7 @@ WORKDIR="/home/jinchao/runtao/LLM-Pruner"
 ORIGINAL="/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
 DATASET="/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR"
 TUNE_ROOT="meralion_tune_log"
+CORPUS="ngram_corpus.pkl"   # built by build_ngram_corpus.py
 NUM_SAMPLES=50
 GAMMA=5
 GPU=0
@@ -47,7 +48,7 @@ echo "--- BF16 +spec γ=${GAMMA} ---"
 run_if_missing "gpu_bf16_original_spec${GAMMA}.json" \
     --model "$ORIGINAL" --dataset "$DATASET" \
     --num_samples "$NUM_SAMPLES" --quant bf16 \
-    --speculative --gamma "$GAMMA" || exit 1
+    --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
@@ -66,7 +67,7 @@ echo "--- BF16 +spec γ=${GAMMA} ---"
 run_if_missing "gpu_bf16_mid3-22_spec${GAMMA}.json" \
     --model "$MID3_22" --dataset "$DATASET" \
     --num_samples "$NUM_SAMPLES" --quant bf16 \
-    --speculative --gamma "$GAMMA" || exit 1
+    --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
@@ -85,7 +86,7 @@ echo "--- BF16 +spec γ=${GAMMA} ---"
 run_if_missing "gpu_bf16_mid3-23_spec${GAMMA}.json" \
     --model "$MID3_23" --dataset "$DATASET" \
     --num_samples "$NUM_SAMPLES" --quant bf16 \
-    --speculative --gamma "$GAMMA" || exit 1
+    --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
@@ -104,7 +105,7 @@ echo "--- BF16 +spec γ=${GAMMA} ---"
 run_if_missing "gpu_bf16_mid4-23_spec${GAMMA}.json" \
     --model "$MID4_23" --dataset "$DATASET" \
     --num_samples "$NUM_SAMPLES" --quant bf16 \
-    --speculative --gamma "$GAMMA" || exit 1
+    --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
