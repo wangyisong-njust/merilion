@@ -341,7 +341,8 @@ def transcribe_gpu_draft_spec(
 
     input_ids              = input_ids.to(_dev)
     attention_mask         = attention_mask.to(_dev)
-    input_features         = input_features.to(_dev).to(_dtype_v)
+    input_features_v       = input_features.to(_dev).to(_dtype_v)
+    input_features_d       = input_features.to(_dev).to(_dtype_d)
     feature_attention_mask = feature_attention_mask.to(_dev)
 
     # Disable HybridCache auto-selection in generation_config
@@ -380,18 +381,21 @@ def transcribe_gpu_draft_spec(
     t0 = time.time()
 
     with torch.inference_mode():
-        # ── Prefill both models with identical inputs ──────────────────────
-        prefill_kw = dict(
+        # ── Prefill both models ────────────────────────────────────────────
+        _common = dict(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            input_features=input_features,
             feature_attention_mask=feature_attention_mask,
             use_cache=True,
             cache_position=torch.arange(0, seq_len, device=_dev),
             return_dict=True,
         )
-        v_out = verifier(**prefill_kw, past_key_values=verifier_kv)
-        draft_model(**prefill_kw, past_key_values=draft_kv)
+        v_out = verifier(**_common,
+                         input_features=input_features_v,
+                         past_key_values=verifier_kv)
+        draft_model(**_common,
+                    input_features=input_features_d,
+                    past_key_values=draft_kv)
 
         next_tok = int(v_out.logits[0, -1].argmax())
         generated_ids.append(next_tok)
