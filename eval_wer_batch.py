@@ -389,9 +389,11 @@ def main():
     gpu_mem_load_gb = torch.cuda.max_memory_allocated(args.device) / 1e9
     print(f"  GPU VRAM after load: {gpu_mem_load_gb:.2f} GB")
 
-    from datasets import load_from_disk
+    from datasets import load_from_disk, Audio
 
     data    = load_from_disk(os.path.abspath(args.dataset))
+    if args.audiobench:
+        data = data.cast_column("context", Audio())
     if args.audiobench:
         # AudioBench: use all samples, no offset
         end    = min(args.num_samples, len(data))
