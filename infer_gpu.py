@@ -528,7 +528,11 @@ def transcribe_gpu(model, processor, audio_array: np.ndarray, sample_rate: int,
                 draft = ngram.propose(all_ctx, gamma)
 
                 if draft:
-                    K        = len(draft)
+                    K = min(len(draft), seq_len + max_new_tokens - cur_pos - 1)
+                    if K <= 0:
+                        draft = []
+                if draft:
+                    draft    = draft[:K]
                     spec_ids = torch.tensor([[next_tok] + draft],
                                             dtype=torch.long, device=_actual_device)
                     spec_attn = torch.ones(1, cur_pos + K + 1,
