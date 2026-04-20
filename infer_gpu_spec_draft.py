@@ -397,8 +397,10 @@ def transcribe_gpu_draft_spec(
                     input_features=input_features_d,
                     past_key_values=draft_kv)
 
+        # next_tok = role-prefix token (e.g. <Speaker1>:); NOT added to generated_ids.
+        # The spec loop processes it as context and appends the successor tokens,
+        # matching infer_gpu.py's K=0 behaviour which also skips the role-prefix.
         next_tok = int(v_out.logits[0, -1].argmax())
-        generated_ids.append(next_tok)
 
         torch.cuda.synchronize()
         t1 = time.time()
