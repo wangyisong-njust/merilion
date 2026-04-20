@@ -1,11 +1,12 @@
 #!/bin/bash
 # ============================================================
-# WER comparison (full dataset):
-#   1. MERaLiON-2-3B original      — BF16 GPU (reference)
-#   2. MERaLiON-2-3B-MLX-4bit sim — MLX affine int4 (group=64)
-#      Matches majentik/MERaLiON-2-3B-MLX-4bit quantization spec:
-#        bits=4, group_size=64, decoder only, encoder+adapter in FP16
-#   3. Pruned mid3-22 + BnB INT8   — our compressed model
+# WER comparison — AudioBench IMDA Parts 1-6, 100 samples each
+#   1. Original BF16             → GPU6
+#   2. MLX-4bit sim (int4 g=64)  → GPU6  (after 1)
+#   3. Pruned mid3-22 BF16       → GPU7
+#   4. Pruned mid3-22 + INT8     → GPU7  (after 3)
+#
+# Prerequisite: python download_audiobench_datasets.py
 # ============================================================
 export PYTHONUNBUFFERED=1
 PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
@@ -13,80 +14,126 @@ WORKDIR="/home/jinchao/runtao/LLM-Pruner"
 ORIGINAL="/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
 TUNE_ROOT="meralion_tune_log"
 PRUNED="${TUNE_ROOT}/MERaLiON-2-3B-v3-td50-mid3-22-tune"
-DATASET="/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR"
+DATASET_ROOT="/home/jinchao/runtao/meralion_datasets/ASR"
+NUM_SAMPLES=100
+BATCH_SIZE=100
+
+PARTS="imda_part1_asr_test imda_part2_asr_test imda_part3_30s_asr_test \
+       imda_part4_30s_asr_test imda_part5_30s_asr_test imda_part6_30s_asr_test"
+
 cd "$WORKDIR"
 
-BATCH_SIZE=256
+_run() {
+    local json="$1"; local gpu="$2"; shift 2
+    local resume=""
+    [ -f "$json" ] && resume="--resume $json" && echo "  resuming  → $json" \
+                   || echo "  launching → $json"
+    CUDA_VISIBLE_DEVICES=$gpu "$PYTHON_PATH" -u eval_wer_batch.py \
+        --dataset "${DATASET_ROOT}/$PART" \
+        --num_samples $NUM_SAMPLES --batch_size $BATCH_SIZE \
+        --audiobench --output "$json" $resume \
+        "$@" >> "${json%.json}.log" 2>&1
+}
 
-echo "========================================"
-echo "  1. Original MERaLiON-2-3B  BF16"
-echo "========================================"
-_resume_flag() { [ -f "$1" ] && echo "--resume $1" || echo ""; }
+# ── GPU6 track: original_bf16 then mlx4 ──────────────────────────────────────
+(
+for PART in $PARTS; do
+    _run "wc_${PART}_original_bf16.json" 6 --model "$ORIGINAL" --quant bf16
+done
+for PART in $PARTS; do
+    _run "wc_${PART}_mlx4.json" 6 --model "$ORIGINAL" --quant mlx4
+done
+) &
+PID_GPU6=$!
 
-JSON1=wer_full_original_bf16.json
-[ -f "$JSON1" ] && echo "  resuming → $JSON1  (GPU6)" || echo "  launching → $JSON1  (GPU6)"
-CUDA_VISIBLE_DEVICES=6 "$PYTHON_PATH" -u eval_wer_batch.py \
-    --model "$ORIGINAL" --quant bf16 \
-    --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
-    --output "$JSON1" $(_resume_flag "$JSON1") \
-    > "${JSON1%.json}.log" 2>&1 &
-PID1=$!
+# ── GPU7 track: pruned_bf16 then pruned_int8 ─────────────────────────────────
+(
+for PART in $PARTS; do
+    _run "wc_${PART}_pruned_bf16.json" 7 --model "$PRUNED" --quant bf16
+done
+for PART in $PARTS; do
+    _run "wc_${PART}_pruned_int8.json" 7 --model "$PRUNED" --quant int8
+done
+) &
+PID_GPU7=$!
 
-JSON2=wer_full_mlx4_original.json
-[ -f "$JSON2" ] && echo "  resuming → $JSON2  (GPU6)" || echo "  launching → $JSON2  (GPU6)"
-CUDA_VISIBLE_DEVICES=6 "$PYTHON_PATH" -u eval_wer_batch.py \
-    --model "$ORIGINAL" --quant mlx4 \
-    --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
-    --output "$JSON2" $(_resume_flag "$JSON2") \
-    > "${JSON2%.json}.log" 2>&1 &
-PID2=$!
+echo "GPU6 PID=$PID_GPU6  GPU7 PID=$PID_GPU7"
+echo "Waiting …  (tail -f wc_*.log to monitor)"
+wait $PID_GPU6 && echo "[done] GPU6 track"
+wait $PID_GPU7 && echo "[done] GPU7 track"
 
-JSON3=wer_full_pruned_mid3-22_int8.json
-[ -f "$JSON3" ] && echo "  resuming → $JSON3  (GPU7)" || echo "  launching → $JSON3  (GPU7)"
-CUDA_VISIBLE_DEVICES=7 "$PYTHON_PATH" -u eval_wer_batch.py \
-    --model "$PRUNED" --quant int8 \
-    --dataset "$DATASET" --batch_size "$BATCH_SIZE" \
-    --output "$JSON3" $(_resume_flag "$JSON3") \
-    > "${JSON3%.json}.log" 2>&1 &
-PID3=$!
-
+# ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
-echo "Waiting for jobs …  (tail -f *.log to monitor)"
-[ -n "$PID1" ] && wait $PID1 && echo "  [done] Original BF16"
-[ -n "$PID2" ] && wait $PID2 && echo "  [done] MLX-4bit"
-[ -n "$PID3" ] && wait $PID3 && echo "  [done] Pruned+INT8"
-
-echo ""
 echo "========================================"
-echo "  Summary"
+echo "  Summary  (WER on overlapping samples)"
 echo "========================================"
 
 "$PYTHON_PATH" - <<'PYEOF'
 import json, os
 
-rows = [
-    ("Original BF16 (reference)",    "wer_full_original_bf16.json"),
-    ("MLX-4bit sim  (decoder int4)", "wer_full_mlx4_original.json"),
-    ("Pruned mid3-22 + INT8",        "wer_full_pruned_mid3-22_int8.json"),
+PARTS = [
+    ("imda_part1_asr_test",    "PART1"),
+    ("imda_part2_asr_test",    "PART2"),
+    ("imda_part3_30s_asr_test","PART3"),
+    ("imda_part4_30s_asr_test","PART4"),
+    ("imda_part5_30s_asr_test","PART5"),
+    ("imda_part6_30s_asr_test","PART6"),
+]
+MODELS = [
+    ("original_bf16", "Original BF16"),
+    ("mlx4",          "MLX-4bit"),
+    ("pruned_bf16",   "Pruned BF16"),
+    ("pruned_int8",   "Pruned+INT8"),
 ]
 
-ref_wer = None
-hdr = f"  {'Model':<34} {'WER%':>6} {'ΔWER':>7} {'Lat(s)':>7} {'tok/s':>7} {'VRAM(GB)':>9}"
+def wer_on_samples(samples, n):
+    """Corpus WER on the first n samples using jiwer."""
+    from jiwer import compute_measures
+    import re
+    def norm(t):
+        from whisper.normalizers import EnglishTextNormalizer
+        t = t.lower()
+        t = EnglishTextNormalizer()(t)
+        t = re.sub(r'[\(\[\{\<][^\n\(\)\[\]\{\}\<\>]*[\)\]\}\>]', "", t)
+        t = re.sub(r'\b(uh|umm|um|er|ah)\b', '', t)
+        import jiwer as _j
+        t = _j.Compose([_j.RemoveMultipleSpaces(), _j.ExpandCommonEnglishContractions(),
+                        _j.RemoveKaldiNonWords(), _j.RemovePunctuation()])(t)
+        return t.strip() or "empty"
+    inc, tot = 0, 0
+    for s in samples[:n]:
+        p, r = norm(s["prediction"]), norm(s["reference"])
+        m = compute_measures(r, p)
+        inc += m["substitutions"] + m["deletions"] + m["insertions"]
+        tot += m["substitutions"] + m["deletions"] + m["hits"]
+    return inc / tot if tot > 0 else 0.0
+
+hdr = f"  {'Part':<8}" + "".join(f" {m:>14}" for _, m in MODELS)
 print(hdr)
 print("  " + "-" * (len(hdr) - 2))
 
-for label, path in rows:
-    if not os.path.exists(path):
-        print(f"  {label:<34}  [missing]")
+for part_key, part_label in PARTS:
+    data = {}
+    for model_key, _ in MODELS:
+        path = f"wc_{part_key}_{model_key}.json"
+        if os.path.exists(path):
+            with open(path) as f:
+                d = json.load(f)
+            data[model_key] = d.get("samples", [])
+
+    if not data:
+        print(f"  {part_label:<8}  [no results]")
         continue
-    with open(path) as f:
-        d = json.load(f)
-    wer  = d.get("wer", 0) * 100
-    lat  = d.get("avg_latency_s", 0)
-    tps  = d.get("avg_decode_tps", 0)
-    vram = d.get("gpu_mem_peak_gb") or 0
-    if ref_wer is None:
-        ref_wer = wer
-    delta = f"+{wer-ref_wer:.2f}" if wer > ref_wer else f"{wer-ref_wer:.2f}"
-    print(f"  {label:<34} {wer:6.2f}  {delta:>7}  {lat:7.2f}  {tps:7.1f}  {vram:9.2f}")
+
+    # overlap = min completed samples across available models
+    n = min(len(v) for v in data.values())
+    row = f"  {part_label:<8}"
+    for model_key, _ in MODELS:
+        if model_key not in data:
+            row += f" {'[missing]':>14}"
+        else:
+            w = wer_on_samples(data[model_key], n) * 100
+            row += f" {w:>13.2f}%"
+    row += f"  (n={n})"
+    print(row)
 PYEOF
