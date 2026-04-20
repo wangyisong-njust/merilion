@@ -16,7 +16,7 @@ TUNE_ROOT="meralion_tune_log"
 PRUNED="${TUNE_ROOT}/MERaLiON-2-3B-v3-td50-mid3-22-tune"
 DATASET_ROOT="/home/jinchao/runtao/meralion_datasets/ASR"
 NUM_SAMPLES=100
-BATCH_SIZE=100
+BATCH_SIZE=128
 
 PARTS="imda_part1_asr_test imda_part2_asr_test imda_part3_30s_asr_test \
        imda_part4_30s_asr_test imda_part5_30s_asr_test imda_part6_30s_asr_test"
