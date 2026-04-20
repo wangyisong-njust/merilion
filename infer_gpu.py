@@ -49,10 +49,25 @@ if script_dir not in sys.path:
 # ── shared helpers (same as infer_cpu.py) ────────────────────────────────────
 
 class NGramDraft:
-    """4-gram/3-gram draft predictor — operates on generated tokens only."""
+    """N-gram draft predictor with optional pre-built corpus index.
 
-    def __init__(self, ngram_sizes: tuple = (3, 4)):
+    If a corpus index is provided (dict mapping prefix tuple → next token),
+    lookup is O(1).  Falls back to scanning the current generated context
+    (original behaviour) when the prefix is absent from the index.
+    """
+
+    def __init__(self, ngram_sizes: tuple = (3, 4), index: dict = None):
         self.ngram_sizes = sorted(ngram_sizes, reverse=True)
+        self.index = index or {}   # prefix_tuple → next_token_id
+
+    @classmethod
+    def from_corpus_file(cls, path: str) -> "NGramDraft":
+        import pickle
+        with open(path, "rb") as f:
+            data = pickle.load(f)
+        obj = cls(ngram_sizes=tuple(data["ngram_sizes"]), index=data["index"])
+        print(f"  NGramDraft: loaded {len(obj.index):,} prefixes from {path}")
+        return obj
 
     def propose(self, ctx: list, gamma: int) -> list:
         draft: list = []
@@ -66,15 +81,20 @@ class NGramDraft:
         return draft
 
     def _next(self, ctx: list):
-        n = len(ctx)
         for ng in self.ngram_sizes:
             plen = ng - 1
-            if n < ng:
+            if len(ctx) < plen:
                 continue
-            prefix = ctx[-plen:]
-            for i in range(n - ng):
-                if ctx[i: i + plen] == prefix:
-                    return ctx[i + plen]
+            prefix = tuple(ctx[-plen:])
+            # 1) corpus index lookup (O(1))
+            if prefix in self.index:
+                return self.index[prefix]
+            # 2) fallback: scan current generated context
+            n = len(ctx)
+            if n >= ng:
+                for i in range(n - ng):
+                    if ctx[i: i + plen] == list(prefix):
+                        return ctx[i + plen]
         return None
 
 
@@ -386,7 +406,8 @@ def transcribe_gpu(model, processor, audio_array: np.ndarray, sample_rate: int,
                    max_new_tokens: int = 128,
                    device: str = "cuda",
                    speculative: bool = False,
-                   gamma: int = 5) -> tuple:
+                   gamma: int = 5,
+                   ngram: "NGramDraft | None" = None) -> tuple:
     """Run ASR inference on GPU for a single audio sample.
 
     Uses the same audio preprocessing and input-building logic as
@@ -474,7 +495,7 @@ def transcribe_gpu(model, processor, audio_array: np.ndarray, sample_rate: int,
         # contains ~100 repeated speech_token_id (255999) placeholders; those match
         # everywhere and always propose speech tokens → acceptance = 0.
         # This loop mirrors transcribe_native() in infer_cpu.py, ported to CUDA.
-        ngram = NGramDraft()
+        ngram = ngram or NGramDraft()
         generated_ids = []
         n_spec_acc = n_spec_tot = 0
 
@@ -644,6 +665,8 @@ def main():
                         help="Enable n-gram prompt-lookup speculative decoding on GPU")
     parser.add_argument("--gamma", type=int, default=5,
                         help="Spec decoding lookahead window (default: 5)")
+    parser.add_argument("--corpus", default=None,
+                        help="Path to n-gram corpus .pkl built by build_ngram_corpus.py")
     args = parser.parse_args()
     args.model = os.path.abspath(args.model)
 
@@ -663,13 +686,21 @@ def main():
     gpu_mem_load_gb = torch.cuda.max_memory_allocated(args.device) / 1e9
     print(f"  GPU VRAM after load: {gpu_mem_load_gb:.2f} GB")
 
+    _ngram = None
+    if args.speculative:
+        if args.corpus:
+            _ngram = NGramDraft.from_corpus_file(args.corpus)
+        else:
+            _ngram = NGramDraft()
+
     def _infer(audio, sr, instruction):
         return transcribe_gpu(model, processor, audio, sr,
                               instruction=instruction,
                               max_new_tokens=args.max_new_tokens,
                               device=args.device,
                               speculative=args.speculative,
-                              gamma=args.gamma)
+                              gamma=args.gamma,
+                              ngram=_ngram)
 
     # ── single audio file ──────────────────────────────────────────────────
     if args.audio:
