@@ -113,6 +113,25 @@ def _model_is_pruned(model) -> bool:
         return False
 
 
+def _trim_kv_cache(past_kv, keep_len: int) -> None:
+    """Discard KV cache entries beyond keep_len to fix stale state after partial spec acceptance."""
+    from transformers.cache_utils import DynamicCache
+    if isinstance(past_kv, DynamicCache):
+        for i in range(len(past_kv.key_cache)):
+            past_kv.key_cache[i] = past_kv.key_cache[i][:, :, :keep_len, :]
+            past_kv.value_cache[i] = past_kv.value_cache[i][:, :, :keep_len, :]
+    else:  # HybridCache — pre-allocated; zero out stale slots so causal mask excludes them
+        for i in range(len(past_kv.key_cache)):
+            kc = past_kv.key_cache[i]
+            if kc is not None and kc.shape[2] > keep_len:
+                kc[:, :, keep_len:, :].zero_()
+        for i in range(len(past_kv.value_cache)):
+            vc = past_kv.value_cache[i]
+            if vc is not None and vc.shape[2] > keep_len:
+                vc[:, :, keep_len:, :].zero_()
+    past_kv._seen_tokens = keep_len
+
+
 SAMPLE_RATE = 16000
 CHUNK_SIZE = SAMPLE_RATE * 30
 SPEECH_TOKENS_PER_CHUNK = 100
@@ -581,7 +600,10 @@ def transcribe_gpu(model, processor, audio_array: np.ndarray, sample_rate: int,
                         next_tok = bonus
                         n_acc += 1
 
-                    cur_pos += K + 1  # cache always receives K+1 writes regardless of acceptance
+                    valid_end = cur_pos + n_acc
+                    if valid_end < cur_pos + K + 1:
+                        _trim_kv_cache(past_kv, valid_end)
+                    cur_pos = valid_end
 
                 else:
                     cur_attn = torch.ones(1, cur_pos + 1,
