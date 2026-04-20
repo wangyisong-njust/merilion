@@ -34,6 +34,99 @@ MAX_CHUNKS            = 1
 SPEECH_TOKENS_PER_CHUNK = 448
 
 
+# ── MLX-style int4 quantization ──────────────────────────────────────────────
+
+class _MLX4Linear(torch.nn.Module):
+    """Per-group asymmetric int4 linear layer matching MLX affine quantization."""
+    def __init__(self, in_features: int, out_features: int,
+                 has_bias: bool, group_size: int = 64):
+        super().__init__()
+        self.in_features  = in_features
+        self.out_features = out_features
+        self.group_size   = group_size
+        self._pad = (-in_features) % group_size
+        I_pad     = in_features + self._pad
+        n_groups  = I_pad // group_size
+        self.register_buffer("weight_q",
+            torch.zeros(out_features, I_pad // 2, dtype=torch.uint8))
+        self.register_buffer("scales",
+            torch.zeros(out_features, n_groups, dtype=torch.float16))
+        self.register_buffer("zeros",
+            torch.zeros(out_features, n_groups, dtype=torch.float16))
+        if has_bias:
+            self.register_buffer("linear_bias",
+                torch.zeros(out_features, dtype=torch.float16))
+        else:
+            self.linear_bias = None
+
+    @staticmethod
+    def from_linear(module: torch.nn.Linear, group_size: int = 64) -> "_MLX4Linear":
+        O, I     = module.weight.shape
+        new      = _MLX4Linear(I, O, module.bias is not None, group_size)
+        w        = module.weight.detach().float()
+        I_pad    = I + new._pad
+        n_groups = I_pad // group_size
+        if new._pad:
+            w = torch.nn.functional.pad(w, (0, new._pad))
+        wg     = w.view(O, n_groups, group_size)
+        w_min  = wg.min(dim=-1).values
+        w_max  = wg.max(dim=-1).values
+        scale  = (w_max - w_min) / 15.0
+        scale  = scale.clamp(min=1e-8)
+        zero   = w_min
+        q = ((wg - zero.unsqueeze(-1)) / scale.unsqueeze(-1))
+        q = q.round().clamp(0, 15).to(torch.uint8)
+        q = q.view(O, I_pad)
+        q_low  = q[:, 0::2]
+        q_high = q[:, 1::2]
+        packed = (q_high << 4) | q_low
+        new.weight_q.copy_(packed)
+        new.scales.copy_(scale.to(torch.float16))
+        new.zeros.copy_(zero.to(torch.float16))
+        if module.bias is not None:
+            new.linear_bias.copy_(module.bias.detach().to(torch.float16))
+        return new
+
+    def _dequantize(self) -> torch.Tensor:
+        O        = self.out_features
+        I_pad    = self.weight_q.shape[1] * 2
+        n_groups = self.scales.shape[1]
+        lo = (self.weight_q & 0x0F).to(torch.float16)
+        hi = (self.weight_q >> 4).to(torch.float16)
+        q  = torch.stack([lo, hi], dim=-1).view(O, I_pad)
+        q  = q.view(O, n_groups, self.group_size)
+        s  = self.scales.unsqueeze(-1)
+        z  = self.zeros.unsqueeze(-1)
+        w  = s * q + z
+        w  = w.view(O, I_pad)[:, :self.in_features]
+        return w
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        w    = self._dequantize().to(x.dtype)
+        bias = self.linear_bias.to(x.dtype) if self.linear_bias is not None else None
+        return torch.nn.functional.linear(x, w, bias)
+
+
+def _apply_mlx4_quant(model, group_size: int = 64) -> None:
+    SKIP = {"speech_encoder", "speech_audio_adapter", "lm_head"}
+    n_replaced = 0
+    for name, module in list(model.named_modules()):
+        if not isinstance(module, torch.nn.Linear):
+            continue
+        if any(s in name for s in SKIP):
+            continue
+        if "text_decoder" not in name:
+            continue
+        parts  = name.split(".")
+        parent = model
+        for part in parts[:-1]:
+            parent = getattr(parent, part)
+        setattr(parent, parts[-1],
+                _MLX4Linear.from_linear(module, group_size=group_size))
+        n_replaced += 1
+    print(f"  MLX4 quant: replaced {n_replaced} Linear layers (group_size={group_size})")
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _model_is_pruned(model) -> bool:
@@ -123,7 +216,14 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
     common_kwargs = dict(use_safetensors=True)
     t0 = time.time()
 
-    if quant in ("int8", "int4"):
+    if quant == "mlx4":
+        print(f"Loading {os.path.basename(model_path)} → CPU FP16, applying MLX4 (group=64) …")
+        model = MERaLiON2ForConditionalGeneration.from_pretrained(
+            model_path, torch_dtype=torch.float16, **common_kwargs)
+        _apply_mlx4_quant(model, group_size=64)
+        model = model.to(device)
+
+    elif quant in ("int8", "int4"):
         import bitsandbytes as bnb
         from torch import nn as _nn
 
@@ -413,11 +513,11 @@ def main():
     parser.add_argument("--draft", required=True,
                         help="Path to draft (pruned) MERaLiON model")
     parser.add_argument("--verifier_quant", default="bf16",
-                        choices=["bf16", "fp16", "int8", "int4"],
+                        choices=["bf16", "fp16", "int8", "int4", "mlx4"],
                         help="Verifier quantization (default: bf16)")
-    parser.add_argument("--draft_quant", default="int4",
-                        choices=["bf16", "fp16", "int8", "int4"],
-                        help="Draft quantization (default: int4)")
+    parser.add_argument("--draft_quant", default="mlx4",
+                        choices=["bf16", "fp16", "int8", "int4", "mlx4"],
+                        help="Draft quantization (default: mlx4)")
     parser.add_argument("--gamma", type=int, default=5,
                         help="Max draft tokens per step (default: 5)")
     parser.add_argument("--dataset", default=None,
