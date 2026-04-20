@@ -45,7 +45,7 @@ run_if_missing "gpu_bf16_original_nospec.json" \
 
 echo ""
 echo "--- BF16 +spec γ=${GAMMA} ---"
-run_if_missing "gpu_bf16_original_spec${GAMMA}.json" \
+run_if_missing "gpu_bf16_original_spec_g${GAMMA}.json" \
     --model "$ORIGINAL" --dataset "$DATASET" \
     --num_samples "$NUM_SAMPLES" --quant bf16 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
@@ -64,7 +64,7 @@ run_if_missing "gpu_bf16_mid3-22_nospec.json" \
 
 echo ""
 echo "--- BF16 +spec γ=${GAMMA} ---"
-run_if_missing "gpu_bf16_mid3-22_spec${GAMMA}.json" \
+run_if_missing "gpu_bf16_mid3-22_spec_g${GAMMA}.json" \
     --model "$MID3_22" --dataset "$DATASET" \
     --num_samples "$NUM_SAMPLES" --quant bf16 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
@@ -83,7 +83,7 @@ run_if_missing "gpu_bf16_mid3-23_nospec.json" \
 
 echo ""
 echo "--- BF16 +spec γ=${GAMMA} ---"
-run_if_missing "gpu_bf16_mid3-23_spec${GAMMA}.json" \
+run_if_missing "gpu_bf16_mid3-23_spec_g${GAMMA}.json" \
     --model "$MID3_23" --dataset "$DATASET" \
     --num_samples "$NUM_SAMPLES" --quant bf16 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
@@ -102,7 +102,7 @@ run_if_missing "gpu_bf16_mid4-23_nospec.json" \
 
 echo ""
 echo "--- BF16 +spec γ=${GAMMA} ---"
-run_if_missing "gpu_bf16_mid4-23_spec${GAMMA}.json" \
+run_if_missing "gpu_bf16_mid4-23_spec_g${GAMMA}.json" \
     --model "$MID4_23" --dataset "$DATASET" \
     --num_samples "$NUM_SAMPLES" --quant bf16 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
@@ -113,18 +113,20 @@ echo "========================================"
 echo "  Summary"
 echo "========================================"
 
-"$PYTHON_PATH" - <<'PYEOF'
-import json, os
+"$PYTHON_PATH" - "$GAMMA" <<'PYEOF'
+import json, os, sys
+
+G = sys.argv[1]
 
 rows = [
-    ("Original   no-spec",    "gpu_bf16_original_nospec.json",  False),
-    ("Original   +spec γ=5",  "gpu_bf16_original_spec5.json",   True),
-    ("mid3-22    no-spec",    "gpu_bf16_mid3-22_nospec.json",   False),
-    ("mid3-22    +spec γ=5",  "gpu_bf16_mid3-22_spec5.json",    True),
-    ("mid3-23    no-spec",    "gpu_bf16_mid3-23_nospec.json",   False),
-    ("mid3-23    +spec γ=5",  "gpu_bf16_mid3-23_spec5.json",    True),
-    ("mid4-23    no-spec",    "gpu_bf16_mid4-23_nospec.json",   False),
-    ("mid4-23    +spec γ=5",  "gpu_bf16_mid4-23_spec5.json",    True),
+    ("Original   no-spec",          "gpu_bf16_original_nospec.json",      False),
+    (f"Original   +spec γ={G}",     f"gpu_bf16_original_spec_g{G}.json",  True),
+    ("mid3-22    no-spec",          "gpu_bf16_mid3-22_nospec.json",        False),
+    (f"mid3-22    +spec γ={G}",     f"gpu_bf16_mid3-22_spec_g{G}.json",   True),
+    ("mid3-23    no-spec",          "gpu_bf16_mid3-23_nospec.json",        False),
+    (f"mid3-23    +spec γ={G}",     f"gpu_bf16_mid3-23_spec_g{G}.json",   True),
+    ("mid4-23    no-spec",          "gpu_bf16_mid4-23_nospec.json",        False),
+    (f"mid4-23    +spec γ={G}",     f"gpu_bf16_mid4-23_spec_g{G}.json",   True),
 ]
 
 ref_lat = None
