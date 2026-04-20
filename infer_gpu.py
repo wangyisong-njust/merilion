@@ -693,6 +693,8 @@ def main():
                         help="Spec decoding lookahead window (default: 5)")
     parser.add_argument("--corpus", default=None,
                         help="Path to n-gram corpus .pkl built by build_ngram_corpus.py")
+    parser.add_argument("--compile", action="store_true",
+                        help="torch.compile the text decoder (best with int8/int4, non-spec path)")
     args = parser.parse_args()
     args.model = os.path.abspath(args.model)
 
@@ -711,6 +713,16 @@ def main():
 
     gpu_mem_load_gb = torch.cuda.max_memory_allocated(args.device) / 1e9
     print(f"  GPU VRAM after load: {gpu_mem_load_gb:.2f} GB")
+
+    if args.compile:
+        print("torch.compile: compiling text_decoder …")
+        model.text_decoder = torch.compile(
+            model.text_decoder,
+            mode="default",
+            dynamic=True,
+            fullgraph=False,
+        )
+        print("  done (first inference will trigger JIT compilation)")
 
     _ngram = None
     if args.speculative:
@@ -817,6 +829,7 @@ def main():
             "num_samples":        args.num_samples,
             "speculative":        args.speculative,
             "gamma":              args.gamma if args.speculative else None,
+            "compiled":           args.compile,
             "wer":                wer,
             "avg_latency_s":      avg_lat,
             "avg_decode_tps":     avg_tps,
