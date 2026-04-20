@@ -715,7 +715,6 @@ def main():
     print(f"  GPU VRAM after load: {gpu_mem_load_gb:.2f} GB")
 
     if args.compile:
-        torch._dynamo.config.capture_scalar_outputs = True
         print("torch.compile: compiling text_decoder …")
         model.text_decoder = torch.compile(
             model.text_decoder,
