@@ -351,23 +351,15 @@ def transcribe_gpu_draft_spec(
             _gen_cfg.cache_implementation = None
 
     seq_len   = input_ids.shape[1]
-    max_cache = seq_len + max_new_tokens
+    max_cache = seq_len + max_new_tokens  # used for K clamping in decode loop
 
-    def _make_cache(mdl, dtype):
-        if _model_is_pruned(mdl):
-            from transformers import DynamicCache
-            return DynamicCache()
-        from transformers.cache_utils import HybridCache
-        return HybridCache(
-            mdl.text_decoder.model.config,
-            max_batch_size=1,
-            max_cache_len=max_cache,
-            dtype=dtype,
-            device=_dev,
-        )
-
-    verifier_kv = _make_cache(verifier, _dtype_v)
-    draft_kv    = _make_cache(draft_model, _dtype_d)
+    # Always use DynamicCache: HybridCache sets target_length=max_cache_len during prefill,
+    # but attention_mask only has seq_len elements → masked_scatter assertion fires inside
+    # _prepare_4d_causal_attention_mask_with_cache_position. DynamicCache uses
+    # target_length=seq_len (matches attention_mask) and grows lazily.
+    from transformers import DynamicCache
+    verifier_kv = DynamicCache()
+    draft_kv    = DynamicCache()
 
     eos_ids = {tokenizer.eos_token_id,
                tokenizer.convert_tokens_to_ids("<end_of_turn>")}
