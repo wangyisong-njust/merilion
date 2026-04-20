@@ -577,7 +577,7 @@ def transcribe_gpu(model, processor, audio_array: np.ndarray, sample_rate: int,
                         next_tok = bonus
                         n_acc += 1
 
-                    cur_pos += n_acc
+                    cur_pos += K + 1  # cache always receives K+1 writes regardless of acceptance
 
                 else:
                     cur_attn = torch.ones(1, cur_pos + 1,

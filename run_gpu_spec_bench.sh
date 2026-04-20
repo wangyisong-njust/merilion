@@ -1,9 +1,9 @@
 #!/bin/bash
 # ============================================================
 # GPU speculative decoding benchmark
-# Compares BF16 no-spec vs n-gram +spec (γ=5) on GPU for:
-#   - Original MERaLiON-2-3B
-#   - Pruned mid3-22 / mid3-23 / mid4-23
+# Compares no-spec vs n-gram +spec on GPU for:
+#   - Original MERaLiON-2-3B  (BF16 and INT8)
+#   - Pruned mid3-23           (BF16 and INT8)
 # ============================================================
 export PYTHONUNBUFFERED=1
 PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
@@ -19,9 +19,7 @@ GPU=0
 export CUDA_VISIBLE_DEVICES=$GPU
 cd "$WORKDIR"
 
-MID3_22="${TUNE_ROOT}/MERaLiON-2-3B-v3-td50-mid3-22-tune"
 MID3_23="${TUNE_ROOT}/MERaLiON-2-3B-v3-td50-mid3-23-tune"
-MID4_23="${TUNE_ROOT}/MERaLiON-2-3B-v3-td50-mid4-23-tune"
 
 run_if_missing() {
     local json="$1"; shift
@@ -34,7 +32,7 @@ run_if_missing() {
 
 # ════════════════════════════════════════════════════════════════════════════
 echo "========================================"
-echo "  Original MERaLiON-2-3B"
+echo "  Original MERaLiON-2-3B  BF16"
 echo "========================================"
 
 echo ""
@@ -53,26 +51,26 @@ run_if_missing "gpu_bf16_original_spec_g${GAMMA}.json" \
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "========================================"
-echo "  Pruned mid3-22"
+echo "  Original MERaLiON-2-3B  INT8"
 echo "========================================"
 
 echo ""
-echo "--- BF16 no-spec ---"
-run_if_missing "gpu_bf16_mid3-22_nospec.json" \
-    --model "$MID3_22" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 || exit 1
+echo "--- INT8 no-spec ---"
+run_if_missing "gpu_int8_original_nospec.json" \
+    --model "$ORIGINAL" --dataset "$DATASET" \
+    --num_samples "$NUM_SAMPLES" --quant int8 || exit 1
 
 echo ""
-echo "--- BF16 +spec γ=${GAMMA} ---"
-run_if_missing "gpu_bf16_mid3-22_spec_g${GAMMA}.json" \
-    --model "$MID3_22" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 \
+echo "--- INT8 +spec γ=${GAMMA} ---"
+run_if_missing "gpu_int8_original_spec_g${GAMMA}.json" \
+    --model "$ORIGINAL" --dataset "$DATASET" \
+    --num_samples "$NUM_SAMPLES" --quant int8 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "========================================"
-echo "  Pruned mid3-23"
+echo "  Pruned mid3-23  BF16"
 echo "========================================"
 
 echo ""
@@ -91,20 +89,20 @@ run_if_missing "gpu_bf16_mid3-23_spec_g${GAMMA}.json" \
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "========================================"
-echo "  Pruned mid4-23"
+echo "  Pruned mid3-23  INT8"
 echo "========================================"
 
 echo ""
-echo "--- BF16 no-spec ---"
-run_if_missing "gpu_bf16_mid4-23_nospec.json" \
-    --model "$MID4_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 || exit 1
+echo "--- INT8 no-spec ---"
+run_if_missing "gpu_int8_mid3-23_nospec.json" \
+    --model "$MID3_23" --dataset "$DATASET" \
+    --num_samples "$NUM_SAMPLES" --quant int8 || exit 1
 
 echo ""
-echo "--- BF16 +spec γ=${GAMMA} ---"
-run_if_missing "gpu_bf16_mid4-23_spec_g${GAMMA}.json" \
-    --model "$MID4_23" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant bf16 \
+echo "--- INT8 +spec γ=${GAMMA} ---"
+run_if_missing "gpu_int8_mid3-23_spec_g${GAMMA}.json" \
+    --model "$MID3_23" --dataset "$DATASET" \
+    --num_samples "$NUM_SAMPLES" --quant int8 \
     --speculative --gamma "$GAMMA" --corpus "$CORPUS" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -119,24 +117,24 @@ import json, os, sys
 G = sys.argv[1]
 
 rows = [
-    ("Original   no-spec",          "gpu_bf16_original_nospec.json",      False),
-    (f"Original   +spec γ={G}",     f"gpu_bf16_original_spec_g{G}.json",  True),
-    ("mid3-22    no-spec",          "gpu_bf16_mid3-22_nospec.json",        False),
-    (f"mid3-22    +spec γ={G}",     f"gpu_bf16_mid3-22_spec_g{G}.json",   True),
-    ("mid3-23    no-spec",          "gpu_bf16_mid3-23_nospec.json",        False),
-    (f"mid3-23    +spec γ={G}",     f"gpu_bf16_mid3-23_spec_g{G}.json",   True),
-    ("mid4-23    no-spec",          "gpu_bf16_mid4-23_nospec.json",        False),
-    (f"mid4-23    +spec γ={G}",     f"gpu_bf16_mid4-23_spec_g{G}.json",   True),
+    ("Original  BF16  no-spec",      "gpu_bf16_original_nospec.json",        False),
+    (f"Original  BF16  +spec γ={G}", f"gpu_bf16_original_spec_g{G}.json",    True),
+    ("Original  INT8  no-spec",      "gpu_int8_original_nospec.json",         False),
+    (f"Original  INT8  +spec γ={G}", f"gpu_int8_original_spec_g{G}.json",     True),
+    ("mid3-23   BF16  no-spec",      "gpu_bf16_mid3-23_nospec.json",          False),
+    (f"mid3-23   BF16  +spec γ={G}", f"gpu_bf16_mid3-23_spec_g{G}.json",     True),
+    ("mid3-23   INT8  no-spec",      "gpu_int8_mid3-23_nospec.json",          False),
+    (f"mid3-23   INT8  +spec γ={G}", f"gpu_int8_mid3-23_spec_g{G}.json",     True),
 ]
 
 ref_lat = None
-hdr = f"  {'Config':<28} {'Lat(s)':>7} {'Speedup':>8} {'tok/s':>7} {'WER%':>6} {'VRAM(GB)':>9}"
+hdr = f"  {'Config':<34} {'Lat(s)':>7} {'Speedup':>8} {'tok/s':>7} {'WER%':>6} {'VRAM(GB)':>9} {'AccRate':>8}"
 print(hdr)
 print("  " + "-" * (len(hdr) - 2))
 
 for label, path, is_spec in rows:
     if not os.path.exists(path):
-        print(f"  {label:<28}  [missing]")
+        print(f"  {label:<34}  [missing]")
         continue
     with open(path) as f:
         d = json.load(f)
@@ -144,10 +142,12 @@ for label, path, is_spec in rows:
     tps  = d.get("avg_decode_tps", 0)
     wer  = d.get("wer", 0) * 100
     vram = d.get("gpu_mem_peak_gb")
+    acc  = d.get("avg_spec_accept_rate")
     if ref_lat is None:
         ref_lat = lat
     ratio  = ref_lat / lat if lat > 0 else 0
     vram_s = f"{vram:.1f}" if vram else "  —"
+    acc_s  = f"{acc:.1%}" if acc is not None else "  —"
     marker = " ◀" if is_spec else "  "
-    print(f"  {label:<28} {lat:7.2f}  {ratio:7.2f}x  {tps:7.1f}  {wer:6.2f}  {vram_s:>9}{marker}")
+    print(f"  {label:<34} {lat:7.2f}  {ratio:7.2f}x  {tps:7.1f}  {wer:6.2f}  {vram_s:>9}  {acc_s:>8}{marker}")
 PYEOF
