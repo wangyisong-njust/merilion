@@ -418,7 +418,8 @@ def transcribe_gpu_draft_spec(
         instruction: str = "Transcribe the speech",
         max_new_tokens: int = 128,
         device: str = "cuda",
-        gamma: int = 5) -> tuple:
+        gamma: int = 5,
+        debug: bool = False) -> tuple:
     """Speculative decoding: draft proposes, verifier accepts/rejects.
 
     Both models share the same tokenizer and see the same audio prefill.
@@ -595,6 +596,19 @@ def transcribe_gpu_draft_spec(
             )
             n_spec_tot += K
 
+            # Debug: print first round's draft vs verifier predictions
+            if debug and len(generated_ids) == 1:
+                v_preds = [int(v_out.logits[0, i].argmax()) for i in range(K)]
+                print(f"\n[DEBUG round 1]")
+                print(f"  next_tok={next_tok!r}  -> {tokenizer.decode([next_tok])!r}")
+                print(f"  draft  : {draft_tokens} -> {tokenizer.decode(draft_tokens)!r}")
+                print(f"  vpreds : {v_preds}  -> {tokenizer.decode(v_preds)!r}")
+                # Check for NaN in logits
+                d_logits_sample = v_out.logits[0, 0]
+                print(f"  v_logits[0,0] nan={torch.isnan(d_logits_sample).any().item()} "
+                      f"inf={torch.isinf(d_logits_sample).any().item()} "
+                      f"max={d_logits_sample.max().item():.2f}")
+
             # Step 3: greedy acceptance (no bonus — keeps draft/verifier KV in sync)
             n_acc   = 0
             stopped = False
@@ -665,6 +679,8 @@ def main():
                         help="Use AudioBench WER normalization")
     parser.add_argument("--output", default="draft_spec_results.json")
     parser.add_argument("--save_samples", action="store_true")
+    parser.add_argument("--debug", action="store_true",
+                        help="Print first-round draft vs verifier tokens for diagnosis")
     args = parser.parse_args()
     args.verifier = os.path.abspath(args.verifier)
     args.draft    = os.path.abspath(args.draft)
@@ -692,6 +708,7 @@ def main():
             max_new_tokens=args.max_new_tokens,
             device=args.device,
             gamma=args.gamma,
+            debug=args.debug,
         )
 
     if not args.dataset:
