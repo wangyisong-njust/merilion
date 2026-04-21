@@ -522,9 +522,10 @@ def transcribe_gpu_draft_spec(
     max_cache = seq_len + max_new_tokens
 
     def _make_cache(mdl, dtype):
-        if _model_is_pruned(mdl):
-            from transformers import DynamicCache
-            return DynamicCache()
+        # Always use HybridCache — meralion2_bl's custom Gemma2 requires it
+        # for sliding-window key expansion.  DynamicCache produces NaN logits
+        # in the first decode step because it doesn't satisfy the alternating
+        # local/global attention assumptions.
         from transformers.cache_utils import HybridCache
         return HybridCache(
             mdl.text_decoder.model.config,
