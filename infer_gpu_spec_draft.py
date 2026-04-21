@@ -638,10 +638,19 @@ def transcribe_gpu_draft_spec(
             if debug and len(generated_ids) == 1:
                 v_preds = [int(v_out.logits[0, i].argmax()) for i in range(K)]
                 print(f"\n[DEBUG round 1]")
+                # Draft model structure
+                _fwq = next((m for m in draft_model.modules()
+                             if hasattr(m, "qweight")), None)
+                if _fwq is None:
+                    print(f"  [DIAG] draft has NO WQLinear modules (all FP16 Linear)")
+                else:
+                    _nz = (_fwq.qweight != 0).sum().item()
+                    print(f"  [DIAG] draft WQLinear qweight: "
+                          f"nonzero={_nz}/{_fwq.qweight.numel()} "
+                          f"dev={_fwq.qweight.device}")
                 print(f"  next_tok={next_tok!r}  -> {tokenizer.decode([next_tok])!r}")
                 print(f"  draft  : {draft_tokens} -> {tokenizer.decode(draft_tokens)!r}")
                 print(f"  vpreds : {v_preds}  -> {tokenizer.decode(v_preds)!r}")
-                # Check for NaN in logits
                 d_logits_sample = v_out.logits[0, 0]
                 print(f"  v_logits[0,0] nan={torch.isnan(d_logits_sample).any().item()} "
                       f"inf={torch.isinf(d_logits_sample).any().item()} "
