@@ -379,7 +379,39 @@ def load_model_gpu(model_path: str,
     # Modules to leave in FP16 — Whisper encoder + audio adapter + tied lm_head.
     BNB_SKIP = ["speech_encoder", "speech_audio_adapter", "lm_head"]
 
-    if quant == "awq4":
+    if quant == "autoawq4":
+        import json as _json
+        from awq import AutoAWQForCausalLM
+        from transformers import AutoConfig as _AutoConfig
+
+        cfg_path = os.path.join(model_path, "awq_config.json")
+        if not os.path.exists(cfg_path):
+            raise FileNotFoundError(
+                f"awq_config.json not found in {model_path}. "
+                "Run quantize_autoawq.py first.")
+
+        print(f"Loading AutoAWQ4 model from {os.path.basename(model_path)} …")
+        t0 = time.time()
+
+        # Load quantized text decoder
+        td_awq_dir = os.path.join(model_path, "text_decoder_awq")
+        awq_td = AutoAWQForCausalLM.from_quantized(
+            td_awq_dir, fuse_layers=False, device_map={"": device})
+
+        # Build MERaLiON2 structure from config, load non-TD weights
+        _hf_cfg = _AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+        model   = MERaLiON2ForConditionalGeneration(_hf_cfg)
+        model   = model.to(torch.float16)
+        non_td_sd = torch.load(
+            os.path.join(model_path, "non_td_weights.pt"), map_location="cpu")
+        model.load_state_dict(non_td_sd, strict=False)
+        model = model.to(device)
+
+        # Inject quantized text decoder
+        model.text_decoder = awq_td.model
+        print(f"  AutoAWQ4 model loaded in {time.time()-t0:.1f}s")
+
+    elif quant == "awq4":
         import json as _json
         cfg_path = os.path.join(model_path, "awq_config.json")
         if not os.path.exists(cfg_path):
@@ -774,8 +806,8 @@ def main():
     parser.add_argument("--num_samples", type=int, default=20)
     parser.add_argument("--max_new_tokens", type=int, default=128)
     parser.add_argument("--quant", default="bf16",
-                        choices=["bf16", "fp16", "int8", "int4", "mlx4", "awq4"],
-                        help="Quantization: bf16 (default) | fp16 | int8 (BnB) | int4 (BnB NF4) | mlx4 (MLX affine int4 group=64) | awq4 (AWQ W4A16)")
+                        choices=["bf16", "fp16", "int8", "int4", "mlx4", "awq4", "autoawq4"],
+                        help="Quantization: bf16|fp16|int8|int4|mlx4|awq4|autoawq4")
     parser.add_argument("--no_flash_attn", action="store_true",
                         help="Use SDPA instead of FlashAttention-2")
     parser.add_argument("--device", default="cuda",

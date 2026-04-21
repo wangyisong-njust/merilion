@@ -256,7 +256,32 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
     common_kwargs = dict(use_safetensors=True)
     t0 = time.time()
 
-    if quant == "awq4":
+    if quant == "autoawq4":
+        import json as _json
+        from awq import AutoAWQForCausalLM
+        from transformers import AutoConfig as _AutoConfig
+
+        cfg_path = os.path.join(model_path, "awq_config.json")
+        if not os.path.exists(cfg_path):
+            raise FileNotFoundError(
+                f"awq_config.json not found in {model_path}. "
+                "Run quantize_autoawq.py first.")
+
+        print(f"Loading AutoAWQ4 model from {os.path.basename(model_path)} …")
+        td_awq_dir = os.path.join(model_path, "text_decoder_awq")
+        awq_td = AutoAWQForCausalLM.from_quantized(
+            td_awq_dir, fuse_layers=False, device_map={"": device})
+
+        _hf_cfg = _AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+        model   = MERaLiON2ForConditionalGeneration(_hf_cfg)
+        model   = model.to(torch.float16)
+        non_td_sd = torch.load(
+            os.path.join(model_path, "non_td_weights.pt"), map_location="cpu")
+        model.load_state_dict(non_td_sd, strict=False)
+        model = model.to(device)
+        model.text_decoder = awq_td.model
+
+    elif quant == "awq4":
         import json as _json
         from transformers import AutoConfig as _AutoConfig
         cfg_path = os.path.join(model_path, "awq_config.json")
@@ -592,11 +617,11 @@ def main():
     parser.add_argument("--draft", required=True,
                         help="Path to draft (pruned) MERaLiON model")
     parser.add_argument("--verifier_quant", default="bf16",
-                        choices=["bf16", "fp16", "int8", "int4", "mlx4", "awq4"],
+                        choices=["bf16", "fp16", "int8", "int4", "mlx4", "awq4", "autoawq4"],
                         help="Verifier quantization (default: bf16)")
-    parser.add_argument("--draft_quant", default="awq4",
-                        choices=["bf16", "fp16", "int8", "int4", "mlx4", "awq4"],
-                        help="Draft quantization (default: awq4)")
+    parser.add_argument("--draft_quant", default="autoawq4",
+                        choices=["bf16", "fp16", "int8", "int4", "mlx4", "awq4", "autoawq4"],
+                        help="Draft quantization (default: autoawq4)")
     parser.add_argument("--gamma", type=int, default=5,
                         help="Max draft tokens per step (default: 5)")
     parser.add_argument("--dataset", default=None,
