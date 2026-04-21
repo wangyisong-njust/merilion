@@ -117,25 +117,24 @@ def main():
     awq_model = AutoAWQForCausalLM.from_pretrained(
         td_fp16_dir, device_map="auto", safetensors=True)
 
-    # Gemma2 accesses decoder_layer.attention_type inside model.forward, but
-    # AutoAWQ's Catcher wrapper doesn't forward attribute lookups to the wrapped
-    # module.  Patch it so unknown attrs fall through to the original layer.
-    import awq.quantize.quantizer as _awq_q
-    _OrigCatcher = _awq_q.Catcher
+    # AutoAWQ's init_quant wraps the first transformer layer with an internal
+    # Catcher class to capture its inputs.  Gemma2Model.forward accesses
+    # decoder_layer.attention_type on every layer (to pick local vs global
+    # attention mask), but Catcher doesn't forward unknown attribute lookups.
+    # Fix: patch Gemma2Model.forward to copy attention_type from the wrapped
+    # module onto any layer that's missing it (i.e. the Catcher wrapper).
+    from transformers.models.gemma2 import modeling_gemma2 as _g2_mod
+    _orig_g2_forward = _g2_mod.Gemma2Model.forward
 
-    class _FixedCatcher(_OrigCatcher):
-        def __getattr__(self, name):
-            try:
-                return super().__getattr__(name)
-            except AttributeError:
-                try:
-                    wrapped = super().__getattr__("module")
-                    return getattr(wrapped, name)
-                except Exception:
-                    raise AttributeError(
-                        f"'{type(self).__name__}' has no attribute '{name}'")
+    def _patched_g2_forward(self, *args, **kwargs):
+        for layer in self.layers:
+            if not hasattr(layer, "attention_type"):
+                wrapped = getattr(layer, "module", None)
+                if wrapped is not None and hasattr(wrapped, "attention_type"):
+                    layer.attention_type = wrapped.attention_type
+        return _orig_g2_forward(self, *args, **kwargs)
 
-    _awq_q.Catcher = _FixedCatcher
+    _g2_mod.Gemma2Model.forward = _patched_g2_forward
 
     print("Running AutoAWQ calibration + quantization …")
     t0 = time.time()
