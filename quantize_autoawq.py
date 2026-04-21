@@ -182,18 +182,22 @@ def main():
         awq_model = AutoAWQForCausalLM.from_pretrained(
             td_fp16_dir, device_map="auto", safetensors=True)
 
-    # Custom Gemma2 LOCAL sliding-window layers expand keys to 2× seq_len,
-    # making the standard causal mask [B,1,S,S] mismatch [B,H,S,2S] during
-    # AWQ's per-layer calibration.  Temporarily switch all layers to "global"
-    # (full causal) attention — scale factors for linear weights are
-    # attention-type-agnostic, so this is a safe approximation.
-    _saved_attn_types = {}
-    for _n, _m in awq_model.model.named_modules():
-        if hasattr(_m, "attention_type"):
-            _saved_attn_types[_n] = _m.attention_type
-            _m.attention_type = "global"
-    if _saved_attn_types:
-        print(f"  Temporarily set {len(_saved_attn_types)} module(s) to 'global' attention for calibration")
+    # meralion2_bl's custom Gemma2 expands keys to 2× seq_len regardless of
+    # attention_type, so the captured attention_mask [B,1,S,S] never matches
+    # keys of shape [B,H,S,2S] during AWQ's per-layer _search_best_scale.
+    #
+    # Fix: patch AwqQuantizer._module_forward to drop attention_mask from
+    # module_kwargs.  AWQ calibration only uses activation magnitudes to
+    # compute scale factors — causal masking is irrelevant for that purpose.
+    from awq.quantize.quantizer import AwqQuantizer as _AwqQ
+    _orig_mfwd = _AwqQ._module_forward
+
+    def _no_mask_module_fwd(self, inp, module, module_kwargs):
+        kw = {k: v for k, v in module_kwargs.items() if k != "attention_mask"}
+        return _orig_mfwd(self, inp, module, kw)
+
+    _AwqQ._module_forward = _no_mask_module_fwd
+    print("  Patched AwqQuantizer._module_forward to drop attention_mask during calibration")
 
     print("Running AutoAWQ calibration + quantization …")
     t0 = time.time()
@@ -204,9 +208,7 @@ def main():
             calib_data=calib_texts,
         )
     finally:
-        for _n, _m in awq_model.model.named_modules():
-            if _n in _saved_attn_types:
-                _m.attention_type = _saved_attn_types[_n]
+        _AwqQ._module_forward = _orig_mfwd
     print(f"  Done in {time.time()-t0:.1f}s")
 
     # ── Save quantized text decoder ───────────────────────────────────────────
