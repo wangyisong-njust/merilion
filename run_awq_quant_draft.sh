@@ -12,9 +12,9 @@ PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
 WORKDIR="/home/jinchao/runtao/LLM-Pruner"
 DRAFT="${WORKDIR}/meralion_tune_log/MERaLiON-2-3B-v3-td50-mid3-23-tune"
 DATASET="/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR"
-SAVE="${WORKDIR}/MERaLiON-2-3B-mid3-23-AWQ4"
-NUM_CALIB=64
-GROUP_SIZE=64
+SAVE="${WORKDIR}/MERaLiON-2-3B-mid3-23-AWQ4-g32"
+NUM_CALIB=256
+GROUP_SIZE=32
 ALPHA=0.5
 GPU=0
 
