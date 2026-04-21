@@ -295,6 +295,27 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
                 awq_td = AutoAWQForCausalLM.from_quantized(
                     td_awq_dir, trust_remote_code=True, fuse_layers=False,
                     device_map={"": device})
+            # Verify quantized weights were actually loaded (load_checkpoint_and_dispatch
+            # may silently skip non-meta tensors).  If zero, reload manually.
+            _first_wq = next(
+                (m for m in awq_td.model.modules() if hasattr(m, "qweight")), None)
+            if _first_wq is not None:
+                _nz = (_first_wq.qweight != 0).sum().item()
+                print(f"  [diag] first WQLinear qweight: dev={_first_wq.qweight.device} "
+                      f"nonzero={_nz}/{_first_wq.qweight.numel()} "
+                      f"scales_dev={_first_wq.scales.device}")
+                if _nz == 0:
+                    print(f"  WQLinear weights are zero — reloading from safetensors …")
+                    import glob as _glob
+                    from safetensors.torch import load_file as _load_sf
+                    _sf_files = sorted(_glob.glob(os.path.join(td_awq_dir, "*.safetensors")))
+                    _qsd = {}
+                    for _sf in _sf_files:
+                        _qsd.update(_load_sf(_sf))
+                    awq_td.model.load_state_dict(_qsd, strict=False)
+                    del _qsd
+                    _nz2 = (_first_wq.qweight != 0).sum().item()
+                    print(f"  After manual reload: nonzero={_nz2}/{_first_wq.qweight.numel()}")
             print(f"  AWQ quantized text decoder loaded ✓")
 
             _hf_cfg = _AutoConfig.from_pretrained(model_path, trust_remote_code=True)
