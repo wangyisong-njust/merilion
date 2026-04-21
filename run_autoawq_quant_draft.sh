@@ -29,6 +29,7 @@ echo "========================================"
     --save       "$SAVE" \
     --num_calib  "$NUM_CALIB" \
     --q_group_size "$Q_GROUP_SIZE" \
+    --pruned \
     | tee autoawq_quant_draft.log
 
 echo ""

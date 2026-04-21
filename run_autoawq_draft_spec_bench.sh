@@ -1,14 +1,14 @@
 #!/bin/bash
 # ============================================================
 # Model-based speculative decoding benchmark  (AutoAWQ4 edition)
-# Verifier: original MERaLiON-2-3B (BF16 or AutoAWQ4)
-# Draft:    pruned mid3-23 MLX4  (AutoAWQ can't handle pruned architectures)
+# Verifier: original MERaLiON-2-3B BF16
+# Draft:    pruned mid3-23 AutoAWQ4  (--pruned path in quantize_autoawq.py)
 # ============================================================
 export PYTHONUNBUFFERED=1
 PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
 WORKDIR="/home/jinchao/runtao/LLM-Pruner"
 ORIGINAL="/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
-ORIGINAL_AWQ="${WORKDIR}/MERaLiON-2-3B-AutoAWQ4"
+DRAFT_AWQ="${WORKDIR}/MERaLiON-2-3B-mid3-23-AutoAWQ4"
 DATASET="/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR"
 NUM_SAMPLES=50
 GAMMA=5
@@ -16,10 +16,6 @@ GPU=0
 
 export CUDA_VISIBLE_DEVICES=$GPU
 cd "$WORKDIR"
-
-# Draft: unquantized mid3-23 with MLX4 applied in-memory (pruned arch not
-# compatible with AutoAWQ's static model reconstruction)
-DRAFT="${WORKDIR}/meralion_tune_log/MERaLiON-2-3B-v3-td50-mid3-23-tune"
 
 run_if_missing() {
     local json="$1"; shift
@@ -30,26 +26,13 @@ run_if_missing() {
         || { echo "[FAIL] $json"; return 1; }
 }
 
-run_spec_bf16v() {
+run_spec_bf16v_awqd() {
     local json="$1"; shift
     if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
     echo "  running → $json"
     "$PYTHON_PATH" -u infer_gpu_spec_draft.py \
-        --verifier "$ORIGINAL" --draft "$DRAFT" \
-        --verifier_quant bf16 --draft_quant mlx4 \
-        --dataset "$DATASET" --num_samples "$NUM_SAMPLES" \
-        --gamma "$GAMMA" --output "$json" "$@" \
-        | tee "${json%.json}.log" \
-        || { echo "[FAIL] $json"; return 1; }
-}
-
-run_spec_awqv() {
-    local json="$1"; shift
-    if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
-    echo "  running → $json"
-    "$PYTHON_PATH" -u infer_gpu_spec_draft.py \
-        --verifier "$ORIGINAL_AWQ" --draft "$DRAFT" \
-        --verifier_quant autoawq4 --draft_quant mlx4 \
+        --verifier "$ORIGINAL" --draft "$DRAFT_AWQ" \
+        --verifier_quant bf16 --draft_quant autoawq4 \
         --dataset "$DATASET" --num_samples "$NUM_SAMPLES" \
         --gamma "$GAMMA" --output "$json" "$@" \
         | tee "${json%.json}.log" \
@@ -58,7 +41,7 @@ run_spec_awqv() {
 
 # ════════════════════════════════════════════════════════════════════════════
 echo "========================================"
-echo "  BF16 verifier + MLX4 draft"
+echo "  BF16 verifier + AutoAWQ4 draft (mid3-23)"
 echo "========================================"
 
 echo ""
@@ -69,25 +52,8 @@ run_if_missing "gpu_bf16_original_nospec.json" \
     --num_samples "$NUM_SAMPLES" --quant bf16 || exit 1
 
 echo ""
-echo "--- BF16 verifier + MLX4 draft γ=${GAMMA} ---"
-run_spec_bf16v "draft_bf16_orig_mid323mlx4_g${GAMMA}.json" || exit 1
-
-# ════════════════════════════════════════════════════════════════════════════
-echo ""
-echo "========================================"
-echo "  AutoAWQ4 verifier + MLX4 draft"
-echo "========================================"
-
-echo ""
-echo "--- AutoAWQ4 no-spec (reuse) ---"
-run_if_missing "gpu_autoawq4_original_nospec.json" \
-    infer_gpu.py \
-    --model "$ORIGINAL_AWQ" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant autoawq4 || exit 1
-
-echo ""
-echo "--- AutoAWQ4 verifier + MLX4 draft γ=${GAMMA} ---"
-run_spec_awqv "draft_autoawq4_orig_mid323mlx4_g${GAMMA}.json" || exit 1
+echo "--- BF16 verifier + AutoAWQ4 draft γ=${GAMMA} ---"
+run_spec_bf16v_awqd "draft_bf16_orig_mid323awq4_g${GAMMA}.json" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
@@ -101,20 +67,20 @@ import json, os, sys
 G = sys.argv[1]
 
 rows = [
-    ("Original  BF16      no-spec",                 "gpu_bf16_original_nospec.json",                   False),
-    (f"Original  BF16      +draft-spec γ={G}",       f"draft_bf16_orig_mid323mlx4_g{G}.json",           True),
-    ("Original  AutoAWQ4  no-spec",                 "gpu_autoawq4_original_nospec.json",                False),
-    (f"Original  AutoAWQ4  +draft-spec γ={G}",       f"draft_autoawq4_orig_mid323mlx4_g{G}.json",       True),
+    ("Original  BF16      no-spec",                   "gpu_bf16_original_nospec.json",                 False),
+    (f"Original  BF16      +awq4-draft γ={G}",         f"draft_bf16_orig_mid323awq4_g{G}.json",         True),
+    # MLX4 draft results for comparison (from previous run)
+    (f"Original  BF16      +mlx4-draft γ={G}",         f"draft_bf16_orig_mid323mlx4_g{G}.json",         True),
 ]
 
 ref_lat = None
-hdr = f"  {'Config':<44} {'Lat(s)':>7} {'Speedup':>8} {'tok/s':>7} {'WER%':>6} {'VRAM(GB)':>9} {'AccRate':>8}"
+hdr = f"  {'Config':<46} {'Lat(s)':>7} {'Speedup':>8} {'tok/s':>7} {'WER%':>6} {'VRAM(GB)':>9} {'AccRate':>8}"
 print(hdr)
 print("  " + "-" * (len(hdr) - 2))
 
 for label, path, is_spec in rows:
     if not os.path.exists(path):
-        print(f"  {label:<44}  [missing]")
+        print(f"  {label:<46}  [missing]")
         continue
     with open(path) as f:
         d = json.load(f)
@@ -129,5 +95,5 @@ for label, path, is_spec in rows:
     vram_s = f"{vram:.1f}" if vram else "  —"
     acc_s  = f"{acc:.1%}" if acc is not None else "  —"
     marker = " ◀" if is_spec else "  "
-    print(f"  {label:<44} {lat:7.2f}  {ratio:7.2f}x  {tps:7.1f}  {wer:6.2f}  {vram_s:>9}  {acc_s:>8}{marker}")
+    print(f"  {label:<46} {lat:7.2f}  {ratio:7.2f}x  {tps:7.1f}  {wer:6.2f}  {vram_s:>9}  {acc_s:>8}{marker}")
 PYEOF

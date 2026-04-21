@@ -55,13 +55,31 @@ def get_calib_texts(dataset_path, num_calib):
     return texts
 
 
+def _patch_gemma2_forward():
+    """Patch Gemma2Model.forward to propagate attention_type to AutoAWQ Catcher."""
+    from transformers.models.gemma2 import modeling_gemma2 as _g2_mod
+    _orig = _g2_mod.Gemma2Model.forward
+
+    def _patched(self, *args, **kwargs):
+        for layer in self.layers:
+            if not hasattr(layer, "attention_type"):
+                wrapped = getattr(layer, "module", None)
+                if wrapped is not None and hasattr(wrapped, "attention_type"):
+                    layer.attention_type = wrapped.attention_type
+        return _orig(self, *args, **kwargs)
+
+    _g2_mod.Gemma2Model.forward = _patched
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model",        required=True, help="Path to original MERaLiON-2-3B")
+    ap.add_argument("--model",        required=True, help="Path to MERaLiON-2-3B (original or pruned)")
     ap.add_argument("--dataset",      required=True, help="IMDA_PART1 dataset path")
     ap.add_argument("--save",         required=True, help="Output directory")
     ap.add_argument("--num_calib",    type=int, default=64,  help="Calibration samples (default 64)")
     ap.add_argument("--q_group_size", type=int, default=128, help="AWQ group size (default 128)")
+    ap.add_argument("--pruned",       action="store_true",
+                    help="Model has non-uniform pruned architecture (bypasses AutoAWQ from_pretrained)")
     ap.add_argument("--device",       default="cuda")
     args = ap.parse_args()
 
@@ -87,15 +105,6 @@ def main():
     torch.save(non_td_sd, os.path.join(args.save, "non_td_weights.pt"))
     print(f"  {len(non_td_sd)} tensors saved")
 
-    # ── Save text_decoder as standalone Gemma2 model ─────────────────────────
-    td_fp16_dir = os.path.join(args.save, "_td_fp16_tmp")
-    print(f"Saving text_decoder to {td_fp16_dir} …")
-    model.text_decoder.save_pretrained(td_fp16_dir)
-    processor.tokenizer.save_pretrained(td_fp16_dir)
-
-    del model
-    torch.cuda.empty_cache()
-
     # ── Calibration texts ─────────────────────────────────────────────────────
     print(f"Collecting {args.num_calib} calibration texts …")
     calib_texts = get_calib_texts(args.dataset, args.num_calib)
@@ -104,8 +113,6 @@ def main():
         raise RuntimeError("Too few calibration texts — check dataset field names.")
 
     # ── AutoAWQ quantization ──────────────────────────────────────────────────
-    from awq import AutoAWQForCausalLM
-
     quant_config = {
         "zero_point":   True,
         "q_group_size": args.q_group_size,
@@ -113,28 +120,46 @@ def main():
         "version":      "GEMM",
     }
 
-    print(f"Loading text_decoder for AutoAWQ (group={args.q_group_size}) …")
-    awq_model = AutoAWQForCausalLM.from_pretrained(
-        td_fp16_dir, device_map="auto", safetensors=True)
+    _patch_gemma2_forward()
 
-    # AutoAWQ's init_quant wraps the first transformer layer with an internal
-    # Catcher class to capture its inputs.  Gemma2Model.forward accesses
-    # decoder_layer.attention_type on every layer (to pick local vs global
-    # attention mask), but Catcher doesn't forward unknown attribute lookups.
-    # Fix: patch Gemma2Model.forward to copy attention_type from the wrapped
-    # module onto any layer that's missing it (i.e. the Catcher wrapper).
-    from transformers.models.gemma2 import modeling_gemma2 as _g2_mod
-    _orig_g2_forward = _g2_mod.Gemma2Model.forward
+    if args.pruned:
+        # Pruned models have non-uniform intermediate_size per layer.
+        # AutoAWQ's from_pretrained reconstructs from config (uniform) → shape
+        # mismatch.  Instead, wrap the already-loaded text_decoder directly.
+        print(f"Pruned model: wrapping text_decoder directly for AutoAWQ …")
+        text_decoder = model.text_decoder.half().to(args.device)
+        del model
+        torch.cuda.empty_cache()
 
-    def _patched_g2_forward(self, *args, **kwargs):
-        for layer in self.layers:
-            if not hasattr(layer, "attention_type"):
-                wrapped = getattr(layer, "module", None)
-                if wrapped is not None and hasattr(wrapped, "attention_type"):
-                    layer.attention_type = wrapped.attention_type
-        return _orig_g2_forward(self, *args, **kwargs)
+        try:
+            from awq.models.auto import AWQ_CAUSAL_LM_MODEL_MAP
+            _AWQCls = AWQ_CAUSAL_LM_MODEL_MAP[text_decoder.config.model_type]
+        except (ImportError, KeyError):
+            try:
+                from awq.models.gemma2 import Gemma2AWQForCausalLM as _AWQCls
+            except ImportError:
+                from awq.models.base import BaseAWQForCausalLM as _AWQCls
 
-    _g2_mod.Gemma2Model.forward = _patched_g2_forward
+        awq_model = _AWQCls(
+            model=text_decoder,
+            model_type=text_decoder.config.model_type,
+            is_quantized=False,
+            config=text_decoder.config,
+            quant_config=None,
+        )
+    else:
+        # Non-pruned: save as standalone HF model, load via from_pretrained.
+        td_fp16_dir = os.path.join(args.save, "_td_fp16_tmp")
+        print(f"Saving text_decoder to {td_fp16_dir} …")
+        model.text_decoder.save_pretrained(td_fp16_dir)
+        processor.tokenizer.save_pretrained(td_fp16_dir)
+        del model
+        torch.cuda.empty_cache()
+
+        from awq import AutoAWQForCausalLM
+        print(f"Loading text_decoder for AutoAWQ (group={args.q_group_size}) …")
+        awq_model = AutoAWQForCausalLM.from_pretrained(
+            td_fp16_dir, device_map="auto", safetensors=True)
 
     print("Running AutoAWQ calibration + quantization …")
     t0 = time.time()
@@ -163,12 +188,14 @@ def main():
         "w_bit":        4,
         "num_calib":    len(calib_texts),
         "version":      "GEMM",
+        "pruned":       args.pruned,
+        "source_model": os.path.abspath(args.model),
     }
     with open(os.path.join(args.save, "awq_config.json"), "w") as f:
         json.dump(cfg, f, indent=2)
 
-    # Clean up temp dir
-    shutil.rmtree(td_fp16_dir, ignore_errors=True)
+    if not args.pruned:
+        shutil.rmtree(os.path.join(args.save, "_td_fp16_tmp"), ignore_errors=True)
 
     print(f"\nDone.  Model saved to {args.save}")
     print(f"  non_td_weights.pt : speech encoder + adapter (FP16)")
