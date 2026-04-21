@@ -274,6 +274,44 @@ class _MLX4Linear(torch.nn.Module):
         return torch.nn.functional.linear(x, w, bias)
 
 
+class _AWQ4Linear(torch.nn.Module):
+    """W4A16 INT4 linear layer with AWQ-calibrated per-column scales (load-only)."""
+    def __init__(self, in_features: int, out_features: int,
+                 has_bias: bool, group_size: int = 64):
+        super().__init__()
+        self.in_features  = in_features
+        self.out_features = out_features
+        self.group_size   = group_size
+        self._pad = (-in_features) % group_size
+        I_pad     = in_features + self._pad
+        n_groups  = I_pad // group_size
+        self.register_buffer("weight_q",  torch.zeros(out_features, I_pad // 2, dtype=torch.uint8))
+        self.register_buffer("scales",    torch.zeros(out_features, n_groups,   dtype=torch.float16))
+        self.register_buffer("zeros",     torch.zeros(out_features, n_groups,   dtype=torch.float16))
+        self.register_buffer("col_scale", torch.ones(in_features,               dtype=torch.float16))
+        if has_bias:
+            self.register_buffer("linear_bias", torch.zeros(out_features, dtype=torch.float16))
+        else:
+            self.linear_bias = None
+
+    def _dequantize(self) -> torch.Tensor:
+        O     = self.out_features
+        I_pad = self.weight_q.shape[1] * 2
+        n_g   = self.scales.shape[1]
+        lo = (self.weight_q & 0x0F).to(torch.float16)
+        hi = (self.weight_q >>  4).to(torch.float16)
+        q  = torch.stack([lo, hi], dim=-1).view(O, I_pad)
+        q  = q.view(O, n_g, self.group_size)
+        w  = self.scales.unsqueeze(-1) * q + self.zeros.unsqueeze(-1)
+        w  = w.view(O, I_pad)[:, :self.in_features]
+        return w * self.col_scale.unsqueeze(0)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        w    = self._dequantize().to(x.dtype)
+        bias = self.linear_bias.to(x.dtype) if self.linear_bias is not None else None
+        return torch.nn.functional.linear(x, w, bias)
+
+
 def _apply_mlx4_quant(model, group_size: int = 64) -> None:
     """Replace nn.Linear layers in text_decoder (excluding lm_head) with
     _MLX4Linear.  speech_encoder and speech_audio_adapter are left in FP16.
@@ -341,7 +379,43 @@ def load_model_gpu(model_path: str,
     # Modules to leave in FP16 — Whisper encoder + audio adapter + tied lm_head.
     BNB_SKIP = ["speech_encoder", "speech_audio_adapter", "lm_head"]
 
-    if quant == "mlx4":
+    if quant == "awq4":
+        import json as _json
+        cfg_path = os.path.join(model_path, "awq_config.json")
+        if not os.path.exists(cfg_path):
+            raise FileNotFoundError(
+                f"awq_config.json not found in {model_path}. "
+                "Run quantize_awq.py first.")
+        with open(cfg_path) as f:
+            awq_cfg = _json.load(f)
+        group_size = awq_cfg.get("group_size", 64)
+
+        print(f"Loading pre-quantized AWQ4 model (group={group_size}) …")
+        t0 = time.time()
+        model = MERaLiON2ForConditionalGeneration.from_pretrained(
+            model_path, torch_dtype=torch.float16, **common_kwargs)
+
+        # Replace target Linear layers with empty _AWQ4Linear shells
+        SKIP = {"speech_encoder", "speech_audio_adapter", "lm_head"}
+        for name, mod in list(model.named_modules()):
+            if not isinstance(mod, torch.nn.Linear):
+                continue
+            if any(s in name for s in SKIP) or "text_decoder" not in name:
+                continue
+            O, I = mod.weight.shape
+            parts  = name.split(".")
+            parent = model
+            for part in parts[:-1]:
+                parent = getattr(parent, part)
+            setattr(parent, parts[-1], _AWQ4Linear(I, O, mod.bias is not None, group_size))
+
+        # Load AWQ weights into the shells
+        sd = torch.load(os.path.join(model_path, "model_awq4.pt"), map_location="cpu")
+        model.load_state_dict(sd)
+        model = model.to(device)
+        print(f"  AWQ4 model loaded in {time.time()-t0:.1f}s")
+
+    elif quant == "mlx4":
         print("Loading model → CPU FP16, will apply MLX-style int4 (group=64) post-hoc …")
         t0 = time.time()
         model = MERaLiON2ForConditionalGeneration.from_pretrained(
@@ -697,8 +771,8 @@ def main():
     parser.add_argument("--num_samples", type=int, default=20)
     parser.add_argument("--max_new_tokens", type=int, default=128)
     parser.add_argument("--quant", default="bf16",
-                        choices=["bf16", "fp16", "int8", "int4", "mlx4"],
-                        help="Quantization: bf16 (default) | fp16 | int8 (BnB) | int4 (BnB NF4) | mlx4 (MLX affine int4 group=64)")
+                        choices=["bf16", "fp16", "int8", "int4", "mlx4", "awq4"],
+                        help="Quantization: bf16 (default) | fp16 | int8 (BnB) | int4 (BnB NF4) | mlx4 (MLX affine int4 group=64) | awq4 (AWQ W4A16)")
     parser.add_argument("--no_flash_attn", action="store_true",
                         help="Use SDPA instead of FlashAttention-2")
     parser.add_argument("--device", default="cuda",
