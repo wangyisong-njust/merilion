@@ -648,6 +648,20 @@ def transcribe_gpu_draft_spec(
                     print(f"  [DIAG] draft WQLinear qweight: "
                           f"nonzero={_nz}/{_fwq.qweight.numel()} "
                           f"dev={_fwq.qweight.device}")
+                    _snz = (_fwq.scales != 0).sum().item()
+                    print(f"  [DIAG] draft WQLinear scales: "
+                          f"nonzero={_snz}/{_fwq.scales.numel()} "
+                          f"dtype={_fwq.scales.dtype}")
+                    _znz = (_fwq.qzeros != 0).sum().item()
+                    print(f"  [DIAG] draft WQLinear qzeros: "
+                          f"nonzero={_znz}/{_fwq.qzeros.numel()}")
+                    with torch.no_grad():
+                        _xi = torch.randn(1, 1, _fwq.in_features,
+                                          device=_fwq.qweight.device, dtype=torch.float16)
+                        _yo = _fwq(_xi)
+                        print(f"  [DIAG] WQLinear fwd test: "
+                              f"out_nonzero={(_yo != 0).sum().item()}/{_yo.numel()} "
+                              f"max={_yo.abs().max().item():.4f}")
                 print(f"  next_tok={next_tok!r}  -> {tokenizer.decode([next_tok])!r}")
                 print(f"  draft  : {draft_tokens} -> {tokenizer.decode(draft_tokens)!r}")
                 print(f"  vpreds : {v_preds}  -> {tokenizer.decode(v_preds)!r}")
