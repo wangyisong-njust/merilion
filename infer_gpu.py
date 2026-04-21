@@ -397,50 +397,58 @@ def load_model_gpu(model_path: str,
         td_awq_dir = os.path.join(model_path, "text_decoder_awq")
 
         if _awq_cfg.get("pruned"):
-            # Pruned architecture: from_quantized normally shape-mismatches because
-            # it reconstructs from config (uniform intermediate_size).
-            # Fix: inject the already-loaded pruned text_decoder via the same
-            # monkeypatch used during quantization, letting AutoAWQ do its own
-            # Linear→WQLinear replacement and quantized weight loading correctly.
-            from transformers import AutoModelForCausalLM as _AutoMCLM
-            from unittest.mock import patch
+            import glob as _glob
+            import torch.nn as _nn
+            from awq.modules.linear import WQLinear_GEMM
+            from safetensors.torch import load_file as _lsf
 
-            _src = _awq_cfg["source_model"]
-            print(f"  Loading pruned source model for AWQ injection …")
+            _src   = _awq_cfg["source_model"]
+            _w_bit = _awq_cfg.get("w_bit", 4)
+            _grp   = _awq_cfg.get("q_group_size", 128)
+
+            print(f"  Loading pruned source model …")
             _pruned_full = MERaLiON2ForConditionalGeneration.from_pretrained(
                 _src, torch_dtype=torch.float16, use_safetensors=True)
             _pruned_td = _pruned_full.text_decoder
 
-            # Extract non-td weights before AWQ modifies _pruned_td in-place
             _non_td_sd = {k: v.cpu() for k, v in _pruned_full.state_dict().items()
                           if not k.startswith("text_decoder.")}
 
-            print(f"  Injecting pruned text_decoder into AutoAWQ.from_quantized …")
-            with patch.object(_AutoMCLM, "from_pretrained", return_value=_pruned_td), \
-                 patch.object(_AutoMCLM, "from_config",     return_value=_pruned_td):
-                awq_td = AutoAWQForCausalLM.from_quantized(
-                    td_awq_dir, trust_remote_code=True, fuse_layers=False,
-                    device_map={"": device})
-            _first_wq = next(
-                (m for m in awq_td.model.modules() if hasattr(m, "qweight")), None)
-            if _first_wq is not None:
-                _nz = (_first_wq.qweight != 0).sum().item()
-                print(f"  [diag] first WQLinear qweight: dev={_first_wq.qweight.device} "
-                      f"nonzero={_nz}/{_first_wq.qweight.numel()} "
-                      f"scales_dev={_first_wq.scales.device}")
-                if _nz == 0:
-                    print(f"  WQLinear weights are zero — reloading from safetensors …")
-                    import glob as _glob
-                    from safetensors.torch import load_file as _load_sf
-                    _sf_files = sorted(_glob.glob(os.path.join(td_awq_dir, "*.safetensors")))
-                    _qsd = {}
-                    for _sf in _sf_files:
-                        _qsd.update(_load_sf(_sf))
-                    awq_td.model.load_state_dict(_qsd, strict=False)
-                    del _qsd
-                    _nz2 = (_first_wq.qweight != 0).sum().item()
-                    print(f"  After manual reload: nonzero={_nz2}/{_first_wq.qweight.numel()}")
-            print(f"  AWQ quantized text decoder loaded ✓")
+            # Load quantized weights from safetensors
+            print(f"  Loading quantized weights …")
+            _sf_files = sorted(_glob.glob(os.path.join(td_awq_dir, "*.safetensors")))
+            if not _sf_files:
+                raise FileNotFoundError(f"No safetensors in {td_awq_dir}")
+            _qsd = {}
+            for _sf in _sf_files:
+                _qsd.update(_lsf(_sf))
+            _quant_pfx = {k.rsplit(".", 1)[0] for k in _qsd if k.endswith(".qweight")}
+            print(f"  {len(_sf_files)} shard(s), {len(_quant_pfx)} quantized layers")
+
+            # Replace Linear → WQLinear_GEMM using ACTUAL module sizes (not config)
+            def _replace_wq(mod, pfx):
+                for _n, _c in list(mod.named_children()):
+                    _p = f"{pfx}.{_n}" if pfx else _n
+                    if isinstance(_c, _nn.Linear) and _p in _quant_pfx:
+                        setattr(mod, _n, WQLinear_GEMM(
+                            _w_bit, _grp, _c.in_features, _c.out_features,
+                            _c.bias is not None, "cpu"))
+                    else:
+                        _replace_wq(_c, _p)
+            _replace_wq(_pruned_td, "")
+
+            # Load qweight/qzeros/scales + FP16 embeddings/norms
+            _miss, _unex = _pruned_td.load_state_dict(_qsd, strict=False)
+            _tied = {"lm_head.weight"}
+            _bad  = [k for k in _miss if k not in _tied]
+            if _bad:
+                print(f"  WARNING: {len(_bad)} missing keys: {_bad[:4]}")
+
+            _fwq = next((m for m in _pruned_td.modules() if hasattr(m, "qweight")), None)
+            if _fwq is not None:
+                _nz = (_fwq.qweight != 0).sum().item()
+                print(f"  WQLinear qweight nonzero: {_nz}/{_fwq.qweight.numel()}")
+            del _qsd
 
             _hf_cfg = _AutoConfig.from_pretrained(model_path, trust_remote_code=True)
             model   = MERaLiON2ForConditionalGeneration(_hf_cfg)
@@ -448,8 +456,10 @@ def load_model_gpu(model_path: str,
             model.load_state_dict(_non_td_sd, strict=False)
             del _pruned_full, _non_td_sd
             torch.cuda.empty_cache()
-            model   = model.to(device)
-            model.text_decoder = awq_td.model
+            _pruned_td = _pruned_td.to(device)
+            model      = model.to(device)
+            model.text_decoder = _pruned_td
+            print(f"  AWQ quantized text decoder loaded ✓")
         else:
             awq_td = AutoAWQForCausalLM.from_quantized(
                 td_awq_dir, fuse_layers=True, device_map={"": device})
