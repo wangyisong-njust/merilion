@@ -584,7 +584,8 @@ def transcribe_gpu_draft_spec(
             draft_tokens = []
             d_tok, d_pos = next_tok, cur_pos
 
-            for _ in range(gamma):
+            _diag_first_draft = debug and len(generated_ids) == 1
+            for _di in range(gamma):
                 if d_tok in eos_ids:
                     break
                 d_out = draft_model(
@@ -595,7 +596,19 @@ def transcribe_gpu_draft_spec(
                     cache_position=torch.tensor([d_pos], device=_dev),
                     return_dict=True,
                 )
-                d_tok = int(d_out.logits[0, -1].argmax())
+                _dl = d_out.logits[0, -1]
+                if _diag_first_draft and _di == 0:
+                    print(f"  [DIAG] draft logits step0: "
+                          f"nan={torch.isnan(_dl).any().item()} "
+                          f"inf={torch.isinf(_dl).any().item()} "
+                          f"max={_dl.max().item():.4f} "
+                          f"min={_dl.min().item():.4f} "
+                          f"std={_dl.std().item():.4f} "
+                          f"argmax={int(_dl.argmax())}")
+                    _etok = draft_model.text_decoder.model.embed_tokens
+                    print(f"  [DIAG] embed_tokens wt max="
+                          f"{_etok.weight.abs().max().item():.4f}")
+                d_tok = int(_dl.argmax())
                 draft_tokens.append(d_tok)
                 d_pos += 1
 
