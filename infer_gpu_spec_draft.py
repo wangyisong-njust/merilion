@@ -297,7 +297,7 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
                     else:
                         _replace_q(_c, _p)
 
-            _replace_q(model.text_decoder, "model")
+            _replace_q(model.text_decoder, "")
             model.text_decoder.load_state_dict(qsd, strict=True)
             model = model.to(device)
         else:

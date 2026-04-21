@@ -125,28 +125,30 @@ def main():
     if args.pruned:
         # Pruned models have non-uniform intermediate_size per layer.
         # AutoAWQ's from_pretrained reconstructs from config (uniform) → shape
-        # mismatch.  Instead, wrap the already-loaded text_decoder directly.
-        print(f"Pruned model: wrapping text_decoder directly for AutoAWQ …")
+        # mismatch.  Instead, monkeypatch AutoModelForCausalLM.from_pretrained
+        # to inject our already-loaded text_decoder so AutoAWQ's full init
+        # path runs (model_type detection, class selection) without loading
+        # from disk.
         text_decoder = model.text_decoder.half().to(args.device)
         del model
         torch.cuda.empty_cache()
 
-        try:
-            from awq.models.auto import AWQ_CAUSAL_LM_MODEL_MAP
-            _AWQCls = AWQ_CAUSAL_LM_MODEL_MAP[text_decoder.config.model_type]
-        except (ImportError, KeyError):
-            try:
-                from awq.models.gemma2 import Gemma2AWQForCausalLM as _AWQCls
-            except ImportError:
-                from awq.models.base import BaseAWQForCausalLM as _AWQCls
+        # Save minimal config dir so AutoAWQ can detect model_type from config.json
+        td_cfg_dir = os.path.join(args.save, "_td_cfg_tmp")
+        os.makedirs(td_cfg_dir, exist_ok=True)
+        text_decoder.config.save_pretrained(td_cfg_dir)
+        processor.tokenizer.save_pretrained(td_cfg_dir)
 
-        awq_model = _AWQCls(
-            model=text_decoder,
-            model_type=text_decoder.config.model_type,
-            is_quantized=False,
-            config=text_decoder.config,
-            quant_config=None,
-        )
+        from awq import AutoAWQForCausalLM
+        from transformers import AutoModelForCausalLM as _AutoMCLM
+        from unittest.mock import patch
+
+        print(f"Pruned model: injecting text_decoder into AutoAWQ via monkeypatch …")
+        with patch.object(_AutoMCLM, "from_pretrained", return_value=text_decoder):
+            awq_model = AutoAWQForCausalLM.from_pretrained(
+                td_cfg_dir, trust_remote_code=True)
+
+        shutil.rmtree(td_cfg_dir, ignore_errors=True)
     else:
         # Non-pruned: save as standalone HF model, load via from_pretrained.
         td_fp16_dir = os.path.join(args.save, "_td_fp16_tmp")
