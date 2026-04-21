@@ -129,7 +129,8 @@ def main():
         # to inject our already-loaded text_decoder so AutoAWQ's full init
         # path runs (model_type detection, class selection) without loading
         # from disk.
-        text_decoder = model.text_decoder.half().to(args.device)
+        # Keep on CPU — AutoAWQ manages device placement during quantize()
+        text_decoder = model.text_decoder.half()
         del model
         torch.cuda.empty_cache()
 
@@ -139,6 +140,16 @@ def main():
         text_decoder.config.save_pretrained(td_cfg_dir)
         processor.tokenizer.save_pretrained(td_cfg_dir)
 
+        # Force model_type = "gemma2" so AutoAWQ can look it up in its mapping dict
+        _cfg_path = os.path.join(td_cfg_dir, "config.json")
+        with open(_cfg_path) as _f:
+            _cfg_data = json.load(_f)
+        if _cfg_data.get("model_type") != "gemma2":
+            print(f"  Overriding model_type '{_cfg_data.get('model_type')}' → 'gemma2'")
+            _cfg_data["model_type"] = "gemma2"
+            with open(_cfg_path, "w") as _f:
+                json.dump(_cfg_data, _f, indent=2)
+
         from awq import AutoAWQForCausalLM
         from transformers import AutoModelForCausalLM as _AutoMCLM
         from unittest.mock import patch
@@ -147,6 +158,14 @@ def main():
         with patch.object(_AutoMCLM, "from_pretrained", return_value=text_decoder):
             awq_model = AutoAWQForCausalLM.from_pretrained(
                 td_cfg_dir, trust_remote_code=True)
+
+        # Verify injection: awq_model.model should be our text_decoder
+        if getattr(awq_model, "model", None) is not text_decoder:
+            raise RuntimeError(
+                "Monkeypatch injection did not work — awq_model.model is not text_decoder. "
+                f"Got type: {type(getattr(awq_model, 'model', None))}. "
+                "Check AutoAWQ version or update the patch target.")
+        print("  Injection verified: awq_model.model is text_decoder ✓")
 
         shutil.rmtree(td_cfg_dir, ignore_errors=True)
     else:

@@ -409,8 +409,15 @@ def load_model_gpu(model_path: str,
             _w_bit    = _awq_cfg["w_bit"]
             _grp      = _awq_cfg["q_group_size"]
 
-            qsd = _load_sf(os.path.join(td_awq_dir, "model.safetensors"))
+            import glob as _glob
+            _sf_files = sorted(_glob.glob(os.path.join(td_awq_dir, "*.safetensors")))
+            if not _sf_files:
+                raise FileNotFoundError(f"No safetensors found in {td_awq_dir}")
+            qsd = {}
+            for _sf in _sf_files:
+                qsd.update(_load_sf(_sf))
             _quant_pfx = {k.rsplit(".", 1)[0] for k in qsd if k.endswith(".qweight")}
+            print(f"  Found {len(_sf_files)} safetensors shard(s), {len(_quant_pfx)} quantized layers")
 
             model = MERaLiON2ForConditionalGeneration.from_pretrained(
                 _src, torch_dtype=torch.float16, use_safetensors=True)
@@ -426,7 +433,16 @@ def load_model_gpu(model_path: str,
                         _replace_q(_c, _p)
 
             _replace_q(model.text_decoder, "")
-            model.text_decoder.load_state_dict(qsd, strict=True)
+            _missing, _unexpected = model.text_decoder.load_state_dict(qsd, strict=False)
+            # Tied lm_head weight may appear as missing/unexpected — harmless
+            _tied = {"lm_head.weight"}
+            _bad_missing    = [k for k in _missing    if k not in _tied]
+            _bad_unexpected = [k for k in _unexpected if k not in _tied]
+            if _bad_missing or _bad_unexpected:
+                raise RuntimeError(
+                    f"State dict mismatch loading pruned AWQ weights.\n"
+                    f"  Missing:    {_bad_missing[:8]}\n"
+                    f"  Unexpected: {_bad_unexpected[:8]}")
             model = model.to(device)
         else:
             awq_td = AutoAWQForCausalLM.from_quantized(
