@@ -127,6 +127,46 @@ def _apply_mlx4_quant(model, group_size: int = 64) -> None:
     print(f"  MLX4 quant: replaced {n_replaced} Linear layers (group_size={group_size})")
 
 
+# ── AWQ W4A16 quantization (load-only) ───────────────────────────────────────
+
+class _AWQ4Linear(torch.nn.Module):
+    """W4A16 INT4 linear layer with AWQ-calibrated per-column scales (load-only)."""
+    def __init__(self, in_features: int, out_features: int,
+                 has_bias: bool, group_size: int = 64):
+        super().__init__()
+        self.in_features  = in_features
+        self.out_features = out_features
+        self.group_size   = group_size
+        self._pad = (-in_features) % group_size
+        I_pad     = in_features + self._pad
+        n_groups  = I_pad // group_size
+        self.register_buffer("weight_q",  torch.zeros(out_features, I_pad // 2, dtype=torch.uint8))
+        self.register_buffer("scales",    torch.zeros(out_features, n_groups,   dtype=torch.float16))
+        self.register_buffer("zeros",     torch.zeros(out_features, n_groups,   dtype=torch.float16))
+        self.register_buffer("col_scale", torch.ones(in_features,               dtype=torch.float16))
+        if has_bias:
+            self.register_buffer("linear_bias", torch.zeros(out_features, dtype=torch.float16))
+        else:
+            self.linear_bias = None
+
+    def _dequantize(self) -> torch.Tensor:
+        O     = self.out_features
+        I_pad = self.weight_q.shape[1] * 2
+        n_g   = self.scales.shape[1]
+        lo = (self.weight_q & 0x0F).to(torch.float16)
+        hi = (self.weight_q >>  4).to(torch.float16)
+        q  = torch.stack([lo, hi], dim=-1).view(O, I_pad)
+        q  = q.view(O, n_g, self.group_size)
+        w  = self.scales.unsqueeze(-1) * q + self.zeros.unsqueeze(-1)
+        w  = w.view(O, I_pad)[:, :self.in_features]
+        return w * self.col_scale.unsqueeze(0)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        w    = self._dequantize().to(x.dtype)
+        bias = self.linear_bias.to(x.dtype) if self.linear_bias is not None else None
+        return torch.nn.functional.linear(x, w, bias)
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _model_is_pruned(model) -> bool:
@@ -216,7 +256,35 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
     common_kwargs = dict(use_safetensors=True)
     t0 = time.time()
 
-    if quant == "mlx4":
+    if quant == "awq4":
+        import json as _json
+        cfg_path = os.path.join(model_path, "awq_config.json")
+        if not os.path.exists(cfg_path):
+            raise FileNotFoundError(
+                f"awq_config.json not found in {model_path}. Run quantize_awq.py first.")
+        with open(cfg_path) as f:
+            awq_cfg = _json.load(f)
+        group_size = awq_cfg.get("group_size", 64)
+        print(f"Loading pre-quantized AWQ4 model from {os.path.basename(model_path)} (group={group_size}) …")
+        model = MERaLiON2ForConditionalGeneration.from_pretrained(
+            model_path, torch_dtype=torch.float16, **common_kwargs)
+        SKIP = {"speech_encoder", "speech_audio_adapter", "lm_head"}
+        for name, mod in list(model.named_modules()):
+            if not isinstance(mod, torch.nn.Linear):
+                continue
+            if any(s in name for s in SKIP) or "text_decoder" not in name:
+                continue
+            O, I = mod.weight.shape
+            parts  = name.split(".")
+            parent = model
+            for part in parts[:-1]:
+                parent = getattr(parent, part)
+            setattr(parent, parts[-1], _AWQ4Linear(I, O, mod.bias is not None, group_size))
+        sd = torch.load(os.path.join(model_path, "model_awq4.pt"), map_location="cpu")
+        model.load_state_dict(sd)
+        model = model.to(device)
+
+    elif quant == "mlx4":
         print(f"Loading {os.path.basename(model_path)} → CPU FP16, applying MLX4 (group=64) …")
         model = MERaLiON2ForConditionalGeneration.from_pretrained(
             model_path, torch_dtype=torch.float16, **common_kwargs)
@@ -519,11 +587,11 @@ def main():
     parser.add_argument("--draft", required=True,
                         help="Path to draft (pruned) MERaLiON model")
     parser.add_argument("--verifier_quant", default="bf16",
-                        choices=["bf16", "fp16", "int8", "int4", "mlx4"],
+                        choices=["bf16", "fp16", "int8", "int4", "mlx4", "awq4"],
                         help="Verifier quantization (default: bf16)")
-    parser.add_argument("--draft_quant", default="mlx4",
-                        choices=["bf16", "fp16", "int8", "int4", "mlx4"],
-                        help="Draft quantization (default: mlx4)")
+    parser.add_argument("--draft_quant", default="awq4",
+                        choices=["bf16", "fp16", "int8", "int4", "mlx4", "awq4"],
+                        help="Draft quantization (default: awq4)")
     parser.add_argument("--gamma", type=int, default=5,
                         help="Max draft tokens per step (default: 5)")
     parser.add_argument("--dataset", default=None,
