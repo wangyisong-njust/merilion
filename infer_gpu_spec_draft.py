@@ -286,7 +286,12 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
                           if not k.startswith("text_decoder.")}
 
             print(f"  Injecting pruned text_decoder into AutoAWQ.from_quantized …")
-            with patch.object(_AutoMCLM, "from_pretrained", return_value=_pruned_td):
+            # from_quantized uses from_config (not from_pretrained) inside
+            # init_empty_weights() to build the model skeleton.  Patch both so
+            # _load_quantized_modules sees the pruned architecture (4608 mid
+            # layers) and creates WQLinear with the correct in/out dimensions.
+            with patch.object(_AutoMCLM, "from_pretrained", return_value=_pruned_td), \
+                 patch.object(_AutoMCLM, "from_config",     return_value=_pruned_td):
                 awq_td = AutoAWQForCausalLM.from_quantized(
                     td_awq_dir, trust_remote_code=True, fuse_layers=False,
                     device_map={"": device})
