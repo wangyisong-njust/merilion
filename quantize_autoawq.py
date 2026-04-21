@@ -182,13 +182,31 @@ def main():
         awq_model = AutoAWQForCausalLM.from_pretrained(
             td_fp16_dir, device_map="auto", safetensors=True)
 
+    # Custom Gemma2 LOCAL sliding-window layers expand keys to 2× seq_len,
+    # making the standard causal mask [B,1,S,S] mismatch [B,H,S,2S] during
+    # AWQ's per-layer calibration.  Temporarily switch all layers to "global"
+    # (full causal) attention — scale factors for linear weights are
+    # attention-type-agnostic, so this is a safe approximation.
+    _saved_attn_types = {}
+    for _n, _m in awq_model.model.named_modules():
+        if hasattr(_m, "attention_type"):
+            _saved_attn_types[_n] = _m.attention_type
+            _m.attention_type = "global"
+    if _saved_attn_types:
+        print(f"  Temporarily set {len(_saved_attn_types)} module(s) to 'global' attention for calibration")
+
     print("Running AutoAWQ calibration + quantization …")
     t0 = time.time()
-    awq_model.quantize(
-        processor.tokenizer,
-        quant_config=quant_config,
-        calib_data=calib_texts,
-    )
+    try:
+        awq_model.quantize(
+            processor.tokenizer,
+            quant_config=quant_config,
+            calib_data=calib_texts,
+        )
+    finally:
+        for _n, _m in awq_model.model.named_modules():
+            if _n in _saved_attn_types:
+                _m.attention_type = _saved_attn_types[_n]
     print(f"  Done in {time.time()-t0:.1f}s")
 
     # ── Save quantized text decoder ───────────────────────────────────────────
