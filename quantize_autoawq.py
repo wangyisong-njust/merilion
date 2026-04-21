@@ -117,6 +117,26 @@ def main():
     awq_model = AutoAWQForCausalLM.from_pretrained(
         td_fp16_dir, device_map="auto", safetensors=True)
 
+    # Gemma2 accesses decoder_layer.attention_type inside model.forward, but
+    # AutoAWQ's Catcher wrapper doesn't forward attribute lookups to the wrapped
+    # module.  Patch it so unknown attrs fall through to the original layer.
+    import awq.quantize.quantizer as _awq_q
+    _OrigCatcher = _awq_q.Catcher
+
+    class _FixedCatcher(_OrigCatcher):
+        def __getattr__(self, name):
+            try:
+                return super().__getattr__(name)
+            except AttributeError:
+                try:
+                    wrapped = super().__getattr__("module")
+                    return getattr(wrapped, name)
+                except Exception:
+                    raise AttributeError(
+                        f"'{type(self).__name__}' has no attribute '{name}'")
+
+    _awq_q.Catcher = _FixedCatcher
+
     print("Running AutoAWQ calibration + quantization …")
     t0 = time.time()
     awq_model.quantize(
