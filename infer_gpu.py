@@ -395,7 +395,7 @@ def load_model_gpu(model_path: str,
         # AWQ4 dir has no safetensors — init from config, then load state dict.
         from transformers import AutoConfig as _AutoConfig
         _hf_cfg = _AutoConfig.from_pretrained(model_path, trust_remote_code=True)
-        model = MERaLiON2ForConditionalGeneration.from_config(_hf_cfg)
+        model = MERaLiON2ForConditionalGeneration(_hf_cfg)
         model = model.to(torch.float16)
 
         # Replace target Linear layers with empty _AWQ4Linear shells

@@ -269,7 +269,7 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
         print(f"Loading pre-quantized AWQ4 model from {os.path.basename(model_path)} (group={group_size}) …")
         # AWQ4 dir has no safetensors — init model from config, then load state dict.
         _hf_cfg = _AutoConfig.from_pretrained(model_path, trust_remote_code=True)
-        model = MERaLiON2ForConditionalGeneration.from_config(_hf_cfg)
+        model = MERaLiON2ForConditionalGeneration(_hf_cfg)
         model = model.to(torch.float16)
         SKIP = {"speech_encoder", "speech_audio_adapter", "lm_head"}
         for name, mod in list(model.named_modules()):
