@@ -2,7 +2,7 @@
 # ============================================================
 # Model-based speculative decoding benchmark  (AutoAWQ4 edition)
 # Verifier: original MERaLiON-2-3B (BF16 or AutoAWQ4)
-# Draft:    pruned mid3-23 AutoAWQ4
+# Draft:    pruned mid3-23 MLX4  (AutoAWQ can't handle pruned architectures)
 # ============================================================
 export PYTHONUNBUFFERED=1
 PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
@@ -17,7 +17,9 @@ GPU=0
 export CUDA_VISIBLE_DEVICES=$GPU
 cd "$WORKDIR"
 
-DRAFT_AWQ="${WORKDIR}/MERaLiON-2-3B-mid3-23-AutoAWQ4"
+# Draft: unquantized mid3-23 with MLX4 applied in-memory (pruned arch not
+# compatible with AutoAWQ's static model reconstruction)
+DRAFT="${WORKDIR}/meralion_tune_log/MERaLiON-2-3B-v3-td50-mid3-23-tune"
 
 run_if_missing() {
     local json="$1"; shift
@@ -33,8 +35,8 @@ run_spec_bf16v() {
     if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
     echo "  running → $json"
     "$PYTHON_PATH" -u infer_gpu_spec_draft.py \
-        --verifier "$ORIGINAL" --draft "$DRAFT_AWQ" \
-        --verifier_quant bf16 --draft_quant autoawq4 \
+        --verifier "$ORIGINAL" --draft "$DRAFT" \
+        --verifier_quant bf16 --draft_quant mlx4 \
         --dataset "$DATASET" --num_samples "$NUM_SAMPLES" \
         --gamma "$GAMMA" --output "$json" "$@" \
         | tee "${json%.json}.log" \
@@ -46,8 +48,8 @@ run_spec_awqv() {
     if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
     echo "  running → $json"
     "$PYTHON_PATH" -u infer_gpu_spec_draft.py \
-        --verifier "$ORIGINAL_AWQ" --draft "$DRAFT_AWQ" \
-        --verifier_quant autoawq4 --draft_quant autoawq4 \
+        --verifier "$ORIGINAL_AWQ" --draft "$DRAFT" \
+        --verifier_quant autoawq4 --draft_quant mlx4 \
         --dataset "$DATASET" --num_samples "$NUM_SAMPLES" \
         --gamma "$GAMMA" --output "$json" "$@" \
         | tee "${json%.json}.log" \
@@ -56,7 +58,7 @@ run_spec_awqv() {
 
 # ════════════════════════════════════════════════════════════════════════════
 echo "========================================"
-echo "  BF16 verifier + AutoAWQ4 draft"
+echo "  BF16 verifier + MLX4 draft"
 echo "========================================"
 
 echo ""
@@ -67,13 +69,13 @@ run_if_missing "gpu_bf16_original_nospec.json" \
     --num_samples "$NUM_SAMPLES" --quant bf16 || exit 1
 
 echo ""
-echo "--- BF16 verifier + AutoAWQ4 draft γ=${GAMMA} ---"
-run_spec_bf16v "draft_bf16_orig_mid323autoawq4_g${GAMMA}.json" || exit 1
+echo "--- BF16 verifier + MLX4 draft γ=${GAMMA} ---"
+run_spec_bf16v "draft_bf16_orig_mid323mlx4_g${GAMMA}.json" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "========================================"
-echo "  AutoAWQ4 verifier + AutoAWQ4 draft"
+echo "  AutoAWQ4 verifier + MLX4 draft"
 echo "========================================"
 
 echo ""
@@ -84,8 +86,8 @@ run_if_missing "gpu_autoawq4_original_nospec.json" \
     --num_samples "$NUM_SAMPLES" --quant autoawq4 || exit 1
 
 echo ""
-echo "--- AutoAWQ4 verifier + AutoAWQ4 draft γ=${GAMMA} ---"
-run_spec_awqv "draft_autoawq4_orig_mid323autoawq4_g${GAMMA}.json" || exit 1
+echo "--- AutoAWQ4 verifier + MLX4 draft γ=${GAMMA} ---"
+run_spec_awqv "draft_autoawq4_orig_mid323mlx4_g${GAMMA}.json" || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
@@ -99,10 +101,10 @@ import json, os, sys
 G = sys.argv[1]
 
 rows = [
-    ("Original  BF16      no-spec",                 "gpu_bf16_original_nospec.json",                       False),
-    (f"Original  BF16      +draft-spec γ={G}",       f"draft_bf16_orig_mid323autoawq4_g{G}.json",           True),
-    ("Original  AutoAWQ4  no-spec",                 "gpu_autoawq4_original_nospec.json",                    False),
-    (f"Original  AutoAWQ4  +draft-spec γ={G}",       f"draft_autoawq4_orig_mid323autoawq4_g{G}.json",        True),
+    ("Original  BF16      no-spec",                 "gpu_bf16_original_nospec.json",                   False),
+    (f"Original  BF16      +draft-spec γ={G}",       f"draft_bf16_orig_mid323mlx4_g{G}.json",           True),
+    ("Original  AutoAWQ4  no-spec",                 "gpu_autoawq4_original_nospec.json",                False),
+    (f"Original  AutoAWQ4  +draft-spec γ={G}",       f"draft_autoawq4_orig_mid323mlx4_g{G}.json",       True),
 ]
 
 ref_lat = None
