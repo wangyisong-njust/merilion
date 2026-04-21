@@ -258,6 +258,7 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
 
     if quant == "awq4":
         import json as _json
+        from transformers import AutoConfig as _AutoConfig
         cfg_path = os.path.join(model_path, "awq_config.json")
         if not os.path.exists(cfg_path):
             raise FileNotFoundError(
@@ -266,8 +267,10 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
             awq_cfg = _json.load(f)
         group_size = awq_cfg.get("group_size", 64)
         print(f"Loading pre-quantized AWQ4 model from {os.path.basename(model_path)} (group={group_size}) …")
-        model = MERaLiON2ForConditionalGeneration.from_pretrained(
-            model_path, torch_dtype=torch.float16, **common_kwargs)
+        # AWQ4 dir has no safetensors — init model from config, then load state dict.
+        _hf_cfg = _AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+        model = MERaLiON2ForConditionalGeneration.from_config(_hf_cfg)
+        model = model.to(torch.float16)
         SKIP = {"speech_encoder", "speech_audio_adapter", "lm_head"}
         for name, mod in list(model.named_modules()):
             if not isinstance(mod, torch.nn.Linear):
@@ -465,10 +468,11 @@ def transcribe_gpu_draft_spec(
                     input_features=input_features_d,
                     past_key_values=draft_kv)
 
-        # next_tok = role-prefix token (e.g. <Speaker1>:); NOT added to generated_ids.
-        # The spec loop processes it as context and appends the successor tokens,
-        # matching infer_gpu.py's K=0 behaviour which also skips the role-prefix.
+        # next_tok = role-prefix token (e.g. first token of <Speaker1>:).
+        # Append it so the full "<Speaker1>:" string is in generated_ids;
+        # the explicit replace() below strips it, matching infer_gpu.py behaviour.
         next_tok = int(v_out.logits[0, -1].argmax())
+        generated_ids.append(next_tok)
 
         torch.cuda.synchronize()
         t1 = time.time()
@@ -566,7 +570,8 @@ def transcribe_gpu_draft_spec(
     torch.cuda.synchronize()
     t2 = time.time()
 
-    text = tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+    text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+    text = text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
     n_tokens   = max(len(generated_ids), 1)
     decode_tps = max(len(generated_ids) - 1, 1) / (t2 - t1) if t2 > t1 else 0.0
     stats = {
