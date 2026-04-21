@@ -193,7 +193,9 @@ def main():
     _orig_mfwd = _AwqQ._module_forward
 
     def _no_mask_module_fwd(self, inp, module, module_kwargs):
-        kw = {k: v for k, v in module_kwargs.items() if k != "attention_mask"}
+        kw = dict(module_kwargs)
+        if "attention_mask" in kw:
+            kw["attention_mask"] = None  # None satisfies required arg; avoids shape mismatch
         return _orig_mfwd(self, inp, module, kw)
 
     _AwqQ._module_forward = _no_mask_module_fwd
