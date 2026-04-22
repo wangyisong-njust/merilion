@@ -331,17 +331,17 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
             del _qsd
 
             # Patch every WQLinear_GEMM to keep hidden-state dtype (BF16).
-            # The GEMM kernel requires FP16 I/O, so we convert in→FP16, run
-            # kernel, then cast output back to the caller's dtype.
+            # AWQ kernels require FP16 tensors; we cast in→FP16, call the
+            # original forward (handles GEMM/GEMV/marlin automatically), then
+            # cast output back to the caller's dtype (BF16).
             import types as _types
+            _wq_orig_fwd = WQLinear_GEMM.forward
             def _wq_fwd_bf16(self, x):
                 _odtype = x.dtype
-                _oshape = x.shape[:-1] + (self.out_features,)
-                _inp = x.reshape(-1, x.shape[-1]).to(torch.float16)
-                from awq.modules.linear.gemm import awq_ext
-                _out = awq_ext.gemm_forward_cuda(
-                    _inp, self.qweight, self.scales, self.qzeros, 8)
-                return _out.to(_odtype).reshape(_oshape)
+                if _odtype == torch.float16:
+                    return _wq_orig_fwd(self, x)
+                _out = _wq_orig_fwd(self, x.to(torch.float16))
+                return _out.to(_odtype)
 
             for _m in _pruned_td.modules():
                 if isinstance(_m, WQLinear_GEMM):
