@@ -8,10 +8,10 @@ export PYTHONUNBUFFERED=1
 PYTHON_PATH="/home/kaixin/anaconda3/envs/llm_pruner_meralion/bin/python"
 WORKDIR="/home/kaixin/yisong/merilion"
 ORIGINAL="/home/kaixin/programs/LLM_base_model/MERaLiON-2-3B"
-DATASET="/home/kaixin/ssd/data/IMDA_PART1_mono_en_30_ASR"
+DATASET="/home/kaixin/ssd/data/ASR/IMDA_PART1_mono_en_30_ASR"
 TUNE_ROOT="/home/kaixin/yisong/merilion/meralion_tune_log"
-NUM_SAMPLES=50
-GAMMA=5
+NUM_SAMPLES=20
+GAMMA=16
 GPU=2
 FORCE=${FORCE:-0}   # set FORCE=1 to re-run everything regardless of cached JSON
 
@@ -33,7 +33,7 @@ run_spec_if_missing() {
     local json="$1"; shift
     if [ "$FORCE" != "1" ] && [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
     echo "  running → $json"
-    "$PYTHON_PATH" -u infer_gpu_spec_draft.py \
+    "$PYTHON_PATH" -u infer_gpu_spec_draft_fast.py \
         --verifier "$ORIGINAL" --draft "$DRAFT" \
         --dataset "$DATASET" --num_samples "$NUM_SAMPLES" \
         --gamma "$GAMMA" --output "$json" "$@" \
