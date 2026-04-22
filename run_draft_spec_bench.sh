@@ -57,6 +57,11 @@ echo "--- BF16 verifier + BnB-INT4 draft γ=${GAMMA} ---"
 run_spec_if_missing "draft_bf16_orig_mid323bnb4_g${GAMMA}.json" \
     --verifier_quant bf16 --draft_quant int4 || exit 1
 
+echo ""
+echo "--- BF16 verifier + BF16 draft γ=${GAMMA} ---"
+run_spec_if_missing "draft_bf16_orig_mid323bf16_g${GAMMA}.json" \
+    --verifier_quant bf16 --draft_quant bf16 || exit 1
+
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "========================================"
@@ -87,10 +92,11 @@ import json, os, sys
 G = sys.argv[1]
 
 rows = [
-    ("Original  BF16  no-spec",                   "gpu_bf16_original_nospec.json",               False),
-    (f"Original  BF16  +draft-spec γ={G}",         f"draft_bf16_orig_mid323bnb4_g{G}.json",       True),
-    ("Original  INT8  no-spec",                   "gpu_int8_original_nospec.json",               False),
-    (f"Original  INT8  +draft-spec γ={G}",         f"draft_int8_orig_mid323bnb4_g{G}.json",       True),
+    ("Original  BF16  no-spec",                    "gpu_bf16_original_nospec.json",               False),
+    (f"Original  BF16  +BnB4 draft γ={G}",          f"draft_bf16_orig_mid323bnb4_g{G}.json",       True),
+    (f"Original  BF16  +BF16 draft γ={G}",          f"draft_bf16_orig_mid323bf16_g{G}.json",       True),
+    ("Original  INT8  no-spec",                    "gpu_int8_original_nospec.json",               False),
+    (f"Original  INT8  +BnB4 draft γ={G}",          f"draft_int8_orig_mid323bnb4_g{G}.json",       True),
 ]
 
 ref_lat = None
