@@ -202,10 +202,14 @@ class PrunedPreallocCache(_HybridCacheBase):
     """
     def __init__(self, text_decoder, max_cache_len: int,
                  batch_size: int = 1, dtype=torch.bfloat16, device="cuda"):
-        # Skip HybridCache/Cache __init__ (see class docstring).
-        self.max_cache_len = max_cache_len
-        self.key_cache   = []
-        self.value_cache = []
+        # Skip HybridCache/Cache __init__.  HybridCache defines `key_cache`,
+        # `value_cache`, `max_cache_len`, `max_batch_size` as read-only
+        # properties backed by a layer list, so we store our own buffers
+        # under private names and override the properties to expose them.
+        self._max_cache_len  = max_cache_len
+        self._max_batch_size = batch_size
+        self._key_bufs   = []
+        self._value_bufs = []
         layers = text_decoder.model.layers
         for lyr in layers:
             attn = lyr.self_attn
@@ -218,17 +222,44 @@ class PrunedPreallocCache(_HybridCacheBase):
             else:
                 n_kv_heads = attn.num_key_value_heads
             shp = (batch_size, n_kv_heads, max_cache_len, head_dim)
-            self.key_cache.append(torch.zeros(shp, dtype=dtype, device=device))
-            self.value_cache.append(torch.zeros(shp, dtype=dtype, device=device))
+            k = torch.zeros(shp, dtype=dtype, device=device)
+            v = torch.zeros(shp, dtype=dtype, device=device)
+            # Tell inductor these addresses are persistent so in-place mutation
+            # from inside a compiled region is compatible with CUDA Graphs.
+            try:
+                torch._dynamo.mark_static_address(k)
+                torch._dynamo.mark_static_address(v)
+            except AttributeError:
+                pass
+            self._key_bufs.append(k)
+            self._value_bufs.append(v)
         self._seen_tokens = 0
 
+    # Expose our buffers through the HybridCache property API.
+    @property
+    def key_cache(self):
+        return self._key_bufs
+    @property
+    def value_cache(self):
+        return self._value_bufs
+    @property
+    def max_cache_len(self):
+        return self._max_cache_len
+    @property
+    def max_batch_size(self):
+        return self._max_batch_size
+    @property
+    def is_sliding(self):
+        # Pruned draft uses global attention on all layers (no sliding window).
+        return [False] * len(self._key_bufs)
+    @property
+    def is_compileable(self):
+        return True
+
     def update(self, key_states, value_states, layer_idx, cache_kwargs=None):
-        # Caller must have set self._seen_tokens to the position before this
-        # write (via trim or the prefill path below).  cache_position is on
-        # GPU; we intentionally don't .item() it (keeps the forward sync-free).
         cache_position = (cache_kwargs or {}).get("cache_position")
-        k_buf = self.key_cache[layer_idx]
-        v_buf = self.value_cache[layer_idx]
+        k_buf = self._key_bufs[layer_idx]
+        v_buf = self._value_bufs[layer_idx]
         nwrite = key_states.shape[2]
         start  = self._seen_tokens
         end    = start + nwrite
@@ -238,33 +269,31 @@ class PrunedPreallocCache(_HybridCacheBase):
         else:
             k_buf[:, :, start:end, :].copy_(key_states)
             v_buf[:, :, start:end, :].copy_(value_states)
-        if layer_idx == len(self.key_cache) - 1:
-            # Only bump after the last layer writes — so all layers during one
-            # forward pass see the same (pre-forward) _seen_tokens value.
+        if layer_idx == len(self._key_bufs) - 1:
+            # Bump only after last layer so all layers see the same pre-forward
+            # position in a single forward pass.
             self._seen_tokens = end
-        # Return the FULL buffer (static shape).  Unwritten / trimmed slots
-        # must be masked by the caller via a causal+validity attention_mask
-        # so their stale values don't contaminate softmax.  This keeps the
-        # attention computation's tensor shapes constant, which is required
-        # for torch.compile/CUDA Graphs to cache a single kernel graph.
+        # Full static-shape buffer — shapes remain constant across calls for
+        # torch.compile / CUDA Graph specialization.  Stale slots get masked
+        # by the caller's causal+validity attention mask.
         return k_buf, v_buf
 
     def get_seq_length(self, layer_idx: int = 0) -> int:
         return self._seen_tokens
 
     def get_max_cache_shape(self):
-        return self.max_cache_len
+        return self._max_cache_len
 
-    def get_max_length(self):   # older HF API
-        return self.max_cache_len
+    def get_max_length(self):
+        return self._max_cache_len
 
     def reorder_cache(self, beam_idx):  # unused but present in some code paths
-        for i in range(len(self.key_cache)):
-            self.key_cache[i]   = self.key_cache[i].index_select(0, beam_idx)
-            self.value_cache[i] = self.value_cache[i].index_select(0, beam_idx)
+        for i in range(len(self._key_bufs)):
+            self._key_bufs[i]   = self._key_bufs[i].index_select(0, beam_idx)
+            self._value_bufs[i] = self._value_bufs[i].index_select(0, beam_idx)
 
     def __len__(self):
-        return len(self.key_cache)
+        return len(self._key_bufs)
 
 
 def _build_static_causal_mask(q_len: int, cache_start: int,
@@ -778,39 +807,50 @@ def transcribe_gpu_draft_spec(
 
         cur_pos = seq_len
 
+        # Persistent GPU input buffers for the draft decode hot path.  Reusing
+        # the same tensor objects (with .fill_) keeps their addresses stable
+        # across draft_model(...) calls, so torch.compile's dynamo guards are
+        # satisfied and a single compiled CUDA Graph is reused each step.
+        _d_in_ids  = torch.zeros((1, 1), dtype=torch.long, device=_dev)
+        _d_cpos    = torch.zeros((1,),   dtype=torch.long, device=_dev)
+        try:
+            torch._dynamo.mark_static_address(_d_in_ids)
+            torch._dynamo.mark_static_address(_d_cpos)
+        except AttributeError:
+            pass
+
         # ── Speculative decode loop ────────────────────────────────────────
         while len(generated_ids) < max_new_tokens:
             if next_tok in eos_ids:
                 break
 
             # Step 1: draft proposes up to gamma tokens.
-            # Optimized: keep each step's argmax on GPU and only sync once
-            # (tolist) after the loop — saves γ−1 CPU↔GPU syncs per round.
+            # Optimizations in the hot path:
+            #   * argmax stays on GPU — γ−1 fewer syncs per round
+            #   * input_ids / cache_position are persistent buffers updated
+            #     in place (stable Python object id for torch.compile guards)
+            #   * attention_mask=None → static (1,1,1,max_cache_len) mask
             _gamma_eff = min(gamma, max_cache - cur_pos - 1)
-            _d_tok_t = torch.tensor([[next_tok]], dtype=torch.long, device=_dev)
+            _d_in_ids[0, 0] = next_tok
             _d_toks_gpu = []
 
             _diag_first_draft = debug and len(generated_ids) == 1
             for _di in range(_gamma_eff):
                 d_pos = cur_pos + _di
-                # attention_mask=None so Gemma2Model._update_causal_mask builds
-                # a (1, 1, 1, max_cache_len) causal mask purely from
-                # cache_position + target_length (static shape — required for
-                # torch.compile / CUDA graph specialization).  With
-                # PrunedPreallocCache inheriting HybridCache the target_length
-                # picks up max_cache_len, and cache.update() returns the full
-                # buffer so key_states.shape[-2] also equals max_cache_len.
+                _d_cpos[0] = d_pos
                 d_out = draft_model(
-                    input_ids=_d_tok_t,
+                    input_ids=_d_in_ids,
                     attention_mask=None,
                     past_key_values=draft_kv,
                     use_cache=True,
-                    cache_position=torch.tensor([d_pos], device=_dev),
+                    cache_position=_d_cpos,
                     return_dict=True,
                 )
                 _dl = d_out.logits[:, -1, :]             # (1, vocab)
-                _d_tok_t = _dl.argmax(-1, keepdim=True)  # (1, 1) on GPU
-                _d_toks_gpu.append(_d_tok_t)
+                _argmax = _dl.argmax(-1, keepdim=True)   # (1, 1) on GPU
+                _d_toks_gpu.append(_argmax.clone())      # clone so buffer reuse is safe
+                # Prepare next step's input — copy into persistent buffer
+                _d_in_ids.copy_(_argmax)
 
                 if _diag_first_draft and _di == 0:
                     _d0 = _dl[0]
@@ -820,7 +860,7 @@ def transcribe_gpu_draft_spec(
                           f"max={_d0.max().item():.4f} "
                           f"min={_d0.min().item():.4f} "
                           f"std={_d0.std().item():.4f} "
-                          f"argmax={int(_d_tok_t)}")
+                          f"argmax={int(_d_in_ids)}")
                     _etok = draft_model.text_decoder.model.embed_tokens
                     print(f"  [DIAG] embed_tokens wt max="
                           f"{_etok.weight.abs().max().item():.4f}")
