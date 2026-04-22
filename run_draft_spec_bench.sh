@@ -5,14 +5,14 @@
 # Draft:    pruned mid3-23 BnB-INT4
 # ============================================================
 export PYTHONUNBUFFERED=1
-PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
-WORKDIR="/home/jinchao/runtao/LLM-Pruner"
-ORIGINAL="/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B"
-DATASET="/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR"
-TUNE_ROOT="meralion_tune_log"
+PYTHON_PATH="/home/kaixin/anaconda3/envs/llm_pruner_meralion/bin/python"
+WORKDIR="/home/kaixin/yisong/merilion"
+ORIGINAL="/home/kaixin/ssd/models/MERaLiON-2-3B"
+DATASET="/home/kaixin/ssd/data/ASR/IMDA_PART1_mono_en_30_ASR"
+TUNE_ROOT="/home/kaixin/yisong/merilion/meralion_tune_log"
 NUM_SAMPLES=50
 GAMMA=5
-GPU=0
+GPU=2
 FORCE=${FORCE:-0}   # set FORCE=1 to re-run everything regardless of cached JSON
 
 export CUDA_VISIBLE_DEVICES=$GPU
