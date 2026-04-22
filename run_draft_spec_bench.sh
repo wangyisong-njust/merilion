@@ -7,7 +7,7 @@
 export PYTHONUNBUFFERED=1
 PYTHON_PATH="/home/kaixin/anaconda3/envs/llm_pruner_meralion/bin/python"
 WORKDIR="/home/kaixin/yisong/merilion"
-ORIGINAL="/home/kaixin/ssd/models/MERaLiON-2-3B"
+ORIGINAL="/home/kaixin/programs/LLM_base_model/MERaLiON-2-3B"
 DATASET="/home/kaixin/ssd/data/ASR/IMDA_PART1_mono_en_30_ASR"
 TUNE_ROOT="/home/kaixin/yisong/merilion/meralion_tune_log"
 NUM_SAMPLES=50
