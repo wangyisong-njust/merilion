@@ -934,6 +934,10 @@ def main():
     parser.add_argument("--save_samples", action="store_true")
     parser.add_argument("--debug", action="store_true",
                         help="Print first-round draft vs verifier tokens for diagnosis")
+    parser.add_argument("--compile_draft", action="store_true",
+                        help="torch.compile the draft text_decoder in "
+                             "reduce-overhead mode (uses CUDA graphs for the "
+                             "decode hot path after a one-off warmup)")
     args = parser.parse_args()
     args.verifier = os.path.abspath(args.verifier)
     args.draft    = os.path.abspath(args.draft)
@@ -950,9 +954,22 @@ def main():
     print(f"  VRAM after verifier load: {gpu_mem_verifier_gb:.2f} GB")
 
     draft_model, _ = load_model_gpu(
-        args.draft, quant=args.draft_quant, flash_attn=False, device=args.device)
+        args.draft, quant=args.draft_quant, flash_attn=True, device=args.device)
     gpu_mem_load_gb = torch.cuda.max_memory_allocated(args.device) / 1e9
     print(f"  VRAM after both loads:    {gpu_mem_load_gb:.2f} GB")
+
+    if args.compile_draft:
+        # reduce-overhead mode uses CUDA graphs internally for the recurring
+        # single-token decode path → eliminates Python / per-kernel launch
+        # overhead after warmup.  Compiled text_decoder only; speech encoder
+        # runs once per sample so isn't worth compiling.
+        print("  Compiling draft text_decoder (torch.compile, reduce-overhead) …")
+        draft_model.text_decoder = torch.compile(
+            draft_model.text_decoder,
+            mode="reduce-overhead",
+            fullgraph=False,
+            dynamic=False,
+        )
 
     def _infer(audio, sr, instr):
         return transcribe_gpu_draft_spec(
