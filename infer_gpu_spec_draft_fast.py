@@ -178,9 +178,88 @@ def _model_is_pruned(model) -> bool:
         return False
 
 
+class PrunedPreallocCache:
+    """Pre-allocated KV cache that honours per-layer num_key_value_heads.
+
+    HybridCache allocates a single (L, 1, kv_heads, max_len, head_dim) tensor
+    where kv_heads is the config's (uniform) value; pruned models have
+    non-uniform kv heads across layers and so that tensor would be wrongly
+    shaped for mid-block layers.  DynamicCache avoids that by torch.cat'ing
+    each step, but the cat + reallocation is pure decode-time overhead.
+
+    This class pre-allocates *one* (1, kv_heads_i, max_len, head_dim) tensor
+    per layer using each layer's actual k_proj out-shape, and writes into it
+    with index_copy_.  No cat, no memcpy growth, no per-step realloc.
+    """
+    def __init__(self, text_decoder, max_cache_len: int,
+                 batch_size: int = 1, dtype=torch.bfloat16, device="cuda"):
+        self.max_cache_len = max_cache_len
+        self.key_cache   = []
+        self.value_cache = []
+        layers = text_decoder.model.layers
+        for lyr in layers:
+            attn = lyr.self_attn
+            head_dim    = attn.head_dim
+            # Prefer actual k_proj.out_features in case the attention module
+            # was resized; fall back to attn.num_key_value_heads.
+            k_out = getattr(attn.k_proj, "out_features", None)
+            if k_out is not None:
+                n_kv_heads = k_out // head_dim
+            else:
+                n_kv_heads = attn.num_key_value_heads
+            shp = (batch_size, n_kv_heads, max_cache_len, head_dim)
+            self.key_cache.append(torch.zeros(shp, dtype=dtype, device=device))
+            self.value_cache.append(torch.zeros(shp, dtype=dtype, device=device))
+        self._seen_tokens = 0
+
+    def update(self, key_states, value_states, layer_idx, cache_kwargs=None):
+        # Caller must have set self._seen_tokens to the position before this
+        # write (via trim or the prefill path below).  cache_position is on
+        # GPU and we intentionally don't .item() it — the required `end`
+        # comes from shape metadata (CPU, no sync).
+        cache_position = (cache_kwargs or {}).get("cache_position")
+        k_buf = self.key_cache[layer_idx]
+        v_buf = self.value_cache[layer_idx]
+        nwrite = key_states.shape[2]
+        start  = self._seen_tokens
+        end    = start + nwrite
+        if cache_position is not None:
+            k_buf.index_copy_(2, cache_position, key_states)
+            v_buf.index_copy_(2, cache_position, value_states)
+        else:
+            k_buf[:, :, start:end, :].copy_(key_states)
+            v_buf[:, :, start:end, :].copy_(value_states)
+        if layer_idx == len(self.key_cache) - 1:
+            # Only bump after the last layer writes — so all layers during one
+            # forward pass see the same (pre-forward) _seen_tokens value.
+            self._seen_tokens = end
+        return k_buf[:, :, :end, :], v_buf[:, :, :end, :]
+
+    def get_seq_length(self, layer_idx: int = 0) -> int:
+        return self._seen_tokens
+
+    def get_max_cache_shape(self):
+        return self.max_cache_len
+
+    def get_max_length(self):   # older HF API
+        return self.max_cache_len
+
+    def reorder_cache(self, beam_idx):  # unused but present in some code paths
+        for i in range(len(self.key_cache)):
+            self.key_cache[i]   = self.key_cache[i].index_select(0, beam_idx)
+            self.value_cache[i] = self.value_cache[i].index_select(0, beam_idx)
+
+    def __len__(self):
+        return len(self.key_cache)
+
+
 def _trim_kv_cache(past_kv, keep_len: int) -> None:
     """Discard KV cache entries beyond keep_len positions."""
     from transformers.cache_utils import DynamicCache
+    if isinstance(past_kv, PrunedPreallocCache):
+        # Nothing to zero — writes past keep_len will be overwritten in place.
+        past_kv._seen_tokens = keep_len
+        return
     if isinstance(past_kv, DynamicCache):
         for i in range(len(past_kv.key_cache)):
             past_kv.key_cache[i] = past_kv.key_cache[i][:, :, :keep_len, :]
@@ -549,13 +628,14 @@ def transcribe_gpu_draft_spec(
     max_cache = seq_len + max_new_tokens
 
     def _make_cache(mdl, dtype):
-        # Pruned models have non-uniform num_key_value_heads (mid-block layers
-        # are halved), so HybridCache (which pre-allocates per config's uniform
-        # kv_heads) gives a shape mismatch.  DynamicCache is used instead;
-        # meralion2_bl already selects DynamicCache for pruned models internally.
+        # Pruned models: pre-allocated per-layer cache (honours each layer's
+        # actual num_key_value_heads, avoiding HybridCache's uniform-shape
+        # assumption and DynamicCache's per-step torch.cat reallocation).
         if _model_is_pruned(mdl):
-            from transformers import DynamicCache
-            return DynamicCache()
+            return PrunedPreallocCache(
+                mdl.text_decoder, max_cache_len=max_cache,
+                batch_size=1, dtype=dtype, device=_dev,
+            )
         from transformers.cache_utils import HybridCache
         return HybridCache(
             mdl.text_decoder.model.config,
