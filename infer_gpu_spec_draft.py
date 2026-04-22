@@ -574,6 +574,16 @@ def transcribe_gpu_draft_spec(
         torch.cuda.synchronize()
         t1 = time.time()
 
+        if debug:
+            _kc = getattr(draft_kv, "key_cache", [])
+            _any_nan = any(
+                torch.isnan(k).any().item()
+                for k in _kc if k is not None and k.numel() > 0
+            )
+            _shapes = [tuple(k.shape) for k in _kc if k is not None and k.numel() > 0]
+            print(f"  [DIAG] draft KV cache after prefill: layers={len(_kc)} "
+                  f"any_nan={_any_nan} shapes[0]={_shapes[0] if _shapes else 'N/A'}")
+
         cur_pos = seq_len
 
         # ── Speculative decode loop ────────────────────────────────────────
