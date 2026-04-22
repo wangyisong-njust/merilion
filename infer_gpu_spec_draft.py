@@ -605,13 +605,22 @@ def transcribe_gpu_draft_spec(
             _dtd = draft_model.text_decoder
             _hooks = []
             _hooks.append(_dtd.model.embed_tokens.register_forward_hook(_mk_hook("embed")))
-            for _i, _lyr in enumerate(_dtd.model.layers):
-                _hooks.append(_lyr.input_layernorm.register_forward_hook(_mk_hook(f"L{_i}.pre_ln")))
-                _hooks.append(_lyr.self_attn.q_proj.register_forward_hook(_mk_hook(f"L{_i}.q_proj")))
-                _hooks.append(_lyr.self_attn.k_proj.register_forward_hook(_mk_hook(f"L{_i}.k_proj")))
-                _hooks.append(_lyr.self_attn.v_proj.register_forward_hook(_mk_hook(f"L{_i}.v_proj")))
-                _hooks.append(_lyr.self_attn.o_proj.register_forward_hook(_mk_hook(f"L{_i}.o_proj")))
-                _hooks.append(_lyr.register_forward_hook(_mk_hook(f"L{_i}.OUT")))
+            # Deep-probe L0 (NaN appears in L0.OUT)
+            _l0 = _dtd.model.layers[0]
+            _hooks.append(_l0.input_layernorm.register_forward_hook(_mk_hook("L0.pre_ln")))
+            _hooks.append(_l0.self_attn.q_proj.register_forward_hook(_mk_hook("L0.q_proj")))
+            _hooks.append(_l0.self_attn.k_proj.register_forward_hook(_mk_hook("L0.k_proj")))
+            _hooks.append(_l0.self_attn.v_proj.register_forward_hook(_mk_hook("L0.v_proj")))
+            _hooks.append(_l0.self_attn.o_proj.register_forward_hook(_mk_hook("L0.o_proj")))
+            _hooks.append(_l0.self_attn.register_forward_hook(_mk_hook("L0.attn_OUT")))
+            _hooks.append(_l0.post_attention_layernorm.register_forward_hook(_mk_hook("L0.post_attn_ln")))
+            _hooks.append(_l0.pre_feedforward_layernorm.register_forward_hook(_mk_hook("L0.pre_ffn_ln")))
+            _hooks.append(_l0.mlp.gate_proj.register_forward_hook(_mk_hook("L0.mlp.gate")))
+            _hooks.append(_l0.mlp.up_proj.register_forward_hook(_mk_hook("L0.mlp.up")))
+            _hooks.append(_l0.mlp.down_proj.register_forward_hook(_mk_hook("L0.mlp.down")))
+            _hooks.append(_l0.mlp.register_forward_hook(_mk_hook("L0.mlp_OUT")))
+            _hooks.append(_l0.post_feedforward_layernorm.register_forward_hook(_mk_hook("L0.post_ffn_ln")))
+            _hooks.append(_l0.register_forward_hook(_mk_hook("L0.OUT")))
 
         draft_model(**_common,
                     input_features=input_features_d,
