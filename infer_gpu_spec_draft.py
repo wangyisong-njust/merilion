@@ -294,9 +294,6 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
                 _src, torch_dtype=torch.bfloat16, use_safetensors=True)
             _pruned_td = _pruned_full.text_decoder
 
-            _non_td_sd = {k: v.cpu() for k, v in _pruned_full.state_dict().items()
-                          if not k.startswith("text_decoder.")}
-
             # Load quantized weights from safetensors
             print(f"  Loading quantized weights …")
             _sf_files = sorted(_glob.glob(os.path.join(td_awq_dir, "*.safetensors")))
@@ -352,16 +349,17 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
             _pruned_td.config._attn_implementation = "eager"
             _pruned_td.model.config._attn_implementation = "eager"
 
-            _hf_cfg = _AutoConfig2.from_pretrained(model_path, trust_remote_code=True)
-            model   = MERaLiON2ForConditionalGeneration(_hf_cfg)
-            model   = model.to(torch.bfloat16)   # speech encoder in BF16
-            model.load_state_dict(_non_td_sd, strict=False)
-            del _pruned_full, _non_td_sd
-            torch.cuda.empty_cache()
-
-            _pruned_td = _pruned_td.to(device)
-            model      = model.to(device)
+            # Reuse the already-loaded _pruned_full as the model shell: its
+            # speech_encoder / speech_audio_adapter / ln_speech are BF16 with
+            # correct weights.  Just swap in the quantized text_decoder.
+            # (Rebuilding a fresh shell from model_path's config and reloading
+            #  via strict=False silently dropped speech encoder weights whose
+            #  names differed → random init → NaN.)
+            model = _pruned_full
             model.text_decoder = _pruned_td
+            model = model.to(device)
+            del _pruned_full
+            torch.cuda.empty_cache()
             print(f"  AWQ quantized text decoder loaded ✓ (BF16 shell + eager attn)")
         else:
             awq_td = AutoAWQForCausalLM.from_quantized(
