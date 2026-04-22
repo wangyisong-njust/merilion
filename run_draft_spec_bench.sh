@@ -2,7 +2,7 @@
 # ============================================================
 # Model-based speculative decoding benchmark
 # Verifier: original MERaLiON-2-3B (BF16 or MLX4)
-# Draft:    pruned mid3-23 MLX4
+# Draft:    pruned mid3-23 BnB-INT4
 # ============================================================
 export PYTHONUNBUFFERED=1
 PYTHON_PATH="/home/jinchao/miniconda3/envs/audiobench_quant/bin/python"
@@ -42,7 +42,7 @@ run_spec_if_missing() {
 
 # ════════════════════════════════════════════════════════════════════════════
 echo "========================================"
-echo "  BF16 verifier + MLX4 draft"
+echo "  BF16 verifier + BnB-INT4 draft"
 echo "========================================"
 
 echo ""
@@ -53,27 +53,27 @@ run_if_missing "gpu_bf16_original_nospec.json" \
     --num_samples "$NUM_SAMPLES" --quant bf16 || exit 1
 
 echo ""
-echo "--- BF16 verifier + MLX4 draft γ=${GAMMA} ---"
-run_spec_if_missing "draft_bf16_orig_mid323mlx4_g${GAMMA}.json" \
-    --verifier_quant bf16 --draft_quant mlx4 || exit 1
+echo "--- BF16 verifier + BnB-INT4 draft γ=${GAMMA} ---"
+run_spec_if_missing "draft_bf16_orig_mid323bnb4_g${GAMMA}.json" \
+    --verifier_quant bf16 --draft_quant int4 || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "========================================"
-echo "  MLX4 verifier + MLX4 draft"
+echo "  INT8 verifier + BnB-INT4 draft"
 echo "========================================"
 
 echo ""
-echo "--- MLX4 no-spec (reuse from spec bench) ---"
-run_if_missing "gpu_mlx4_original_nospec.json" \
+echo "--- INT8 no-spec (reuse from spec bench) ---"
+run_if_missing "gpu_int8_original_nospec.json" \
     infer_gpu.py \
     --model "$ORIGINAL" --dataset "$DATASET" \
-    --num_samples "$NUM_SAMPLES" --quant mlx4 || exit 1
+    --num_samples "$NUM_SAMPLES" --quant int8 || exit 1
 
 echo ""
-echo "--- MLX4 verifier + MLX4 draft γ=${GAMMA} ---"
-run_spec_if_missing "draft_mlx4_orig_mid323mlx4_g${GAMMA}.json" \
-    --verifier_quant mlx4 --draft_quant mlx4 || exit 1
+echo "--- INT8 verifier + BnB-INT4 draft γ=${GAMMA} ---"
+run_spec_if_missing "draft_int8_orig_mid323bnb4_g${GAMMA}.json" \
+    --verifier_quant int8 --draft_quant int4 || exit 1
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
@@ -88,9 +88,9 @@ G = sys.argv[1]
 
 rows = [
     ("Original  BF16  no-spec",                   "gpu_bf16_original_nospec.json",               False),
-    (f"Original  BF16  +draft-spec γ={G}",         f"draft_bf16_orig_mid323mlx4_g{G}.json",       True),
-    ("Original  MLX4  no-spec",                   "gpu_mlx4_original_nospec.json",               False),
-    (f"Original  MLX4  +draft-spec γ={G}",         f"draft_mlx4_orig_mid323mlx4_g{G}.json",       True),
+    (f"Original  BF16  +draft-spec γ={G}",         f"draft_bf16_orig_mid323bnb4_g{G}.json",       True),
+    ("Original  INT8  no-spec",                   "gpu_int8_original_nospec.json",               False),
+    (f"Original  INT8  +draft-spec γ={G}",         f"draft_int8_orig_mid323bnb4_g{G}.json",       True),
 ]
 
 ref_lat = None
