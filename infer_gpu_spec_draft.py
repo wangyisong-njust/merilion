@@ -341,10 +341,17 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
             model.load_state_dict(_non_td_sd, strict=False)
             del _pruned_full, _non_td_sd
             torch.cuda.empty_cache()
+            # Force eager attention: FP16 AWQ without softcap (SDPA skips it)
+            # overflows in QK dot-product → softmax([inf,inf,...]) = NaN.
+            # Eager attention applies tanh softcap BEFORE softmax, converting
+            # inf → 30.0 so softmax stays numerically valid.
+            _pruned_td.config._attn_implementation = "eager"
+            _pruned_td.model.config._attn_implementation = "eager"
+
             _pruned_td = _pruned_td.to(device)
             model      = model.to(device)
             model.text_decoder = _pruned_td
-            print(f"  AWQ quantized text decoder loaded ✓")
+            print(f"  AWQ quantized text decoder loaded ✓ (eager attn)")
         else:
             awq_td = AutoAWQForCausalLM.from_quantized(
                 td_awq_dir, fuse_layers=True, device_map={"": device})
