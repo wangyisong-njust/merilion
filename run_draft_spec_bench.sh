@@ -13,6 +13,7 @@ TUNE_ROOT="meralion_tune_log"
 NUM_SAMPLES=50
 GAMMA=5
 GPU=0
+FORCE=${FORCE:-0}   # set FORCE=1 to re-run everything regardless of cached JSON
 
 export CUDA_VISIBLE_DEVICES=$GPU
 cd "$WORKDIR"
@@ -21,7 +22,7 @@ DRAFT="${TUNE_ROOT}/MERaLiON-2-3B-v3-td50-mid3-23-tune"
 
 run_if_missing() {
     local json="$1"; shift
-    if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
+    if [ "$FORCE" != "1" ] && [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
     echo "  running → $json"
     "$PYTHON_PATH" -u "$@" --output "$json" \
         | tee "${json%.json}.log" \
@@ -30,7 +31,7 @@ run_if_missing() {
 
 run_spec_if_missing() {
     local json="$1"; shift
-    if [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
+    if [ "$FORCE" != "1" ] && [ -f "$json" ]; then echo "  [skip] $json already exists"; return 0; fi
     echo "  running → $json"
     "$PYTHON_PATH" -u infer_gpu_spec_draft.py \
         --verifier "$ORIGINAL" --draft "$DRAFT" \
