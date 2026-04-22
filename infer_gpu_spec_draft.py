@@ -591,9 +591,38 @@ def transcribe_gpu_draft_spec(
         v_out = verifier(**_common,
                          input_features=input_features_v,
                          past_key_values=verifier_kv)
+
+        if debug:
+            _probe = {}
+            def _mk_hook(tag):
+                def _h(mod, inp, out):
+                    x = inp[0] if isinstance(inp, tuple) else inp
+                    y = out[0] if isinstance(out, tuple) else out
+                    _probe[tag] = {
+                        "in_nan": bool(torch.isnan(x).any().item()) if torch.is_tensor(x) else None,
+                        "in_max": float(x.abs().max().item()) if torch.is_tensor(x) else None,
+                        "in_dtype": str(x.dtype) if torch.is_tensor(x) else None,
+                        "out_nan": bool(torch.isnan(y).any().item()) if torch.is_tensor(y) else None,
+                        "out_max": float(y.float().abs().max().item()) if torch.is_tensor(y) and not torch.isnan(y).any() else float("nan"),
+                        "out_dtype": str(y.dtype) if torch.is_tensor(y) else None,
+                    }
+                return _h
+            _dtd = draft_model.text_decoder
+            _hooks = []
+            _hooks.append(_dtd.model.embed_tokens.register_forward_hook(_mk_hook("embed")))
+            _l0 = _dtd.model.layers[0]
+            _hooks.append(_l0.input_layernorm.register_forward_hook(_mk_hook("L0.pre_ln")))
+            _hooks.append(_l0.self_attn.k_proj.register_forward_hook(_mk_hook("L0.k_proj")))
+            _hooks.append(_l0.self_attn.q_proj.register_forward_hook(_mk_hook("L0.q_proj")))
+
         draft_model(**_common,
                     input_features=input_features_d,
                     past_key_values=draft_kv)
+
+        if debug:
+            for _h in _hooks: _h.remove()
+            for _tag, _v in _probe.items():
+                print(f"  [PROBE] {_tag}: {_v}")
 
         # next_tok = role-prefix token (e.g. first token of <Speaker1>:).
         # Append it so the full "<Speaker1>:" string is in generated_ids;
