@@ -534,7 +534,11 @@ def transcribe_gpu_draft_spec(
     input_ids              = input_ids.to(_dev)
     attention_mask         = attention_mask.to(_dev)
     input_features_v       = input_features.to(_dev).to(_dtype_v)
-    input_features_d       = input_features.to(_dev).to(_dtype_d)
+    # draft speech encoder weights are BF16 (loaded via torch_dtype=bfloat16);
+    # use BF16 regardless of _dtype_d to avoid FP16 overflow in the encoder.
+    _d_feat_dtype = next(
+        (p.dtype for p in draft_model.speech_encoder.parameters()), _dtype_d)
+    input_features_d       = input_features.to(_dev).to(_d_feat_dtype)
     feature_attention_mask = feature_attention_mask.to(_dev)
 
     # Disable HybridCache auto-selection in generation_config
