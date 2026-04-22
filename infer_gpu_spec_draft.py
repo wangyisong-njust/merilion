@@ -283,9 +283,15 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
             _w_bit = _awq_cfg.get("w_bit", 4)
             _grp   = _awq_cfg.get("q_group_size", 128)
 
-            print(f"  Loading pruned source model …")
+            # Load in BF16: speech encoder + adaptor use FP16 arithmetic which
+            # overflows (max≈65504) and produces NaN that propagates into
+            # key_cache[0] before any attention runs.  BF16 (max≈3.4e38)
+            # is immune.  The WQLinear GEMM kernel is patched to receive FP16
+            # (converted from BF16 on entry) and cast its FP16 output back to
+            # BF16, so hidden states stay BF16 throughout the text decoder.
+            print(f"  Loading pruned source model (BF16) …")
             _pruned_full = MERaLiON2ForConditionalGeneration.from_pretrained(
-                _src, torch_dtype=torch.float16, use_safetensors=True)
+                _src, torch_dtype=torch.bfloat16, use_safetensors=True)
             _pruned_td = _pruned_full.text_decoder
 
             _non_td_sd = {k: v.cpu() for k, v in _pruned_full.state_dict().items()
@@ -314,44 +320,49 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
                         _replace_wq(_c, _p)
             _replace_wq(_pruned_td, "")
 
-            # Load qweight/qzeros/scales + FP16 embeddings/norms from checkpoint
+            # Load qweight/qzeros/scales from checkpoint into WQLinear buffers
             _miss, _unex = _pruned_td.load_state_dict(_qsd, strict=False)
             _tied = {"lm_head.weight"}
             _bad  = [k for k in _miss if k not in _tied]
             if _bad:
-                print(f"  WARNING: {len(_bad)} unexpected missing keys: {_bad[:4]}")
-
-            # Verify all WQLinear layers loaded correctly
-            _all_wq = [(n, m) for n, m in _pruned_td.named_modules() if hasattr(m, "qweight")]
-            _zero_wq  = [n for n, m in _all_wq if (m.qweight == 0).all()]
-            _nan_wq   = [n for n, m in _all_wq if torch.isnan(m.scales).any()]
-            _fwq = _all_wq[0][1] if _all_wq else None
-            print(f"  WQLinear layers: {len(_all_wq)} total, "
-                  f"{len(_zero_wq)} all-zero qweight, {len(_nan_wq)} NaN scales")
-            if _zero_wq:  print(f"  zero-qweight: {_zero_wq[:4]}")
-            if _nan_wq:   print(f"  nan-scales:   {_nan_wq[:4]}")
-            if _fwq:
-                _nz = (_fwq.qweight != 0).sum().item()
-                print(f"  first WQLinear qweight nonzero: {_nz}/{_fwq.qweight.numel()}")
+                print(f"  WARNING: {len(_bad)} missing keys: {_bad[:4]}")
+            _n_wq = sum(1 for m in _pruned_td.modules() if hasattr(m, "qweight"))
+            print(f"  {_n_wq} WQLinear layers loaded")
             del _qsd
+
+            # Patch every WQLinear_GEMM to keep hidden-state dtype (BF16).
+            # The GEMM kernel requires FP16 I/O, so we convert in→FP16, run
+            # kernel, then cast output back to the caller's dtype.
+            import types as _types
+            def _wq_fwd_bf16(self, x):
+                _odtype = x.dtype
+                _oshape = x.shape[:-1] + (self.out_features,)
+                _inp = x.reshape(-1, x.shape[-1]).to(torch.float16)
+                from awq.modules.linear.gemm import awq_ext
+                _out = awq_ext.gemm_forward_cuda(
+                    _inp, self.qweight, self.scales, self.qzeros, 8)
+                return _out.to(_odtype).reshape(_oshape)
+
+            for _m in _pruned_td.modules():
+                if isinstance(_m, WQLinear_GEMM):
+                    _m.forward = _types.MethodType(_wq_fwd_bf16, _m)
+
+            # Force eager attention so tanh softcap is applied before softmax.
+            # SDPA skips softcap; without it large FP16 scores → inf → NaN.
+            _pruned_td.config._attn_implementation = "eager"
+            _pruned_td.model.config._attn_implementation = "eager"
 
             _hf_cfg = _AutoConfig2.from_pretrained(model_path, trust_remote_code=True)
             model   = MERaLiON2ForConditionalGeneration(_hf_cfg)
-            model   = model.to(torch.float16)
+            model   = model.to(torch.bfloat16)   # speech encoder in BF16
             model.load_state_dict(_non_td_sd, strict=False)
             del _pruned_full, _non_td_sd
             torch.cuda.empty_cache()
-            # Force eager attention: FP16 AWQ without softcap (SDPA skips it)
-            # overflows in QK dot-product → softmax([inf,inf,...]) = NaN.
-            # Eager attention applies tanh softcap BEFORE softmax, converting
-            # inf → 30.0 so softmax stays numerically valid.
-            _pruned_td.config._attn_implementation = "eager"
-            _pruned_td.model.config._attn_implementation = "eager"
 
             _pruned_td = _pruned_td.to(device)
             model      = model.to(device)
             model.text_decoder = _pruned_td
-            print(f"  AWQ quantized text decoder loaded ✓ (eager attn)")
+            print(f"  AWQ quantized text decoder loaded ✓ (BF16 shell + eager attn)")
         else:
             awq_td = AutoAWQForCausalLM.from_quantized(
                 td_awq_dir, fuse_layers=True, device_map={"": device})
