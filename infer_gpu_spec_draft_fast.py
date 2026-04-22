@@ -178,7 +178,10 @@ def _model_is_pruned(model) -> bool:
         return False
 
 
-class PrunedPreallocCache:
+from transformers.cache_utils import HybridCache as _HybridCacheBase
+
+
+class PrunedPreallocCache(_HybridCacheBase):
     """Pre-allocated KV cache that honours per-layer num_key_value_heads.
 
     HybridCache allocates a single (L, 1, kv_heads, max_len, head_dim) tensor
@@ -190,9 +193,16 @@ class PrunedPreallocCache:
     This class pre-allocates *one* (1, kv_heads_i, max_len, head_dim) tensor
     per layer using each layer's actual k_proj out-shape, and writes into it
     with index_copy_.  No cat, no memcpy growth, no per-step realloc.
+
+    Inherits from HybridCache so isinstance(x, HybridCache) → True inside
+    Gemma2Model._update_causal_mask; that selects target_length =
+    max_cache_shape (static) for the generated causal mask, which is needed
+    for torch.compile / CUDA Graph specialization.  We deliberately skip
+    HybridCache.__init__ to avoid its uniform-kv-heads tensor pre-alloc.
     """
     def __init__(self, text_decoder, max_cache_len: int,
                  batch_size: int = 1, dtype=torch.bfloat16, device="cuda"):
+        # Skip HybridCache/Cache __init__ (see class docstring).
         self.max_cache_len = max_cache_len
         self.key_cache   = []
         self.value_cache = []
@@ -215,8 +225,7 @@ class PrunedPreallocCache:
     def update(self, key_states, value_states, layer_idx, cache_kwargs=None):
         # Caller must have set self._seen_tokens to the position before this
         # write (via trim or the prefill path below).  cache_position is on
-        # GPU and we intentionally don't .item() it — the required `end`
-        # comes from shape metadata (CPU, no sync).
+        # GPU; we intentionally don't .item() it (keeps the forward sync-free).
         cache_position = (cache_kwargs or {}).get("cache_position")
         k_buf = self.key_cache[layer_idx]
         v_buf = self.value_cache[layer_idx]
@@ -233,7 +242,12 @@ class PrunedPreallocCache:
             # Only bump after the last layer writes — so all layers during one
             # forward pass see the same (pre-forward) _seen_tokens value.
             self._seen_tokens = end
-        return k_buf[:, :, :end, :], v_buf[:, :, :end, :]
+        # Return the FULL buffer (static shape).  Unwritten / trimmed slots
+        # must be masked by the caller via a causal+validity attention_mask
+        # so their stale values don't contaminate softmax.  This keeps the
+        # attention computation's tensor shapes constant, which is required
+        # for torch.compile/CUDA Graphs to cache a single kernel graph.
+        return k_buf, v_buf
 
     def get_seq_length(self, layer_idx: int = 0) -> int:
         return self._seen_tokens
@@ -251,6 +265,30 @@ class PrunedPreallocCache:
 
     def __len__(self):
         return len(self.key_cache)
+
+
+def _build_static_causal_mask(q_len: int, cache_start: int,
+                              max_cache_len: int,
+                              dtype: torch.dtype,
+                              device) -> torch.Tensor:
+    """Return a (1, 1, q_len, max_cache_len) additive causal mask.
+
+    mask[0, 0, q, k] == 0            if k <= cache_start + q  (valid context)
+                    == finfo.min     otherwise               (future / unwritten)
+
+    Shape is constant in (q_len, max_cache_len) so the produced tensor has
+    a static shape — suitable for torch.compile / CUDA Graphs.  Values
+    depend on cache_start (Python int), so the resulting tensor is built
+    fresh per call, but identical shape each time.
+    """
+    min_dtype = torch.finfo(dtype).min
+    q_positions = cache_start + torch.arange(q_len, device=device)
+    k_positions = torch.arange(max_cache_len, device=device)
+    valid = k_positions[None, :] <= q_positions[:, None]        # (q_len, max_cache_len)
+    mask = torch.where(valid,
+                       torch.zeros((), dtype=dtype, device=device),
+                       torch.tensor(min_dtype, dtype=dtype, device=device))
+    return mask[None, None, :, :]
 
 
 def _trim_kv_cache(past_kv, keep_len: int) -> None:
@@ -755,9 +793,16 @@ def transcribe_gpu_draft_spec(
             _diag_first_draft = debug and len(generated_ids) == 1
             for _di in range(_gamma_eff):
                 d_pos = cur_pos + _di
+                # attention_mask=None so Gemma2Model._update_causal_mask builds
+                # a (1, 1, 1, max_cache_len) causal mask purely from
+                # cache_position + target_length (static shape — required for
+                # torch.compile / CUDA graph specialization).  With
+                # PrunedPreallocCache inheriting HybridCache the target_length
+                # picks up max_cache_len, and cache.update() returns the full
+                # buffer so key_states.shape[-2] also equals max_cache_len.
                 d_out = draft_model(
                     input_ids=_d_tok_t,
-                    attention_mask=torch.ones(1, d_pos + 1, dtype=torch.long, device=_dev),
+                    attention_mask=None,
                     past_key_values=draft_kv,
                     use_cache=True,
                     cache_position=torch.tensor([d_pos], device=_dev),
