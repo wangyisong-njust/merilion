@@ -321,11 +321,18 @@ def load_model_gpu(model_path: str, quant: str = "bf16",
             if _bad:
                 print(f"  WARNING: {len(_bad)} unexpected missing keys: {_bad[:4]}")
 
-            # Verify
-            _fwq = next((m for m in _pruned_td.modules() if hasattr(m, "qweight")), None)
-            if _fwq is not None:
+            # Verify all WQLinear layers loaded correctly
+            _all_wq = [(n, m) for n, m in _pruned_td.named_modules() if hasattr(m, "qweight")]
+            _zero_wq  = [n for n, m in _all_wq if (m.qweight == 0).all()]
+            _nan_wq   = [n for n, m in _all_wq if torch.isnan(m.scales).any()]
+            _fwq = _all_wq[0][1] if _all_wq else None
+            print(f"  WQLinear layers: {len(_all_wq)} total, "
+                  f"{len(_zero_wq)} all-zero qweight, {len(_nan_wq)} NaN scales")
+            if _zero_wq:  print(f"  zero-qweight: {_zero_wq[:4]}")
+            if _nan_wq:   print(f"  nan-scales:   {_nan_wq[:4]}")
+            if _fwq:
                 _nz = (_fwq.qweight != 0).sum().item()
-                print(f"  WQLinear qweight nonzero: {_nz}/{_fwq.qweight.numel()}")
+                print(f"  first WQLinear qweight nonzero: {_nz}/{_fwq.qweight.numel()}")
             del _qsd
 
             _hf_cfg = _AutoConfig2.from_pretrained(model_path, trust_remote_code=True)
@@ -522,10 +529,13 @@ def transcribe_gpu_draft_spec(
     max_cache = seq_len + max_new_tokens
 
     def _make_cache(mdl, dtype):
-        # Always use HybridCache — meralion2_bl's custom Gemma2 requires it
-        # for sliding-window key expansion.  DynamicCache produces NaN logits
-        # in the first decode step because it doesn't satisfy the alternating
-        # local/global attention assumptions.
+        # Pruned models have non-uniform num_key_value_heads (mid-block layers
+        # are halved), so HybridCache (which pre-allocates per config's uniform
+        # kv_heads) gives a shape mismatch.  DynamicCache is used instead;
+        # meralion2_bl already selects DynamicCache for pruned models internally.
+        if _model_is_pruned(mdl):
+            from transformers import DynamicCache
+            return DynamicCache()
         from transformers.cache_utils import HybridCache
         return HybridCache(
             mdl.text_decoder.model.config,
