@@ -593,27 +593,25 @@ def transcribe_gpu_draft_spec(
                          past_key_values=verifier_kv)
 
         if debug:
-            _probe = {}
+            _probe = []
             def _mk_hook(tag):
                 def _h(mod, inp, out):
-                    x = inp[0] if isinstance(inp, tuple) else inp
                     y = out[0] if isinstance(out, tuple) else out
-                    _probe[tag] = {
-                        "in_nan": bool(torch.isnan(x).any().item()) if torch.is_tensor(x) else None,
-                        "in_max": float(x.abs().max().item()) if torch.is_tensor(x) else None,
-                        "in_dtype": str(x.dtype) if torch.is_tensor(x) else None,
-                        "out_nan": bool(torch.isnan(y).any().item()) if torch.is_tensor(y) else None,
-                        "out_max": float(y.float().abs().max().item()) if torch.is_tensor(y) and not torch.isnan(y).any() else float("nan"),
-                        "out_dtype": str(y.dtype) if torch.is_tensor(y) else None,
-                    }
+                    if torch.is_tensor(y):
+                        _nan = bool(torch.isnan(y).any().item())
+                        _mx  = float("nan") if _nan else float(y.float().abs().max().item())
+                        _probe.append((tag, _nan, _mx))
                 return _h
             _dtd = draft_model.text_decoder
             _hooks = []
             _hooks.append(_dtd.model.embed_tokens.register_forward_hook(_mk_hook("embed")))
-            _l0 = _dtd.model.layers[0]
-            _hooks.append(_l0.input_layernorm.register_forward_hook(_mk_hook("L0.pre_ln")))
-            _hooks.append(_l0.self_attn.k_proj.register_forward_hook(_mk_hook("L0.k_proj")))
-            _hooks.append(_l0.self_attn.q_proj.register_forward_hook(_mk_hook("L0.q_proj")))
+            for _i, _lyr in enumerate(_dtd.model.layers):
+                _hooks.append(_lyr.input_layernorm.register_forward_hook(_mk_hook(f"L{_i}.pre_ln")))
+                _hooks.append(_lyr.self_attn.q_proj.register_forward_hook(_mk_hook(f"L{_i}.q_proj")))
+                _hooks.append(_lyr.self_attn.k_proj.register_forward_hook(_mk_hook(f"L{_i}.k_proj")))
+                _hooks.append(_lyr.self_attn.v_proj.register_forward_hook(_mk_hook(f"L{_i}.v_proj")))
+                _hooks.append(_lyr.self_attn.o_proj.register_forward_hook(_mk_hook(f"L{_i}.o_proj")))
+                _hooks.append(_lyr.register_forward_hook(_mk_hook(f"L{_i}.OUT")))
 
         draft_model(**_common,
                     input_features=input_features_d,
@@ -621,8 +619,16 @@ def transcribe_gpu_draft_spec(
 
         if debug:
             for _h in _hooks: _h.remove()
-            for _tag, _v in _probe.items():
-                print(f"  [PROBE] {_tag}: {_v}")
+            # Print from first NaN backwards a few steps, and first 4 layer OUT
+            _first_nan = next((i for i, (_, n, _m) in enumerate(_probe) if n), None)
+            print(f"  [PROBE] total={len(_probe)} first_nan_idx={_first_nan}")
+            if _first_nan is not None:
+                _start = max(0, _first_nan - 6)
+                for _t, _n, _m in _probe[_start:_first_nan + 3]:
+                    print(f"    {_t}: nan={_n} max={_m}")
+            else:
+                for _t, _n, _m in _probe[:8]:
+                    print(f"    {_t}: nan={_n} max={_m}")
 
         # next_tok = role-prefix token (e.g. first token of <Speaker1>:).
         # Append it so the full "<Speaker1>:" string is in generated_ids;
