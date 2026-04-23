@@ -26,7 +26,13 @@ MEDUSA_SRC=${MEDUSA_SRC:-$WORKDIR/hf_medusa_pkg}
 QUANT_ROOT=${QUANT_ROOT:-$WORKDIR/quant_checkpoints}
 
 # ── Knobs ──────────────────────────────────────────────────────────────────────
-METHOD=${METHOD:-RTN}            # RTN | GPTQ | AWQ
+# AWQ (activation-aware) is the default: llmcompressor.modifiers.awq produces
+# compressed-tensors pack-quantized INT4, which the transformers HfQuantizer
+# loads via CompressedLinear → Marlin kernel on sm_80+ (A100/H100).  Takes
+# 30–60 min of calibration but has the best INT4 quality.  Override with
+# METHOD=RTN for a data-free 15-s run (no Marlin-kernel assumption changes;
+# same on-disk format).
+METHOD=${METHOD:-AWQ}            # AWQ | GPTQ | RTN
 NUM_CALIB=${NUM_CALIB:-512}
 CALIB_SEQ_LEN=${CALIB_SEQ_LEN:-512}
 
