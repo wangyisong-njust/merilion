@@ -186,7 +186,28 @@ def main():
         mappings=awq_mappings,
     )
 
-    print("\nRunning oneshot(AWQ) on text_decoder with audio-conditioned "
+    # HF Datasets stores bf16 tensors as fp32 (Arrow has no native bf16),
+    # and llmcompressor's SequentialPipeline forward then hits a dtype
+    # mismatch against our bf16 text_decoder weights.  Cast text_decoder
+    # to fp32 just for calibration — quantization is dtype-insensitive
+    # (it's a scale-fitting pass), and after save_compressed packs to int4
+    # the final weight_scale tensors will be stored independently of the
+    # upcast pass.
+    print("\nCasting text_decoder to fp32 for calibration (quantization is "
+          "dtype-insensitive) …")
+    model.text_decoder = model.text_decoder.to(torch.float32)
+
+    # After save, llmcompressor tries to copy Python modeling files via
+    # hf_hub_download(config._name_or_path, …).  The inner Gemma2 config
+    # inherits `_name_or_path='google/gemma-2-2b-it'` from its upstream,
+    # which is a gated HF repo → 403.  Point it at our local dir so it
+    # falls through to the local-path branch.
+    local_dir = os.path.abspath(args.model)
+    model.text_decoder.config._name_or_path = local_dir
+    if hasattr(model.text_decoder, "model"):
+        model.text_decoder.model.config._name_or_path = local_dir
+
+    print("Running oneshot(AWQ) on text_decoder with audio-conditioned "
           "inputs_embeds …")
     oneshot(
         model=model.text_decoder,
@@ -200,21 +221,81 @@ def main():
         concatenate_data=False,
     )
 
-    # ── Rebuild the full MERaLiON model with the quantised text_decoder ──────
-    # oneshot saved ONLY text_decoder; assemble the full model config that
-    # points to its quantised text_decoder + the original speech encoder bits.
-    #
-    # Simplest approach: reload the full model from base_path, override
-    # text_decoder with the quantised version, save as one directory with the
-    # MERaLiON2 config including quantization_config scoped to text_decoder.*.
-    #
-    # For now we keep oneshot's output (just the text_decoder) as the final
-    # artefact and provide a companion loader note in the README.
-    print(f"\nDone.  Text-decoder only, quantized, saved to {args.output_dir}")
-    print("  NOTE: this is the quantised Gemma2 text_decoder in compressed-")
-    print("  tensors format.  To use with full MERaLiON audio inference, load")
-    print("  the original MERaLiON checkpoint then swap its text_decoder with")
-    print("  this one.  See `load_meralion_with_quant_td()` helper (TBD).")
+    # ── Rewrite output as a full MERaLiON-2 wrapper ──────────────────────────
+    # `oneshot` saved only the inner Gemma2 text_decoder.  Build a
+    # self-contained MERaLiON-2-3B directory that:
+    #   * keeps the original bf16 speech_encoder / adapter / ln_speech weights
+    #   * replaces text_decoder.* with the quantised (weight_packed) tensors
+    #   * has MERaLiON2Config at root with quantization_config copied over,
+    #     targets remapped to `text_decoder.*` so our patched HfQuantizer
+    #     path applies CompressedLinear only inside the text decoder.
+    print("\nRewriting output as full MERaLiON-2-3B wrapper …")
+    import json, glob, shutil
+    from safetensors.torch import load_file as _load_sf, save_file as _save_sf
+
+    # Load quantised text_decoder state dict from the oneshot output dir.
+    td_sd = {}
+    for sf in sorted(glob.glob(os.path.join(args.output_dir, "*.safetensors"))):
+        td_sd.update(_load_sf(sf, device="cpu"))
+    # Load bf16 base weights for the non-text-decoder parts.
+    base_sd = {}
+    for sf in sorted(glob.glob(os.path.join(args.model, "*.safetensors"))):
+        base_sd.update(_load_sf(sf, device="cpu"))
+
+    merged = {}
+    # Non-text-decoder tensors stay as-is from base
+    for k, v in base_sd.items():
+        if not k.startswith("text_decoder."):
+            merged[k] = v
+    # Text decoder tensors come from the quantised artefact (re-prefixed).
+    for k, v in td_sd.items():
+        merged[f"text_decoder.{k}"] = v
+
+    # Save merged weights in a single safetensors shard (simple; ~5 GB).
+    merged_dir = args.output_dir + ".full"
+    os.makedirs(merged_dir, exist_ok=True)
+    _save_sf({k: v.contiguous() for k, v in merged.items()},
+             os.path.join(merged_dir, "model.safetensors"))
+
+    # Build the outer MERaLiON2 config with a text_decoder-scoped
+    # quantization_config.
+    with open(os.path.join(args.model, "config.json")) as f:
+        outer_cfg = json.load(f)
+    with open(os.path.join(args.output_dir, "config.json")) as f:
+        td_cfg = json.load(f)
+    qc = td_cfg.get("quantization_config")
+    if qc is None:
+        raise RuntimeError("inner text_decoder config is missing quantization_config")
+    # Re-prefix target Linear matches so compressed-tensors only rebuilds the
+    # text_decoder Linears as CompressedLinear.
+    new_ignore = list(qc.get("ignore") or [])
+    # Ensure speech encoder / adapter / ln_speech are always ignored.
+    for extra in ["re:.*speech_encoder.*", "re:.*speech_audio_adapter.*",
+                  "re:.*ln_speech.*", "re:.*lm_head.*"]:
+        if extra not in new_ignore:
+            new_ignore.append(extra)
+    qc["ignore"] = new_ignore
+    outer_cfg["quantization_config"] = qc
+    with open(os.path.join(merged_dir, "config.json"), "w") as f:
+        json.dump(outer_cfg, f, indent=2)
+
+    # Auxiliary files (processor / tokenizer / modeling).  Tokenizer & processor
+    # come from the original base; modeling files users can bring their own
+    # (our bundled meralion2_bl patches).
+    for aux in ["generation_config.json", "tokenizer.json", "tokenizer.model",
+                "tokenizer_config.json", "special_tokens_map.json",
+                "preprocessor_config.json", "processor_config.json",
+                "configuration_meralion2.py", "modeling_meralion2.py",
+                "processing_meralion2.py", "chat_template.jinja"]:
+        src = os.path.join(args.model, aux)
+        if os.path.exists(src):
+            shutil.copy(src, os.path.join(merged_dir, aux))
+
+    print(f"\nDone.")
+    print(f"  text_decoder-only:   {args.output_dir}")
+    print(f"  full MERaLiON-2-3B:  {merged_dir}")
+    print(f"  load with: MERaLiON2ForConditionalGeneration.from_pretrained("
+          f"'{merged_dir}', torch_dtype=torch.bfloat16)")
 
 
 if __name__ == "__main__":
