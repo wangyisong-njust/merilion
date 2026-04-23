@@ -13,13 +13,18 @@
 export PYTHONUNBUFFERED=1
 
 # ── Paths / env ────────────────────────────────────────────────────────────────
-PYTHON_PATH=${PYTHON_PATH:-/home/kaixin/anaconda3/envs/llm_pruner_meralion/bin/python}
-WORKDIR=${WORKDIR:-/home/kaixin/yisong/merilion}
-ORIGINAL=${ORIGINAL:-/home/kaixin/programs/LLM_base_model/MERaLiON-2-3B}
-DATASET=${DATASET:-/home/kaixin/ssd/data/ASR/IMDA_PART1_mono_en_30_ASR}
-CALIB_DS=${CALIB_DS:-/home/kaixin/meralion_datasets/train/ASR/IMDA_PART1_mono_en_30_ASR}
-MEDUSA_SRC=${MEDUSA_SRC:-/home/kaixin/yisong/merilion/hf_medusa_pkg}
-QUANT_ROOT=${QUANT_ROOT:-/home/kaixin/yisong/merilion/quant_checkpoints}
+# Defaults derive from the script's own directory so this works on any
+# machine where the repo has been cloned.  Override individual paths via env
+# vars when your model/dataset live elsewhere.
+_SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+
+PYTHON_PATH=${PYTHON_PATH:-$(command -v python)}
+WORKDIR=${WORKDIR:-$_SCRIPT_DIR}
+ORIGINAL=${ORIGINAL:?"set ORIGINAL=/path/to/MERaLiON-2-3B"}
+DATASET=${DATASET:?"set DATASET=/path/to/IMDA_PART1_eval_dataset"}
+CALIB_DS=${CALIB_DS:-$DATASET}   # OK to reuse DATASET as calib for smoke tests
+MEDUSA_SRC=${MEDUSA_SRC:-$WORKDIR/hf_medusa_pkg}
+QUANT_ROOT=${QUANT_ROOT:-$WORKDIR/quant_checkpoints}
 
 # ── Knobs ──────────────────────────────────────────────────────────────────────
 METHOD=${METHOD:-RTN}            # RTN | GPTQ | AWQ
