@@ -13,15 +13,15 @@
 export PYTHONUNBUFFERED=1
 
 # ── Paths / env ────────────────────────────────────────────────────────────────
-# Defaults match run_draft_spec_bench.sh (kaixin machine).  Any var can be
-# overridden inline: `ORIGINAL=/elsewhere bash run_w4a16_medusa_bench.sh`.
-PYTHON_PATH=${PYTHON_PATH:-/home/kaixin/anaconda3/envs/llm_pruner_meralion/bin/python}
-WORKDIR=${WORKDIR:-/home/kaixin/yisong/merilion}
-ORIGINAL=${ORIGINAL:-/home/kaixin/programs/LLM_base_model/MERaLiON-2-3B}
-DATASET=${DATASET:-/home/kaixin/ssd/data/ASR/IMDA_PART1_mono_en_30_ASR}
-# Train-split (has ~2.3M samples) for GPTQ/AWQ calibration.  Eval set has
-# only 30 samples so wouldn't be suitable as calibration.
-CALIB_DS=${CALIB_DS:-/home/kaixin/meralion_datasets/train/ASR/IMDA_PART1_mono_en_30_ASR}
+# Defaults target the jinchao remote (runtao/LLM-Pruner tree).  Override any
+# var inline, e.g.: `ORIGINAL=/elsewhere bash run_w4a16_medusa_bench.sh`.
+PYTHON_PATH=${PYTHON_PATH:-/home/jinchao/miniconda3/envs/audiobench_quant/bin/python}
+WORKDIR=${WORKDIR:-/home/jinchao/runtao/LLM-Pruner}
+ORIGINAL=${ORIGINAL:-/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B}
+DATASET=${DATASET:-/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR}
+# Train-split (large) for GPTQ/AWQ calibration.  Eval set has only 30 samples
+# so wouldn't be suitable as calibration.
+CALIB_DS=${CALIB_DS:-/home/jinchao/runtao/meralion_datasets/train/ASR/IMDA_PART1_mono_en_30_ASR}
 MEDUSA_SRC=${MEDUSA_SRC:-$WORKDIR/hf_medusa_pkg}
 QUANT_ROOT=${QUANT_ROOT:-$WORKDIR/quant_checkpoints}
 
