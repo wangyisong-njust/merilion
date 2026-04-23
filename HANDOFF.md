@@ -269,6 +269,7 @@ new_end   = round(orig_end   / orig_layers * new_layers)
 | **10B-ASR** | ngram + ref corpus | 16 | 0.69 | 32.5 | 3.9% | 1.26× |
 | **10B-ASR** | model-draft（10B→3B-pruned） | 5 | 1.05 | 20.4 | 69.7% | 0.83× ✗ |
 | **10B-ASR** | ngram + **model corpus** (10k mid3-23 outputs) | 8 | **0.66** | **34.1** | 8.3% | **1.32× ✓** |
+| **3B** | **Medusa v2** (K=4 heads, verifier-output trained) | 4 | **0.35** | **57.3** | 38.8% | **1.51× ✓** |
 
 ### 14.2 关键结论
 
@@ -317,11 +318,76 @@ python build_ngram_from_model.py --mode merge \
 - 用 10B 自己生成（比 mid3-23 准但更贵：50k samples 约 15h on 3 GPUs）
 - 保留 top-K 候选（当前只存 top-1）+ tree attention
 
-### 14.5 若想进一步加速（未做）
+### 14.5 Medusa 实现（做了，1.51× 胜出！）
 
-1. **训小 draft**（蒸馏 ~500M，计算比 1:6-1:20）+ 自研 Medusa/EAGLE 头
-2. **改用 vLLM** —— PagedAttention + 原生 spec decoding + tensor parallel
-3. **量化 verifier 到 W4A16**（AWQ/GPTQ）让 decode 更 memory-bound → 给 spec 更多 headroom
+自研 Medusa heads（不依赖 vLLM）。K=4 小 MLP head 挂在 verifier 最后一层 hidden state 上，每个 head 预测未来一个 offset 的 token。推理时 heads 并行产生 K 个 draft token，verifier 一次 batched 验证。
+
+#### 关键文件
+| 文件 | 作用 |
+|---|---|
+| `medusa_model.py` | `MedusaHead` + `MedusaHeads` 类（ResBlock + 共享 lm_head） |
+| `collect_medusa_data.py` | **关键**：跑 verifier 实际 inference，**保存每步 hidden state + 下一个 token**（10k samples × avg 19 tok = ~900MB, BF16）。支持 `--shard_id/--num_shards` 多卡并行 |
+| `train_medusa_v2.py` | 从 cached 数据训 heads，val split 选 best checkpoint |
+| `train_medusa.py` | **v1（已废弃）** 用 reference 文本直接训，val acc 好但 inference acc 崩到 4% —— 分布失配 |
+| `infer_gpu_medusa.py` | Inference 集成（greedy 接受，线性非树） |
+| `medusa_heads_v2_best.pt` | 训练好的 heads（21M 参数，step 1782 val_loss=4.424） |
+
+#### V1 vs V2 关键差异
+
+| 方面 | v1 (失败) | v2 (成功) |
+|---|---|---|
+| 训练 target | IMDA reference 文本 tokenize | 3B 自己跑音频 → 输出 token |
+| Hidden state 来源 | Pure text decoder forward | 真实 inference（speech encoder + adapter → text decoder） |
+| Val acc (head 0/1/2/3) | 40/30/30/35% | 76/47/35/27% |
+| **Inference acc** | **4.2%** | **38.8%** |
+| **Latency** | 0.59s (vs baseline 0.53s, 慢 11%) | **0.35s** (vs baseline 0.53s, **1.51× 快**) |
+
+**教训**：Medusa 训练数据必须匹配 inference 时的 hidden state 分布。对多模态（音频→文本），必须跑一遍真实 inference 收集 hidden state，不能用纯文本 text_decoder forward。
+
+#### Pipeline 命令
+
+```bash
+# 1. 收集 hidden states + 输出 token 配对（3 GPU 并行 ~25 min for 10k samples）
+for i in 0 1 2; do
+  CUDA_VISIBLE_DEVICES=$((i+1)) python collect_medusa_data.py \
+    --model /home/.../MERaLiON-2-3B \
+    --dataset /home/.../IMDA_PART1_train \
+    --num_samples 10000 --shard_id $i --num_shards 3 \
+    --output_shard medusa_data_shard_$i.pt &
+done
+
+# 2. 训练 heads（单卡 ~3 min, val split 选 best）
+python train_medusa_v2.py \
+  --model /home/.../MERaLiON-2-3B \
+  --data_shards medusa_data_shard_*.pt \
+  --num_heads 4 --num_layers 1 \
+  --batch_size 8 --grad_accum 2 --lr 1e-3 --epochs 3 \
+  --output_best medusa_heads_v2_best.pt
+
+# 3. Inference
+python infer_gpu_medusa.py \
+  --model /home/.../MERaLiON-2-3B \
+  --heads medusa_heads_v2_best.pt \
+  --dataset /home/.../IMDA_PART1_eval \
+  --num_samples 20
+```
+
+#### 调试教训：head indexing 要对得上训练 offset
+
+训练时 head k 学预测 `tokens[i+k+1]`（offset +k+1 从 "naturally predicted" token）。推理时 h_last 是 "产生 next_tok 的那个 hidden state"，所以 `head_k(h_last)` 预测 offset +k+1 后的 token：
+- head 0 → 第 1 个 draft（next_tok 之后的第 1 个）
+- head 1 → 第 2 个 draft
+- head K-1 → 第 K 个 draft
+
+**v1 bug**：以为 head 0 和 verifier's 自己的 +1 冗余，跳过了 head 0 用 heads 1..K-1 → draft 位置错位 → acc 暴跌到 6%。修成 heads 0..K-1 后 acc 飙到 38.8%。
+
+### 14.6 若想进一步加速（未做）
+
+1. **更多 Medusa heads**（K=6-8）—— 但 head 3 已经只有 27% acc，递减收益
+2. **Tree attention**（每个 head 保留 top-K 候选，多分支并行 verify）—— 复杂度高，Medusa-2 paper 有
+3. **EAGLE**（递归 draft，比 Medusa acc 更高）—— 需重训
+4. **改用 vLLM** —— PagedAttention + 原生 spec decoding + tensor parallel
+5. **量化 verifier 到 W4A16**（AWQ/GPTQ）让 decode 更 memory-bound → 给 spec 更多 headroom
 
 ### 14.6 Minibatch 与量化收益的关系（概念）
 
