@@ -150,30 +150,40 @@ def main():
         # prefill argmax is EOS.  Constrain every regex to `text_decoder.`.
         from llmcompressor.modifiers.awq import AWQModifier
         from llmcompressor.modifiers.awq.mappings import AWQMapping
+        # AWQ resolves `smooth_layer` against the WHOLE model (full paths),
+        # then searches `balance_layers` RELATIVE to smooth_layer's parent
+        # (suffixes within a single decoder layer).  So:
+        #   * prefix smooth_layer with `text_decoder\.` to keep the smoothing
+        #     scope inside the text decoder only (this is the bug fix — the
+        #     unprefixed regex also matches speech_encoder's input_layernorm
+        #     and AWQ would corrupt those weights in place);
+        #   * leave balance_layers as bare regexes — they search within a
+        #     Gemma2DecoderLayer where the relative paths are like
+        #     `self_attn.q_proj`, no `text_decoder.` prefix present.
         td = r"text_decoder\."
         mappings = [
             # Pre-attention LN → q/k/v
             AWQMapping(
                 smooth_layer=f"re:{td}.*input_layernorm$",
-                balance_layers=[f"re:{td}.*q_proj$",
-                                f"re:{td}.*k_proj$",
-                                f"re:{td}.*v_proj$"],
+                balance_layers=["re:.*q_proj$",
+                                "re:.*k_proj$",
+                                "re:.*v_proj$"],
             ),
             # v_proj → o_proj
             AWQMapping(
                 smooth_layer=f"re:{td}.*v_proj$",
-                balance_layers=[f"re:{td}.*o_proj$"],
+                balance_layers=["re:.*o_proj$"],
             ),
             # Pre-FFN LN → gate/up
             AWQMapping(
                 smooth_layer=f"re:{td}.*pre_feedforward_layernorm$",
-                balance_layers=[f"re:{td}.*gate_proj$",
-                                f"re:{td}.*up_proj$"],
+                balance_layers=["re:.*gate_proj$",
+                                "re:.*up_proj$"],
             ),
             # up_proj → down_proj
             AWQMapping(
                 smooth_layer=f"re:{td}.*up_proj$",
-                balance_layers=[f"re:{td}.*down_proj$"],
+                balance_layers=["re:.*down_proj$"],
             ),
         ]
         recipe = AWQModifier(

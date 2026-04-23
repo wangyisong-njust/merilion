@@ -30,14 +30,19 @@ QUANT_ROOT=${QUANT_ROOT:-$WORKDIR/quant_checkpoints}
 # compressed-tensors format so the loader / Marlin kernel path is identical;
 # only the quality / speed of quantization differs.
 #
-#   AWQ   activation-aware scaling + MERaLiON-specific AWQMapping (constrains
-#         all smooth_layer / balance_layer regexes to `text_decoder.*` so
-#         AWQ doesn't touch the speech encoder).  Best INT4 quality.
-#         Takes 30-60 min of calibration.
-#   GPTQ  calibration-based error minimisation.  Slower at inference on some
-#         hardware than AWQ; quality similar.
-#   RTN   data-free round-to-nearest, ~15 s.  Known-good fallback.
-METHOD=${METHOD:-AWQ}            # AWQ | GPTQ | RTN
+#   RTN   data-free round-to-nearest, ~15 s.  Known-good on MERaLiON (default).
+#   GPTQ  per-layer error minimisation with text calibration.  Works; slower
+#         quantize (30-60 min).  Runtime speed similar to RTN (same kernel).
+#   AWQ   activation-aware scaling.  BROKEN on MERaLiON with TEXT calibration:
+#         AWQ picks scales tuned to the text-decoder hidden state distribution,
+#         but at real inference the prefill sees audio-adapter embeddings (a
+#         completely different distribution) → quantisation error explodes
+#         and the prefill logit argmax collapses to EOS (empty output).  Fix
+#         would require an audio-conditioned calibration pipeline that runs
+#         the full speech_encoder + adapter and feeds inputs_embeds to the
+#         text decoder — llmcompressor.oneshot doesn't support that shape
+#         naturally.  Avoid for now.
+METHOD=${METHOD:-RTN}            # RTN | GPTQ | AWQ(broken)
 NUM_CALIB=${NUM_CALIB:-512}
 CALIB_SEQ_LEN=${CALIB_SEQ_LEN:-512}
 
