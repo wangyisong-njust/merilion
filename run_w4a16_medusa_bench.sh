@@ -19,9 +19,9 @@ PYTHON_PATH=${PYTHON_PATH:-/home/jinchao/miniconda3/envs/audiobench_quant/bin/py
 WORKDIR=${WORKDIR:-/home/jinchao/runtao/LLM-Pruner}
 ORIGINAL=${ORIGINAL:-/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B}
 DATASET=${DATASET:-/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR}
-# Train-split (large) for GPTQ/AWQ calibration.  Eval set has only 30 samples
-# so wouldn't be suitable as calibration.
-CALIB_DS=${CALIB_DS:-/home/jinchao/runtao/meralion_datasets/train/ASR/IMDA_PART1_mono_en_30_ASR}
+# Calibration dataset for AWQ/GPTQ (unused by RTN).  Same path as DATASET
+# above — on this machine there is no separate train split.
+CALIB_DS=${CALIB_DS:-/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR}
 MEDUSA_SRC=${MEDUSA_SRC:-$WORKDIR/hf_medusa_pkg}
 QUANT_ROOT=${QUANT_ROOT:-$WORKDIR/quant_checkpoints}
 
