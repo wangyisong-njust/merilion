@@ -266,8 +266,9 @@ new_end   = round(orig_end   / orig_layers * new_layers)
 | 3B | ngram + torch.compile | 5 | 78.3 | 0.4 | 9.7% | **broken** |
 | **10B-ASR** | no-spec（baseline） | — | 0.87 | 22.9 | — | 1.00× |
 | **10B-ASR** | ngram + corpus | 8 | 0.71 | 31.3 | 6.9% | 1.23× ✓ |
-| **10B-ASR** | ngram + corpus | 16 | **0.69** | **32.5** | 3.9% | **1.26× ✓** |
+| **10B-ASR** | ngram + ref corpus | 16 | 0.69 | 32.5 | 3.9% | 1.26× |
 | **10B-ASR** | model-draft（10B→3B-pruned） | 5 | 1.05 | 20.4 | 69.7% | 0.83× ✗ |
+| **10B-ASR** | ngram + **model corpus** (10k mid3-23 outputs) | 8 | **0.66** | **34.1** | 8.3% | **1.32× ✓** |
 
 ### 14.2 关键结论
 
@@ -288,24 +289,64 @@ new_end   = round(orig_end   / orig_layers * new_layers)
 - FA2 on/off 可切
 - `--compile_draft` 开关（仍保留，有兴趣可试新 torch 版本）
 
-### 14.4 若想进一步加速（未做）
+### 14.4 N-gram corpus 优化
+
+N-gram 的接受率主要受 **corpus 与 verifier 实际输出分布的匹配度**影响：
+
+| Corpus 来源 | 样本数 | Prefixes | 最佳 acc | speedup |
+|-----|--------|----------|---------|---------|
+| Reference transcription (tokenize 参考文本) | 50k | 463k | 10.3% | 1.26× |
+| mid3-23 输出（跑过模型的 token 序列）| 10k | 150k | 11.5% | 1.32× |
+
+`build_ngram_from_model.py` 跑 draft（或 verifier）做 inference，收集其 **实际输出 token**，从这些 token 建 n-gram。比从 reference tokenize 高 15-20% 接受率，因为避免了 tokenizer/casing/标点不对齐。
+
+用法（3-GPU 并行 shard）：
+```bash
+for i in 0 1 2; do
+  CUDA_VISIBLE_DEVICES=$((i+1)) python build_ngram_from_model.py \
+    --model <model> --dataset <train_data> \
+    --num_samples 10000 --shard_id $i --num_shards 3 \
+    --output_shard ngram_model_shard_$i.pkl &
+done
+python build_ngram_from_model.py --mode merge \
+  --shards ngram_model_shard_*.pkl --output ngram_corpus_model.pkl
+```
+
+进一步可以：
+- 扩到 50k samples（3-GPU ~3h）
+- 用 10B 自己生成（比 mid3-23 准但更贵：50k samples 约 15h on 3 GPUs）
+- 保留 top-K 候选（当前只存 top-1）+ tree attention
+
+### 14.5 若想进一步加速（未做）
 
 1. **训小 draft**（蒸馏 ~500M，计算比 1:6-1:20）+ 自研 Medusa/EAGLE 头
 2. **改用 vLLM** —— PagedAttention + 原生 spec decoding + tensor parallel
 3. **量化 verifier 到 W4A16**（AWQ/GPTQ）让 decode 更 memory-bound → 给 spec 更多 headroom
 
-### 14.5 关键文件
+### 14.6 Minibatch 与量化收益的关系（概念）
+
+N-gram 和 model-draft 都是 batch=1 decode，完全 memory-bandwidth-bound。量化（W4A16）在这种场景收益最大（weights 4× 变小 = 4× decode 加速），是因为 weight loading 是瓶颈。
+
+反之，batch 增大到 compute-bound（L40 上大约 B≥32）：
+- 量化 kernel 必须 dequant 回 FP16 再走 tensor core → 没带宽收益
+- 反而 dequant 本身变成额外开销
+
+**重要含义**：对于单条 ASR inference（典型场景），量化始终有价值；但如果跑 offline batch 服务，batch 大到一定程度后 W4A16 不再加速。
+
+### 14.7 关键文件
 
 | 文件 | 作用 |
 |---|---|
 | `infer_gpu.py` | Ngram spec 主入口（`--speculative --corpus ... [--compile]`） |
 | `infer_gpu_spec_draft.py` | Model-draft 原版（保留作 A/B 对照，见 fast 版注释） |
 | `infer_gpu_spec_draft_fast.py` | Model-draft 优化版（prealloc cache / static shape / 持久 buffer / `--compile_draft`） |
-| `build_ngram_corpus.py` | 从 IMDA train 集构造 prefix→next_tok 字典（`--ngram_sizes 2 3 4`） |
-| `ngram_corpus.pkl` | 预构建的 corpus（PART1 50k samples, 463k unique prefixes, ~6MB） |
+| `build_ngram_corpus.py` | 从 IMDA train 集 reference 文本构造 prefix→next_tok 字典 |
+| `build_ngram_from_model.py` | **优先用**：从模型输出 token 构造 corpus（匹配 verifier 实际分布，acc +15-20%）。支持 `--shard_id`/`--num_shards` 多卡并行 |
+| `ngram_corpus.pkl` | Reference-based corpus（PART1 50k samples, 463k prefixes, 6MB） |
+| `ngram_corpus_model.pkl` | Model-based corpus（mid3-23 输出 10k samples, 150k prefixes, 2MB）|
 | `run_draft_spec_bench.sh` | Model-draft bench（BF16 / BnB4 draft × BF16 / INT8 verifier） |
 
-### 14.6 踩坑记录
+### 14.8 踩坑记录
 
 | 问题 | 原因 | 修复 |
 |---|---|---|
@@ -315,3 +356,4 @@ new_end   = round(orig_end   / orig_layers * new_layers)
 | `awq_ext` is None | env 没装 GEMM C 扩展 | 包装 WQLinear_GEMM 用 `WQLinear_GEMM.forward` 而非 `awq_ext.gemm_forward_cuda` 直调 |
 | `can't set attribute 'key_cache'` | HybridCache 把 `key_cache/value_cache/max_cache_len` 定义为只读 property | 我们存在 `_key_bufs/_value_bufs/_max_cache_len`，override property 暴露 |
 | Compile 每步 recompile | `cache_position=torch.tensor([d_pos])` 每步新建 tensor object → dynamo guard 失效 | 用持久 `_d_cpos` buffer + `.fill_()`；`mark_static_address` |
+| `build_ngram_from_model.py` `model.generate()` 报 `index_copy_ shape mismatch` | 剪枝模型 mid-block kv_heads 非均匀，HF 默认 HybridCache 按 config 的均匀值预分配 | 手写 decode loop，显式用 DynamicCache |
