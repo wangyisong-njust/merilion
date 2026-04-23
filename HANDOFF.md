@@ -344,6 +344,24 @@ python build_ngram_from_model.py --mode merge \
 
 **教训**：Medusa 训练数据必须匹配 inference 时的 hidden state 分布。对多模态（音频→文本），必须跑一遍真实 inference 收集 hidden state，不能用纯文本 text_decoder forward。
 
+#### Medusa × 量化（3B, IMDA_PART1, 20 samples, L40）
+
+heads 只在 bf16 hidden state 上训练了一次，下面所有量化变体都共用 `medusa_heads_v2_best.pt`：
+
+| Quant | Baseline lat / tps | +Medusa lat / tps | Speedup (lat) | Acc | WER | VRAM |
+|-------|---|---|---|---|---|---|
+| **bf16** | 0.53 / 38.0 | **0.35 / 57.3** | **1.51×** | 38.8% | 1.51% | 7.2 GB |
+| fp16 | 0.53 / 37.5 | 0.35 / 56.3 | 1.51× | 38.8% | 1.51% | 7.2 GB |
+| int8 (bnb) | 1.94 / 10.3 | 1.14 / 17.5 | 1.70× | 37.5% | 1.51% | 5.2 GB |
+| int4 (bnb) | 1.00 / 20.1 | 0.73 / 27.4 | 1.37× | 36.8% | **2.64%** | 4.2 GB |
+| mlx4 | 0.91 / 22.0 | 0.56 / 35.7 | **1.62×** | 38.4% | 1.51% | **4.4 GB** |
+
+关键发现：
+- **Accept rate 跨量化稳定在 37-39%** —— heads trained on bf16 hidden state 对 mlx4/int8 的量化噪声鲁棒
+- **bf16+medusa 是绝对最快**（0.35s, 57 tok/s）；**mlx4+medusa 是 VRAM-speed Pareto**（0.56s, 4.4 GB, WER 不变）
+- int8+medusa speedup 最大（1.70×）只因 baseline 太慢，绝对值没用
+- int4 保留其 WER 退化（2.64% vs 1.51%），和 Medusa 无关
+
 #### Pipeline 命令
 
 ```bash

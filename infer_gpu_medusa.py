@@ -263,12 +263,15 @@ def main():
     ap.add_argument("--num_samples", type=int, default=20)
     ap.add_argument("--max_new_tokens", type=int, default=128)
     ap.add_argument("--device", default="cuda")
+    ap.add_argument("--quant", default="bf16",
+                    choices=["bf16", "fp16", "int8", "int4", "mlx4", "awq4", "autoawq4"],
+                    help="Verifier quantization (heads remain BF16, shared lm_head is skipped by quantization)")
     ap.add_argument("--audiobench_norm", action="store_true")
     ap.add_argument("--output", default="gpu_3B_medusa.json")
     args = ap.parse_args()
 
     model, processor = load_model_gpu(
-        args.model, quant="bf16", flash_attn=True, device=args.device)
+        args.model, quant=args.quant, flash_attn=True, device=args.device)
     gpu_load_gb = torch.cuda.max_memory_allocated(args.device) / 1e9
     print(f"  VRAM after model load: {gpu_load_gb:.2f} GB")
 
