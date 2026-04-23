@@ -334,16 +334,34 @@ class MERaLiON2ForConditionalGeneration(MERaLiON2PreTrainedModel, GenerationMixi
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
+        # If the saved model is compressed-tensors / HF-quantized, delegate to
+        # PreTrainedModel.from_pretrained so HfQuantizer hooks run and e.g.
+        # nn.Linear gets swapped with CompressedLinear (Marlin INT4 kernel).
+        # Our custom resize-for-pruned-shapes path bypasses that hook.
+        config_file = os.path.join(pretrained_model_name_or_path, "config.json") \
+            if os.path.isdir(pretrained_model_name_or_path) else None
+        quant_cfg = None
+        if config_file and os.path.exists(config_file):
+            import json as _json
+            with open(config_file) as _f:
+                _raw = _json.load(_f)
+            quant_cfg = _raw.get("quantization_config") or _raw.get("compression_config")
+        if quant_cfg is not None and not kwargs.pop("_skip_quant_dispatch", False):
+            print(f"[MERaLiON2] detected quantization_config "
+                  f"({quant_cfg.get('quant_method') or quant_cfg.get('format')}), "
+                  f"using standard HF from_pretrained (HfQuantizer path)")
+            return super().from_pretrained(
+                pretrained_model_name_or_path, *model_args, **kwargs)
+
         config = kwargs.get("config", None)
         if config is None:
-            config_file = os.path.join(pretrained_model_name_or_path, "config.json")
-            if os.path.exists(config_file):
+            if config_file and os.path.exists(config_file):
                 config = MERaLiON2Config.from_json_file(config_file)
             else:
                 config = MERaLiON2Config.from_pretrained(pretrained_model_name_or_path)
-        
+
         model = cls(config)
-        
+
         print(f"Loading state dict from {pretrained_model_name_or_path} to detect pruned shapes...")
         state_dict = {}
         sf_files = glob.glob(os.path.join(pretrained_model_name_or_path, "*.safetensors"))
