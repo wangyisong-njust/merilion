@@ -137,6 +137,10 @@ class MERaLiON2MedusaForASR(nn.Module):
                     "tokenizer*", "special_tokens_map.json",
                     "preprocessor_config.json", "processor_config.json",
                     "chat_template.jinja",
+                    "*.py",   # processing_meralion2.py etc. — needed by
+                              # AutoProcessor(trust_remote_code=True); the
+                              # bundled meralion2_bl/ replaces only the MODEL
+                              # classes, not the processor.
                 ],
             )
         base = MERaLiON2ForConditionalGeneration.from_pretrained(

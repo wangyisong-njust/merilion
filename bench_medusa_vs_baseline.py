@@ -85,6 +85,8 @@ def load_baseline(base_source, device, dtype=torch.bfloat16):
                 "tokenizer*", "special_tokens_map.json",
                 "preprocessor_config.json", "processor_config.json",
                 "chat_template.jinja",
+                "*.py",   # processing_meralion2.py, configuration_*.py (needed
+                          # by AutoProcessor's trust_remote_code path)
             ],
         )
     # Use our bundled MERaLiON code (works on current transformers)
