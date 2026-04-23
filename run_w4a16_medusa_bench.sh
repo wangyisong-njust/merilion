@@ -26,13 +26,20 @@ MEDUSA_SRC=${MEDUSA_SRC:-$WORKDIR/hf_medusa_pkg}
 QUANT_ROOT=${QUANT_ROOT:-$WORKDIR/quant_checkpoints}
 
 # ── Knobs ──────────────────────────────────────────────────────────────────────
-# AWQ (activation-aware) is the default: llmcompressor.modifiers.awq produces
-# compressed-tensors pack-quantized INT4, which the transformers HfQuantizer
-# loads via CompressedLinear → Marlin kernel on sm_80+ (A100/H100).  Takes
-# 30–60 min of calibration but has the best INT4 quality.  Override with
-# METHOD=RTN for a data-free 15-s run (no Marlin-kernel assumption changes;
-# same on-disk format).
-METHOD=${METHOD:-AWQ}            # AWQ | GPTQ | RTN
+# METHOD selects the W4A16 producer.  All three emit the same on-disk
+# compressed-tensors format so the loader / Marlin kernel path is identical;
+# only the quality / speed of quantization differs.
+#
+#   RTN   data-free round-to-nearest, ~15 s.  KNOWN-GOOD on MERaLiON.
+#   GPTQ  calibration-based error minimisation, 30-60 min.  Untested on
+#         this multimodal architecture.
+#   AWQ   activation-aware scaling, 30-60 min.  BROKEN on MERaLiON right
+#         now — the cross-layer scaling apparently leaks across the
+#         speech→text boundary and produces a model whose prefill logit
+#         argmax is EOS (empty output, nonsense tps).  Needs more careful
+#         ignore patterns or a MERaLiON-specific AWQ mapping.  Avoid for
+#         now.
+METHOD=${METHOD:-RTN}            # RTN | GPTQ | AWQ
 NUM_CALIB=${NUM_CALIB:-512}
 CALIB_SEQ_LEN=${CALIB_SEQ_LEN:-512}
 
