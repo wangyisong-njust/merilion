@@ -13,6 +13,25 @@ Output format: one .pt file per shard containing a list of dicts
 Each shard is written incrementally so a crash can resume.
 
 Supports --shard_id / --num_shards for multi-GPU parallel collection.
+Supports `--datasets path1 path2 ...` to concatenate multiple IMDA parts
+(round-robin across them up to `--num_samples` total).
+
+Usage (single dataset):
+    python collect_medusa_data.py \\
+        --model ... \\
+        --datasets /path/to/IMDA_PART1 \\
+        --num_samples 10000 \\
+        --shard_id 0 --num_shards 3 \\
+        --output_shard medusa_data_shard_0.pt
+
+Usage (multiple parts, mixed round-robin):
+    python collect_medusa_data.py \\
+        --model ... \\
+        --datasets /path/to/IMDA_PART1 /path/to/IMDA_PART2 /path/to/IMDA_PART3 \\
+        --num_samples 30000 \\
+        --num_samples_per_dataset 15000  \\   # optional cap per dataset
+        --shard_id 0 --num_shards 3 \\
+        --output_shard medusa_data_shard_0.pt
 """
 import argparse
 import os
@@ -42,13 +61,42 @@ def collect_shard(args):
                   if p.dtype in (torch.float16, torch.bfloat16))
     print(f"  loaded in {time.time()-t0:.1f}s")
 
-    print(f"[shard {args.shard_id}] loading dataset …")
-    data = load_from_disk(os.path.abspath(args.dataset))
-    start = min(args.start_idx, len(data))
-    end   = min(start + args.num_samples, len(data))
-    my_indices = list(range(start + args.shard_id, end, args.num_shards))
-    print(f"  total sample range [{start}, {end}), shard {args.shard_id}: "
-          f"{len(my_indices)} samples (stride {args.num_shards})")
+    # Load one or more datasets (round-robin mixed into one shared pool
+    # so `num_samples` is the total budget across all of them).
+    print(f"[shard {args.shard_id}] loading {len(args.datasets)} dataset(s) …")
+    datasets = []
+    for p in args.datasets:
+        d = load_from_disk(os.path.abspath(p))
+        # Same eval-exclusion convention as build_ngram_corpus.py / the old
+        # Medusa data collector: skip the first `start_idx` samples so
+        # training data never overlaps the held-out eval subset.
+        start = min(args.start_idx, len(d))
+        end   = min(start + args.num_samples_per_dataset, len(d)) \
+                if args.num_samples_per_dataset > 0 else len(d)
+        datasets.append((p, d, start, end))
+        print(f"  {os.path.basename(p)}: using samples [{start}, {end})")
+
+    # Build a global index list = round-robin over datasets.
+    # Each global step emits (dataset_idx, local_idx) so that shards
+    # get the same deterministic subset regardless of which dataset
+    # each sample comes from.
+    combined = []  # list of (ds_idx, local_idx)
+    cursors = [start for (_, _, start, _) in datasets]
+    ends    = [end   for (_, _, _,     end) in datasets]
+    budget  = args.num_samples
+    di = 0
+    while len(combined) < budget:
+        if all(cursors[i] >= ends[i] for i in range(len(datasets))):
+            break
+        if cursors[di] < ends[di]:
+            combined.append((di, cursors[di]))
+            cursors[di] += 1
+        di = (di + 1) % len(datasets)
+
+    # Stride-split across shards.
+    my_pairs = combined[args.shard_id::args.num_shards]
+    print(f"  combined pool {len(combined)} samples  shard {args.shard_id} "
+          f"takes {len(my_pairs)} (stride {args.num_shards})")
 
     speech_token_id = model.config.speech_token_index
     eos_ids = {tokenizer.eos_token_id,
@@ -57,8 +105,8 @@ def collect_shard(args):
 
     out_samples = []
     t_start = time.time()
-    for idx_in_shard, idx in enumerate(my_indices):
-        sample = data[idx]
+    for idx_in_shard, (ds_idx, idx) in enumerate(my_pairs):
+        sample = datasets[ds_idx][1][idx]
         ctx = sample.get("context") or {}
         ao = ctx.get("audio") if isinstance(ctx, dict) else None
         if ao is None or not isinstance(ao, dict):
@@ -140,11 +188,11 @@ def collect_shard(args):
             print(f"[shard {args.shard_id}] sample {idx} FAILED: {e}", flush=True)
             continue
 
-        if (idx_in_shard + 1) % 50 == 0 or (idx_in_shard + 1) == len(my_indices):
+        if (idx_in_shard + 1) % 50 == 0 or (idx_in_shard + 1) == len(my_pairs):
             dt = time.time() - t_start
             rate = (idx_in_shard + 1) / dt if dt > 0 else 0
-            eta = (len(my_indices) - (idx_in_shard + 1)) / rate if rate > 0 else 0
-            print(f"[shard {args.shard_id}] [{idx_in_shard+1}/{len(my_indices)}] "
+            eta = (len(my_pairs) - (idx_in_shard + 1)) / rate if rate > 0 else 0
+            print(f"[shard {args.shard_id}] [{idx_in_shard+1}/{len(my_pairs)}] "
                   f"rate={rate:.2f}/s  eta={eta/60:.1f}m  "
                   f"saved={len(out_samples)}", flush=True)
 
@@ -162,15 +210,32 @@ def collect_shard(args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
-    ap.add_argument("--dataset", required=True)
-    ap.add_argument("--num_samples", type=int, default=10000)
-    ap.add_argument("--start_idx",   type=int, default=30)
+    # Accept one or more IMDA dataset dirs — samples are round-robin'd
+    # across them up to --num_samples total.  Legacy `--dataset` still
+    # works (a single path).
+    ap.add_argument("--datasets", nargs="+",
+                    help="Dataset directory paths (one or more, load_from_disk)")
+    ap.add_argument("--dataset", help="(legacy) single dataset path; use --datasets instead")
+    ap.add_argument("--num_samples", type=int, default=10000,
+                    help="Total samples across all datasets (round-robin)")
+    ap.add_argument("--num_samples_per_dataset", type=int, default=0,
+                    help="If >0, cap each dataset's contribution to this many "
+                         "(after --start_idx offset).  0 = use full range.")
+    ap.add_argument("--start_idx",   type=int, default=30,
+                    help="Skip the first N samples of each dataset (eval holdout)")
     ap.add_argument("--max_new_tokens", type=int, default=128)
     ap.add_argument("--shard_id",    type=int, default=0)
     ap.add_argument("--num_shards",  type=int, default=1)
     ap.add_argument("--device",      default="cuda")
     ap.add_argument("--output_shard", default="medusa_data_shard.pt")
     args = ap.parse_args()
+
+    # Normalize: support both --dataset (singular, legacy) and --datasets
+    if not args.datasets and args.dataset:
+        args.datasets = [args.dataset]
+    if not args.datasets:
+        ap.error("must pass --datasets <path ...> (or legacy --dataset <path>)")
+
     collect_shard(args)
 
 
