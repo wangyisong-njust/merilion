@@ -28,9 +28,34 @@ CALIB_SEQ_LEN=${CALIB_SEQ_LEN:-512}
 
 NUM_SAMPLES=${NUM_SAMPLES:-20}
 MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-128}
-GPU=${GPU:-2}
+GPU=${GPU:-auto}                # "auto" = pick GPU with most free VRAM; or set an index
 FORCE=${FORCE:-0}               # 1 = re-quantize + re-bench even if outputs exist
 SEQUENTIAL=${SEQUENTIAL:-0}     # 1 = pass --sequential to the 3-way bench (VRAM-constrained GPUs)
+
+# ── Auto GPU selection ─────────────────────────────────────────────────────────
+if [ "$GPU" = "auto" ]; then
+    if ! command -v nvidia-smi >/dev/null; then
+        echo "ERROR: GPU=auto but nvidia-smi not found"; exit 1
+    fi
+    # Each row: idx, name, free_mb, used_mb, util_gpu%
+    mapfile -t GPU_INFO < <(nvidia-smi \
+        --query-gpu=index,name,memory.free,memory.used,utilization.gpu \
+        --format=csv,noheader,nounits | tr -d ' ')
+    if [ "${#GPU_INFO[@]}" -eq 0 ]; then
+        echo "ERROR: no GPUs found"; exit 1
+    fi
+    # Pick the one with the largest free MB.
+    GPU=$(printf '%s\n' "${GPU_INFO[@]}" | \
+          awk -F, '{print $1","$3}' | sort -t, -k2 -n -r | head -1 | cut -d, -f1)
+    # Pretty-print the GPU table with the choice marked.
+    echo "GPU inventory (auto-pick = largest free VRAM):"
+    printf '  %-4s %-22s %8s %8s %5s\n' idx name free_MB used_MB util%
+    for row in "${GPU_INFO[@]}"; do
+        IFS=, read -r idx name free used util <<< "$row"
+        marker=" "; [ "$idx" = "$GPU" ] && marker="←"
+        printf '  %s%-3s %-22s %8s %8s %5s\n' "$marker" "$idx" "$name" "$free" "$used" "$util"
+    done
+fi
 
 export CUDA_VISIBLE_DEVICES=$GPU
 cd "$WORKDIR"
