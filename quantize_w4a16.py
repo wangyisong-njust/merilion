@@ -31,20 +31,26 @@ import torch
 
 
 def build_calib_examples(ds_path, tokenizer, n=512, seq_len=512, start_idx=30):
-    """Build a list of {'input_ids': LongTensor[1, T]} from IMDA references.
+    """Build a HF `datasets.Dataset` with one `input_ids` column, sized for
+    AWQ/GPTQ calibration on IMDA reference transcripts.
 
-    Calibration runs the model on text only — not audio — so we tokenize
-    the reference transcripts directly, prepending BOS.  For audio-aware
+    Calibration runs the model on TEXT only — not audio — so we tokenize
+    the reference transcripts directly with BOS.  For audio-aware
     calibration you would need to also feed input_features through the
     speech encoder, but llm-compressor's oneshot doesn't support that
     shape naturally, and text-only calibration has worked fine for the
     W4A16-RTN-textonly checkpoint we already have.
     """
-    from datasets import load_from_disk
+    from datasets import load_from_disk, Dataset
     data = load_from_disk(os.path.abspath(ds_path))
-    examples = []
+    rows = []
+    # Pad to seq_len so every row has the same length — llm-compressor
+    # often expects fixed-shape tensor columns.
+    pad_id = tokenizer.pad_token_id
+    if pad_id is None:
+        pad_id = tokenizer.eos_token_id or 0
     for i in range(start_idx, len(data)):
-        if len(examples) >= n:
+        if len(rows) >= n:
             break
         s = data[i]
         oa = s.get("other_attributes") or {}
@@ -58,9 +64,15 @@ def build_calib_examples(ds_path, tokenizer, n=512, seq_len=512, start_idx=30):
         if len(ids) < 16:
             continue
         ids = ids[:seq_len]
-        examples.append({"input_ids": torch.tensor([ids], dtype=torch.long)})
-    print(f"  built {len(examples)} calibration examples")
-    return examples
+        attn = [1] * len(ids)
+        # Pad to seq_len
+        pad_len = seq_len - len(ids)
+        ids  = ids  + [pad_id] * pad_len
+        attn = attn + [0]     * pad_len
+        rows.append({"input_ids": ids, "attention_mask": attn})
+    ds = Dataset.from_list(rows)
+    print(f"  built {len(ds)} calibration examples (seq_len={seq_len})")
+    return ds
 
 
 def main():
