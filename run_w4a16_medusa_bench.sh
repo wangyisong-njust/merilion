@@ -30,16 +30,14 @@ QUANT_ROOT=${QUANT_ROOT:-$WORKDIR/quant_checkpoints}
 # compressed-tensors format so the loader / Marlin kernel path is identical;
 # only the quality / speed of quantization differs.
 #
-#   RTN   data-free round-to-nearest, ~15 s.  KNOWN-GOOD on MERaLiON.
-#   GPTQ  calibration-based error minimisation, 30-60 min.  Untested on
-#         this multimodal architecture.
-#   AWQ   activation-aware scaling, 30-60 min.  BROKEN on MERaLiON right
-#         now — the cross-layer scaling apparently leaks across the
-#         speech→text boundary and produces a model whose prefill logit
-#         argmax is EOS (empty output, nonsense tps).  Needs more careful
-#         ignore patterns or a MERaLiON-specific AWQ mapping.  Avoid for
-#         now.
-METHOD=${METHOD:-RTN}            # RTN | GPTQ | AWQ
+#   AWQ   activation-aware scaling + MERaLiON-specific AWQMapping (constrains
+#         all smooth_layer / balance_layer regexes to `text_decoder.*` so
+#         AWQ doesn't touch the speech encoder).  Best INT4 quality.
+#         Takes 30-60 min of calibration.
+#   GPTQ  calibration-based error minimisation.  Slower at inference on some
+#         hardware than AWQ; quality similar.
+#   RTN   data-free round-to-nearest, ~15 s.  Known-good fallback.
+METHOD=${METHOD:-AWQ}            # AWQ | GPTQ | RTN
 NUM_CALIB=${NUM_CALIB:-512}
 CALIB_SEQ_LEN=${CALIB_SEQ_LEN:-512}
 

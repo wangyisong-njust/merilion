@@ -143,12 +143,44 @@ def main():
         calib = build_calib_examples(
             args.calib_ds, tokenizer, n=args.num_calib, seq_len=args.calib_seq_len)
     elif args.method == "AWQ":
-        # AWQ recipe via llmcompressor
+        # AWQ recipe via llmcompressor.  The default Gemma2 mapping set uses
+        # plain regexes like `re:.*q_proj$` that ALSO match speech_encoder's
+        # projections — and AWQ modifies the `smooth_layer` weights in place,
+        # which corrupts the frozen speech encoder and produces a model whose
+        # prefill argmax is EOS.  Constrain every regex to `text_decoder.`.
         from llmcompressor.modifiers.awq import AWQModifier
+        from llmcompressor.modifiers.awq.mappings import AWQMapping
+        td = r"text_decoder\."
+        mappings = [
+            # Pre-attention LN → q/k/v
+            AWQMapping(
+                smooth_layer=f"re:{td}.*input_layernorm$",
+                balance_layers=[f"re:{td}.*q_proj$",
+                                f"re:{td}.*k_proj$",
+                                f"re:{td}.*v_proj$"],
+            ),
+            # v_proj → o_proj
+            AWQMapping(
+                smooth_layer=f"re:{td}.*v_proj$",
+                balance_layers=[f"re:{td}.*o_proj$"],
+            ),
+            # Pre-FFN LN → gate/up
+            AWQMapping(
+                smooth_layer=f"re:{td}.*pre_feedforward_layernorm$",
+                balance_layers=[f"re:{td}.*gate_proj$",
+                                f"re:{td}.*up_proj$"],
+            ),
+            # up_proj → down_proj
+            AWQMapping(
+                smooth_layer=f"re:{td}.*up_proj$",
+                balance_layers=[f"re:{td}.*down_proj$"],
+            ),
+        ]
         recipe = AWQModifier(
             targets=["Linear"],
             scheme="W4A16",
             ignore=ignore,
+            mappings=mappings,
         )
         calib = build_calib_examples(
             args.calib_ds, tokenizer, n=args.num_calib, seq_len=args.calib_seq_len)
