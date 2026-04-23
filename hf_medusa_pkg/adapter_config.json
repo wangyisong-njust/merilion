@@ -1,0 +1,27 @@
+{
+  "adapter_type": "MEDUSA",
+  "base_model_name_or_path": "MERaLiON/MERaLiON-2-3B",
+  "num_heads": 4,
+  "num_layers": 1,
+  "hidden_size": 2304,
+  "vocab_size": 256000,
+  "description": "Medusa speculative-decoding adapter for MERaLiON-2-3B ASR. K=4 residual-MLP heads sharing the base model's lm_head. ~1.51x latency speedup on greedy ASR decode with WER preserved.",
+  "training_data": "10000 IMDA_PART1 audio samples, (hidden_state, next_token) pairs captured during real inference",
+  "training_config": {
+    "batch_size": 16,
+    "learning_rate": 1e-3,
+    "epochs": 3,
+    "optimizer": "AdamW",
+    "scheduler": "cosine",
+    "val_frac": 0.05
+  },
+  "benchmark": {
+    "dataset": "IMDA_PART1 (20 samples)",
+    "gpu": "NVIDIA L40",
+    "baseline_tps": 38.0,
+    "medusa_tps": 57.3,
+    "baseline_wer_pct": 1.51,
+    "medusa_wer_pct": 1.51,
+    "accept_rate_pct": 38.8
+  }
+}
