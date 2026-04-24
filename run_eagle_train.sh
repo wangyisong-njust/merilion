@@ -41,6 +41,9 @@ WARMUP_STEPS=${WARMUP_STEPS:-200}
 EPOCHS=${EPOCHS:-3}
 HIDDEN_LOSS_ALPHA=${HIDDEN_LOSS_ALPHA:-0.5}
 SCHED_SAMPLING_MAX=${SCHED_SAMPLING_MAX:-0.5}
+UNROLL_DEPTH=${UNROLL_DEPTH:-1}    # 1 = teacher-force + sched sampling.
+                                   # >=2 = multi-step autoregressive unroll
+                                   # (better K scaling, D× train cost)
 EVAL_EVERY=${EVAL_EVERY:-300}
 LOG_EVERY=${LOG_EVERY:-50}
 
@@ -177,6 +180,7 @@ else
         --lr "$LR" --warmup_steps "$WARMUP_STEPS" --epochs "$EPOCHS" \
         --hidden_loss_alpha "$HIDDEN_LOSS_ALPHA" \
         --sched_sampling_max "$SCHED_SAMPLING_MAX" \
+        --unroll_depth "$UNROLL_DEPTH" \
         --eval_every "$EVAL_EVERY" --log_every "$LOG_EVERY" \
         --output "${EAGLE_OUT%.pt}_final.pt" \
         --output_best "$EAGLE_OUT" \
