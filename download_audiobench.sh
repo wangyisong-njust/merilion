@@ -16,7 +16,11 @@ set -e
 PYTHON_PATH=${PYTHON_PATH:-$(command -v python)}
 WORKDIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 OUTPUT_ROOT=${OUTPUT_ROOT:-"$WORKDIR/audiobench_data"}
-START_IDX=${START_IDX:-0}
+# Default 10000 matches the "hold out the first 10000 as eval" convention
+# used by the bench scripts (shuffle(seed=42)[10500:10520]).  For small
+# test datasets (a few hundred samples) this will skip everything — set
+# START_IDX=0 explicitly for those.
+START_IDX=${START_IDX:-10000}
 NUM_SAMPLES=${NUM_SAMPLES:-200}
 SPLIT=${SPLIT:-test}           # most AudioBench repos use `test`
 CLEAR_CACHE=${CLEAR_CACHE:-0}  # 1 = rm -rf ~/.cache/huggingface/datasets after each
