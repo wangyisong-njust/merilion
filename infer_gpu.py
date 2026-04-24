@@ -953,7 +953,9 @@ def main():
 
         data = load_from_disk(os.path.abspath(args.dataset))
         shuffled = data.shuffle(seed=42)
-        start = min(10500, len(shuffled))
+        # Clamp start so start + num_samples fits.  Small datasets
+        # (< 10500) fall back to index 0.
+        start = max(0, min(10500, len(shuffled) - args.num_samples))
         end   = min(start + args.num_samples, len(shuffled))
         subset = shuffled.select(range(start, end))
 
