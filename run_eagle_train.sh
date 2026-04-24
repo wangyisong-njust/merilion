@@ -53,8 +53,11 @@ BASELINE_OUT=${BASELINE_OUT:-$WORKDIR/gpu_bf16_nospec.json}
 EAGLE_BENCH_OUT=${EAGLE_BENCH_OUT:-$WORKDIR/gpu_eagle_bench.json}
 
 # ── Pipeline controls ──────────────────────────────────────────────────────────
-FORCE=${FORCE:-0}                # re-collect + re-train + re-bench
+FORCE=${FORCE:-0}                # re-collect + re-train + re-bench (everything)
+FORCE_BENCH=${FORCE_BENCH:-0}    # just re-bench (re-runs both baseline and EAGLE);
+                                 # useful for sweeping K without retraining
 SKIP_COLLECT=${SKIP_COLLECT:-0}  # skip step 1
+SKIP_TRAIN=${SKIP_TRAIN:-0}      # skip step 2 (reuse existing $EAGLE_OUT)
 SKIP_BENCH=${SKIP_BENCH:-0}      # skip step 3
 
 # ── GPU selection (auto-pick top-N by free VRAM) ──────────────────────────────
@@ -159,7 +162,9 @@ if [ ! -s "${SHARD_FILES[0]}" ]; then
     echo "ERROR: no shard files in $SHARDS_DIR"; exit 1
 fi
 
-if [ "$FORCE" != "1" ] && [ -s "$EAGLE_OUT" ]; then
+if [ "$SKIP_TRAIN" = "1" ]; then
+    echo "  [skip] SKIP_TRAIN=1 (reusing $EAGLE_OUT if present)"
+elif [ "$FORCE" != "1" ] && [ -s "$EAGLE_OUT" ]; then
     echo "  [skip] $EAGLE_OUT already exists (FORCE=1 to retrain)"
 else
     echo "  training on GPU $TRAIN_GPU → $EAGLE_OUT"
@@ -194,8 +199,8 @@ echo "  dataset   : $BENCH_DATASET"
 echo "  K / N     : $K / $BENCH_NUM_SAMPLES"
 
 # BF16 baseline
-if [ "$FORCE" != "1" ] && [ -s "$BASELINE_OUT" ]; then
-    echo "  [skip] baseline: $BASELINE_OUT exists"
+if [ "$FORCE" != "1" ] && [ "$FORCE_BENCH" != "1" ] && [ -s "$BASELINE_OUT" ]; then
+    echo "  [skip] baseline: $BASELINE_OUT exists  (FORCE_BENCH=1 to re-run)"
 else
     echo "  [1/2] bf16 baseline …"
     CUDA_VISIBLE_DEVICES="$BENCH_GPU" "$PYTHON_PATH" -u "$WORKDIR/infer_gpu.py" \
@@ -206,8 +211,8 @@ else
 fi
 
 # EAGLE
-if [ "$FORCE" != "1" ] && [ -s "$EAGLE_BENCH_OUT" ]; then
-    echo "  [skip] eagle bench: $EAGLE_BENCH_OUT exists"
+if [ "$FORCE" != "1" ] && [ "$FORCE_BENCH" != "1" ] && [ -s "$EAGLE_BENCH_OUT" ]; then
+    echo "  [skip] eagle bench: $EAGLE_BENCH_OUT exists  (FORCE_BENCH=1 to re-run)"
 else
     echo "  [2/2] EAGLE (K=$K) …"
     CUDA_VISIBLE_DEVICES="$BENCH_GPU" "$PYTHON_PATH" -u "$WORKDIR/infer_gpu_eagle.py" \
