@@ -288,10 +288,31 @@ def main():
     start = max(0, min(10500, len(shuffled) - args.num_samples))
     end   = min(start + args.num_samples, len(shuffled))
     data = shuffled.select(range(start, end))
+    def _extract_audio(sample):
+        """Support both schemas: nested `context.audio` (old IMDA) and
+        flat `context` (AudioBench datasets.Audio feature)."""
+        c = sample.get("context")
+        if isinstance(c, dict):
+            if "array" in c:   # flat / AudioBench
+                return c
+            if isinstance(c.get("audio"), dict):  # nested / old IMDA
+                return c["audio"]
+        return None
+
+    def _extract_ref(sample):
+        oa = sample.get("other_attributes") or {}
+        ref = oa.get("Transcription") or oa.get("transcription")
+        if ref is None:
+            ans = sample.get("answer")
+            if isinstance(ans, dict):
+                ref = ans.get("text")
+            else:
+                ref = ans
+        return ref or ""
+
     warmup_sample = data[0]
-    ctx = warmup_sample.get("context") or {}
-    ao = ctx.get("audio") if isinstance(ctx, dict) else None
-    if ao and isinstance(ao, dict) and ao.get("array") is not None:
+    ao = _extract_audio(warmup_sample)
+    if ao is not None and ao.get("array") is not None:
         aud = np.asarray(ao["array"], dtype=np.float32)
         sr = ao.get("sampling_rate", SAMPLE_RATE)
         transcribe_medusa(model, heads, processor, aud, sr,
@@ -306,14 +327,12 @@ def main():
     print(f"\nRunning Medusa inference on {n} samples …")
     for i in range(n):
         s = data[i]
-        ctx = s.get("context") or {}
-        ao = ctx.get("audio") if isinstance(ctx, dict) else None
+        ao = _extract_audio(s)
         if ao is None:
             continue
         aud = np.asarray(ao["array"], dtype=np.float32)
         sr  = ao.get("sampling_rate", SAMPLE_RATE)
-        ref = (s.get("other_attributes") or {}).get("Transcription") or \
-              (s.get("other_attributes") or {}).get("transcription") or ""
+        ref = _extract_ref(s)
 
         t0 = time.time()
         hyp, stats = transcribe_medusa(

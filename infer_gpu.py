@@ -959,11 +959,34 @@ def main():
         end   = min(start + args.num_samples, len(shuffled))
         subset = shuffled.select(range(start, end))
 
+        def _extract_audio(sample):
+            """Support two schemas for the `context` field:
+              (a) nested:  sample['context']['audio'] = {array, sampling_rate}
+              (b) flat:    sample['context'] = {array, sampling_rate}  (AudioBench)
+            """
+            ctx = sample.get("context") or {}
+            if isinstance(ctx, dict) and "audio" in ctx and isinstance(ctx["audio"], dict):
+                return ctx["audio"]
+            return ctx
+
+        def _extract_ref(sample):
+            """Several (reference-transcript) fields seen across datasets."""
+            oa = sample.get("other_attributes") or {}
+            ref = oa.get("Transcription") or oa.get("transcription")
+            if ref is None:
+                ans = sample.get("answer")
+                if isinstance(ans, dict):
+                    ref = ans.get("text")
+                else:
+                    ref = ans
+            return ref or ""
+
         # Warm up (first GPU call is slower due to kernel JIT)
         print("Warming up GPU …")
         _sample0 = subset[0]
-        _a = np.asarray(_sample0["context"]["audio"]["array"], dtype=np.float32)
-        _sr = _sample0["context"]["audio"]["sampling_rate"]
+        _ao = _extract_audio(_sample0)
+        _a = np.asarray(_ao["array"], dtype=np.float32)
+        _sr = _ao.get("sampling_rate", 16000)
         _instr = (_sample0["instruction"]["text"]
                   if isinstance(_sample0["instruction"], dict)
                   else _sample0["instruction"])
@@ -975,14 +998,15 @@ def main():
         n_actual = len(subset)
         for i in range(n_actual):
             sample = subset[i]
-            audio = np.asarray(sample["context"]["audio"]["array"], dtype=np.float32)
-            sr    = sample["context"]["audio"]["sampling_rate"]
+            ao = _extract_audio(sample)
+            audio = np.asarray(ao["array"], dtype=np.float32)
+            sr    = ao.get("sampling_rate", 16000)
             if audio.ndim == 2:
                 audio = audio.mean(axis=-1)
             instr = (sample["instruction"]["text"]
                      if isinstance(sample["instruction"], dict)
                      else sample["instruction"])
-            ref = sample["other_attributes"]["Transcription"]
+            ref = _extract_ref(sample)
 
             t0 = time.time()
             pred, stats = _infer(audio, sr, instr)
