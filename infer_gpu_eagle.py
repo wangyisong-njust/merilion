@@ -146,8 +146,13 @@ def transcribe_eagle(model, eagle, rotary_emb, processor,
             for k in range(K_eff_max):
                 input_ids_d = torch.tensor([[last_tok]], dtype=torch.long, device=device)
                 prev_h_d    = last_h.unsqueeze(0)                 # (1, 1, H)
-                # Position along the draft: cur_pos for the first step, +1 etc.
-                pos_ids_d = torch.tensor([[cur_pos + k]], dtype=torch.long, device=device)
+                # CRITICAL: use position_ids that match TRAINING.  Training fed
+                # arange(T-1) starting from 0 per sample — i.e., EAGLE has its
+                # own coordinate system (its KV cache is fresh each round).
+                # Previous bug used cur_pos + k (absolute verifier positions),
+                # which shifted RoPE to 150-280 range EAGLE never saw at train
+                # time — caused acc to drop sharply with K.
+                pos_ids_d = torch.tensor([[k]], dtype=torch.long, device=device)
                 pos_embs  = rotary_emb(prev_h_d, pos_ids_d)
                 cache_pos = torch.tensor([k], device=device)     # within draft_kv
                 logits_d, h_new, _ = eagle(
