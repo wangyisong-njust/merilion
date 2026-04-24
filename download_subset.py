@@ -28,6 +28,26 @@ import sys
 import time
 
 
+def query_total_samples(repo, subset, split):
+    """Return the number of examples in (repo, subset, split) without
+    downloading data.  Uses load_dataset_builder which only pulls the
+    dataset metadata.  Returns None if the split / num_examples is not
+    populated in the builder info (rare)."""
+    from datasets import load_dataset_builder
+    kwargs = {}
+    if subset:
+        kwargs["name"] = subset
+    try:
+        b = load_dataset_builder(repo, **kwargs)
+        sp = b.info.splits or {}
+        s = sp.get(split)
+        if s is not None and getattr(s, "num_examples", None):
+            return s.num_examples
+    except Exception as e:
+        print(f"    (builder-info query failed: {e})", flush=True)
+    return None
+
+
 def iter_subset(repo, subset, split, start_idx, num_samples):
     """Stream from HF Hub, skip to start_idx, yield the next num_samples rows.
 
@@ -51,11 +71,30 @@ def iter_subset(repo, subset, split, start_idx, num_samples):
         yield row
 
 
-def save_subset(repo, subset, split, start_idx, num_samples, out_dir):
+def save_subset(repo, subset, split, start_idx, num_samples, out_dir,
+                take_last=0):
+    """If take_last > 0, override start_idx to (total - take_last) using
+    the builder's metadata, and num_samples = take_last.  Ensures each
+    dataset contributes its final `take_last` rows regardless of size."""
     from datasets import Dataset
+    if take_last > 0:
+        total = query_total_samples(repo, subset, split)
+        if total is None:
+            print(f"  (total unknown; falling back to start_idx={start_idx})")
+            effective_start = start_idx
+            effective_num   = num_samples
+        else:
+            effective_start = max(0, total - take_last)
+            effective_num   = min(take_last, total)
+            print(f"  {repo} total={total:,}; taking last {effective_num} "
+                  f"(start_idx={effective_start})")
+    else:
+        effective_start = start_idx
+        effective_num   = num_samples
+
     print(f"streaming {repo} ({subset or '-'}) split={split} "
-          f"[{start_idx}, {start_idx + num_samples}) → {out_dir}")
-    rows = list(iter_subset(repo, subset, split, start_idx, num_samples))
+          f"[{effective_start}, {effective_start + effective_num}) → {out_dir}")
+    rows = list(iter_subset(repo, subset, split, effective_start, effective_num))
     if not rows:
         print("  (no rows)"); return
     ds = Dataset.from_list(rows)
@@ -80,9 +119,16 @@ def main():
     ap.add_argument("--split",   default="train")
     ap.add_argument("--start_idx",   type=int, default=999999,
                     help="Skip the first N samples (eval holdout).  "
-                         "Default 999999 matches build_ngram_corpus convention.")
+                         "Default 999999 matches build_ngram_corpus convention. "
+                         "Ignored when --take_last is set.")
     ap.add_argument("--num_samples", type=int, default=20000,
-                    help="How many samples to keep per subset.")
+                    help="How many samples to keep per subset.  "
+                         "Ignored when --take_last is set.")
+    ap.add_argument("--take_last",   type=int, default=0,
+                    help="If >0, override --start_idx and --num_samples: "
+                         "fetch the LAST N samples of each subset (auto-"
+                         "queries total via load_dataset_builder).  Small "
+                         "datasets return whatever they have.")
     ap.add_argument("--output", required=True,
                     help="Output directory.  With multiple --subsets, each "
                          "subset is saved under <output>/<subset>.")
@@ -94,12 +140,14 @@ def main():
     subsets = args.subsets if args.subsets else [None]
     if len(subsets) == 1 and subsets[0] is None:
         save_subset(args.repo, None, args.split,
-                    args.start_idx, args.num_samples, args.output)
+                    args.start_idx, args.num_samples, args.output,
+                    take_last=args.take_last)
     else:
         for s in subsets:
             subout = os.path.join(args.output, s) if s else args.output
             save_subset(args.repo, s, args.split,
-                        args.start_idx, args.num_samples, subout)
+                        args.start_idx, args.num_samples, subout,
+                        take_last=args.take_last)
 
     if args.clear_cache:
         import shutil

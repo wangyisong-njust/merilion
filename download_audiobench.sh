@@ -19,12 +19,13 @@ WORKDIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 # (run_draft_spec_bench.sh, run_w4a16_medusa_bench.sh DATASET=...) on the
 # jinchao remote.  Datasets land under $OUTPUT_ROOT/<dataset_name>.
 OUTPUT_ROOT=${OUTPUT_ROOT:-/home/jinchao/runtao/meralion_datasets/ASR}
-# Default 10000 matches the "hold out the first 10000 as eval" convention
-# used by the bench scripts (shuffle(seed=42)[10500:10520]).  For small
-# test datasets (a few hundred samples) this will skip everything — set
-# START_IDX=0 explicitly for those.
-START_IDX=${START_IDX:-10000}
-NUM_SAMPLES=${NUM_SAMPLES:-200}
+# TAKE_LAST=N asks download_subset.py to auto-query each dataset's total
+# length and grab the LAST N rows (start_idx = total - N).  Small
+# datasets just return everything they have.  Set TAKE_LAST=0 to fall
+# back to the fixed-slice mode (START_IDX + NUM_SAMPLES).
+TAKE_LAST=${TAKE_LAST:-10000}
+START_IDX=${START_IDX:-0}         # only used when TAKE_LAST=0
+NUM_SAMPLES=${NUM_SAMPLES:-200}   # only used when TAKE_LAST=0
 SPLIT=${SPLIT:-test}           # most AudioBench repos use `test`
 CLEAR_CACHE=${CLEAR_CACHE:-0}  # 1 = rm -rf ~/.cache/huggingface/datasets after each
 
@@ -58,7 +59,11 @@ if [ -z "$TARGETS" ]; then
 fi
 
 echo "Output root : $OUTPUT_ROOT"
-echo "Slice       : samples [$START_IDX, $START_IDX + $NUM_SAMPLES)"
+if [ "$TAKE_LAST" -gt 0 ]; then
+    echo "Slice       : last $TAKE_LAST samples per dataset (dynamic per size)"
+else
+    echo "Slice       : samples [$START_IDX, $START_IDX + $NUM_SAMPLES)"
+fi
 echo "Split       : $SPLIT"
 echo "Datasets    :"
 for d in $TARGETS; do echo "  - $d"; done
@@ -84,11 +89,14 @@ for name in $TARGETS; do
     echo "[$name] downloading slice …"
     flags=()
     [ "$CLEAR_CACHE" = "1" ] && flags+=(--clear_cache)
+    if [ "$TAKE_LAST" -gt 0 ]; then
+        flags+=(--take_last "$TAKE_LAST")
+    else
+        flags+=(--start_idx "$START_IDX" --num_samples "$NUM_SAMPLES")
+    fi
     "$PYTHON_PATH" -u "$WORKDIR/download_subset.py" \
         --repo "AudioLLMs/$name" \
         --split "$SPLIT" \
-        --start_idx "$START_IDX" \
-        --num_samples "$NUM_SAMPLES" \
         --output "$out" \
         "${flags[@]}" || { echo "  [FAIL] $name"; continue; }
 done
