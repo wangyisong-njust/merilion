@@ -107,9 +107,20 @@ def collect_shard(args):
     t_start = time.time()
     for idx_in_shard, (ds_idx, idx) in enumerate(my_pairs):
         sample = datasets[ds_idx][1][idx]
-        ctx = sample.get("context") or {}
-        ao = ctx.get("audio") if isinstance(ctx, dict) else None
-        if ao is None or not isinstance(ao, dict):
+        # Two schemas in the wild:
+        #   (a) old IMDA:  sample["context"] = {"audio": {array, sampling_rate}, ...}
+        #   (b) AudioBench NSC-v1-extend:  sample["context"] IS the audio
+        #       ({array, sampling_rate}), no nested .audio key.
+        ctx = sample.get("context")
+        ao = None
+        if isinstance(ctx, dict):
+            if "array" in ctx:           # schema (b)
+                ao = ctx
+            elif "audio" in ctx:          # schema (a)
+                a = ctx["audio"]
+                if isinstance(a, dict):
+                    ao = a
+        if ao is None:
             continue
         arr = ao.get("array")
         sr  = ao.get("sampling_rate", SAMPLE_RATE)
