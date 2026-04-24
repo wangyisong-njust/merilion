@@ -13,9 +13,12 @@
 # ============================================================
 set -e
 
-PYTHON_PATH=${PYTHON_PATH:-$(command -v python)}
+PYTHON_PATH=${PYTHON_PATH:-/home/jinchao/miniconda3/envs/audiobench_quant/bin/python}
 WORKDIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-OUTPUT_ROOT=${OUTPUT_ROOT:-"$WORKDIR/audiobench_data"}
+# Default output root matches the convention used by the bench scripts
+# (run_draft_spec_bench.sh, run_w4a16_medusa_bench.sh DATASET=...) on the
+# jinchao remote.  Datasets land under $OUTPUT_ROOT/<dataset_name>.
+OUTPUT_ROOT=${OUTPUT_ROOT:-/home/jinchao/runtao/meralion_datasets/ASR}
 # Default 10000 matches the "hold out the first 10000 as eval" convention
 # used by the bench scripts (shuffle(seed=42)[10500:10520]).  For small
 # test datasets (a few hundred samples) this will skip everything — set
@@ -63,8 +66,19 @@ for d in $TARGETS; do echo "  - $d"; done
 mkdir -p "$OUTPUT_ROOT"
 for name in $TARGETS; do
     out="$OUTPUT_ROOT/$name"
+    # Skip if this dataset is already materialised (save_to_disk drops a
+    # state.json + dataset_info.json).  A raw empty dir or a partial
+    # download without state.json will NOT skip, so we can resume.
+    if [ -f "$out/state.json" ] || [ -f "$out/dataset_info.json" ]; then
+        sz=$(du -sh "$out" 2>/dev/null | awk '{print $1}')
+        echo "[skip] $name already present at $out ($sz)"
+        continue
+    fi
+    # Also warn if non-empty but not a valid Dataset artefact — likely
+    # partial / crashed previous run.
     if [ -d "$out" ] && [ "$(ls -A "$out" 2>/dev/null)" ]; then
-        echo "[skip] $out already present"; continue
+        echo "[resume] $out exists but has no state.json — re-downloading"
+        rm -rf "$out"
     fi
     echo
     echo "[$name] downloading slice …"
