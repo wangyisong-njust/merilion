@@ -68,6 +68,41 @@ echo "Split       : $SPLIT"
 echo "Datasets    :"
 for d in $TARGETS; do echo "  - $d"; done
 
+# ── Name → (repo, config, split) aliasing ─────────────────────────────────────
+# Some AudioBench labels (supported_datasets.md) don't match the HF repo name.
+# IMDA / NSC parts are actually configs of a single Multitask-National-
+# Speech-Corpus-v1-extend repo, and each config has only a `train` split
+# (the "-Test" suffix lives in the config name, not the split).
+# Map label → "repo|config|split"  (config/split empty = use default).
+declare -A DS_ALIAS
+NSC="AudioLLMs/Multitask-National-Speech-Corpus-v1-extend"
+# IMDA ASR
+DS_ALIAS[imda_part1_asr_test]="$NSC|ASR-PART1-Test|train"
+DS_ALIAS[imda_part2_asr_test]="$NSC|ASR-PART2-Test|train"
+DS_ALIAS[imda_part3_30s_asr_test]="$NSC|ASR-PART3-Test|train"
+DS_ALIAS[imda_part4_30s_asr_test]="$NSC|ASR-PART4-Test|train"
+DS_ALIAS[imda_part5_30s_asr_test]="$NSC|ASR-PART5-Test|train"
+DS_ALIAS[imda_part6_30s_asr_test]="$NSC|ASR-PART6-Test|train"
+# IMDA SQA
+DS_ALIAS[imda_part3_30s_sqa_human_test]="$NSC|SQA-PART3-Test|train"
+DS_ALIAS[imda_part4_30s_sqa_human_test]="$NSC|SQA-PART4-Test|train"
+DS_ALIAS[imda_part5_30s_sqa_human_test]="$NSC|SQA-PART5-Test|train"
+DS_ALIAS[imda_part6_30s_sqa_human_test]="$NSC|SQA-PART6-Test|train"
+# IMDA Spoken-Dialog-Summ (NB: PART6-Test does not exist on HF — only Train)
+DS_ALIAS[imda_part3_30s_ds_human_test]="$NSC|SDS-PART3-Test|train"
+DS_ALIAS[imda_part4_30s_ds_human_test]="$NSC|SDS-PART4-Test|train"
+DS_ALIAS[imda_part5_30s_ds_human_test]="$NSC|SDS-PART5-Test|train"
+# IMDA Accent / Gender
+DS_ALIAS[imda_ar_sentence]="$NSC|PQA-AR-Sentence-Test|train"
+DS_ALIAS[imda_ar_dialogue]="$NSC|PQA-AR-Dialogue-Test|train"
+DS_ALIAS[imda_gr_sentence]="$NSC|PQA-GR-Sentence-Test|train"
+DS_ALIAS[imda_gr_dialogue]="$NSC|PQA-GR-Dialogue-Test|train"
+# Other rename cases
+DS_ALIAS[aishell_asr_zh_test]="AudioLLMs/aishell_1_zh_test||"
+DS_ALIAS[openhermes_audio_test]="AudioLLMs/openhermes_instruction_test||"
+DS_ALIAS[iemocap_emotion_test]="AudioLLMs/iemocap_emotion_recognition||"
+DS_ALIAS[iemocap_gender_test]="AudioLLMs/iemocap_gender_recognition||"
+
 mkdir -p "$OUTPUT_ROOT"
 for name in $TARGETS; do
     out="$OUTPUT_ROOT/$name"
@@ -87,16 +122,27 @@ for name in $TARGETS; do
     fi
     echo
     echo "[$name] downloading slice …"
-    flags=()
+    # Resolve (repo, config, split) via alias if one exists; else default
+    # to AudioLLMs/<name> with no config, using the env-level SPLIT.
+    if [ -n "${DS_ALIAS[$name]}" ]; then
+        IFS='|' read -r repo config split <<< "${DS_ALIAS[$name]}"
+        [ -z "$split" ] && split="$SPLIT"
+    else
+        repo="AudioLLMs/$name"
+        config=""
+        split="$SPLIT"
+    fi
+
+    flags=(--repo "$repo" --split "$split")
+    [ -n "$config" ] && flags+=(--subsets "$config")
     [ "$CLEAR_CACHE" = "1" ] && flags+=(--clear_cache)
     if [ "$TAKE_LAST" -gt 0 ]; then
         flags+=(--take_last "$TAKE_LAST")
     else
         flags+=(--start_idx "$START_IDX" --num_samples "$NUM_SAMPLES")
     fi
+    echo "  repo=$repo${config:+  config=$config}  split=$split"
     "$PYTHON_PATH" -u "$WORKDIR/download_subset.py" \
-        --repo "AudioLLMs/$name" \
-        --split "$SPLIT" \
         --output "$out" \
         "${flags[@]}" || { echo "  [FAIL] $name"; continue; }
 done

@@ -138,8 +138,10 @@ def main():
     args = ap.parse_args()
 
     subsets = args.subsets if args.subsets else [None]
-    if len(subsets) == 1 and subsets[0] is None:
-        save_subset(args.repo, None, args.split,
+    # If exactly one subset (including the "no subset" case), save flat at
+    # `args.output`.  With multiple subsets, save each under <output>/<subset>.
+    if len(subsets) == 1:
+        save_subset(args.repo, subsets[0], args.split,
                     args.start_idx, args.num_samples, args.output,
                     take_last=args.take_last)
     else:
