@@ -310,11 +310,20 @@ def main():
         prog = min(1.0, max(0.0, prog))
         return 0.5 * (1 + math.cos(math.pi * prog))
 
-    def run_eval(loader):
+    def run_eval(loader, val_unroll_depth=4):
+        """Evaluate both single-step (depth-1) and multi-step accuracy.
+        Multi-step runs EAGLE autoregressively and measures acc per depth —
+        the real measure of how well EAGLE handles K-step inference.
+        Returns (ce, mse, acc_step0, acc_per_depth_list).
+        """
         eagle.eval()
         sum_ce, sum_mse, total, correct = 0.0, 0.0, 0, 0
+        # Multi-step tracking
+        ms_correct = [0] * val_unroll_depth
+        ms_total   = [0] * val_unroll_depth
         with torch.no_grad():
             for hiddens, tokens, m in loader:
+                # Single-step (teacher-forced) metrics
                 out = eagle_forward_train(eagle, rotary_emb, hiddens,
                                           tokens, m, device, torch.bfloat16)
                 if out[0] is None:
@@ -331,10 +340,48 @@ def main():
                 sum_mse += (mse_each * m_float).sum().item()
                 total += m_float.sum().item()
                 correct += ((lf.argmax(-1) == tf) & m_flat).sum().item()
+
+                # Multi-step accuracy: unroll depth steps autoregressively
+                B, T, H = hiddens.shape
+                if T >= val_unroll_depth + 1:
+                    hd = hiddens.to(device, dtype=torch.bfloat16)
+                    td = tokens.to(device)
+                    md = m.to(device)
+                    step_len = T - val_unroll_depth
+                    pos_ids = torch.arange(step_len, device=device).unsqueeze(0).expand(B, -1)
+                    pos_emb = rotary_emb(hd[:, :step_len], pos_ids)
+                    min_v = torch.finfo(torch.bfloat16).min
+                    causal = torch.full((step_len, step_len), min_v,
+                                        dtype=torch.bfloat16, device=device)
+                    causal = torch.triu(causal, diagonal=1)
+                    att_mask = causal[None, None, :, :]
+                    cpos = torch.arange(step_len, device=device)
+                    prev_h   = hd[:, :step_len]
+                    prev_tok = td[:, :step_len]
+                    valid    = md[:, :step_len].bool()
+                    for k in range(val_unroll_depth):
+                        tgt_tok   = td[:, 1 + k : 1 + k + step_len]
+                        tgt_valid = valid & md[:, 1 + k : 1 + k + step_len].bool()
+                        logits_k, h_next_k, _ = eagle(
+                            input_ids=prev_tok, prev_hidden=prev_h,
+                            position_ids=pos_ids, attention_mask=att_mask,
+                            cache_position=cpos, past_key_value=None,
+                            position_embeddings=pos_emb)
+                        pred_tok = logits_k.argmax(-1)
+                        m_k = tgt_valid.reshape(-1)
+                        corr = ((pred_tok.reshape(-1) == tgt_tok.reshape(-1)) & m_k).sum().item()
+                        ms_correct[k] += corr
+                        ms_total[k]   += int(m_k.sum().item())
+                        # Feed EAGLE's own for next step
+                        if k < val_unroll_depth - 1:
+                            prev_tok = pred_tok
+                            prev_h   = h_next_k
         eagle.train()
         if total == 0:
-            return None, None, None
-        return sum_ce / total, sum_mse / total, correct / total
+            return None, None, None, None
+        ms_acc = [ms_correct[k] / max(1, ms_total[k])
+                  for k in range(val_unroll_depth)]
+        return sum_ce / total, sum_mse / total, correct / total, ms_acc
 
     eagle.train()
     best_val = float("inf")
@@ -406,11 +453,13 @@ def main():
                           f"elapsed={dt/60:.1f}m  eta={eta:.1f}m", flush=True)
 
                 if global_step % args.eval_every == 0 or global_step == total_updates:
-                    vce, vmse, vacc = run_eval(val_loader)
+                    vce, vmse, vacc, ms_acc = run_eval(val_loader)
                     if vce is not None:
                         v_total = vce + args.hidden_loss_alpha * vmse
+                        ms_str = "  ".join(f"k{k}={a:.3f}" for k, a in enumerate(ms_acc))
                         print(f"  [val @ step {global_step}]  val_loss={v_total:.3f}  "
-                              f"val_ce={vce:.3f}  val_mse={vmse:.4f}  val_acc={vacc:.3f}",
+                              f"val_ce={vce:.3f}  val_mse={vmse:.4f}  val_acc={vacc:.3f}  "
+                              f"multi-step: {ms_str}",
                               flush=True)
                         if v_total < best_val:
                             best_val = v_total
@@ -421,6 +470,7 @@ def main():
                                                       else vars(eagle.config)),
                                 "step":          global_step,
                                 "val_ce":        vce, "val_mse": vmse, "val_acc": vacc,
+                                "val_ms_acc":    ms_acc,
                             }, args.output_best)
                             print(f"    ↳ new best, saved → {args.output_best}")
 
