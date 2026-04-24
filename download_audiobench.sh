@@ -26,29 +26,29 @@ SPLIT=${SPLIT:-test}           # most AudioBench repos use `test`
 CLEAR_CACHE=${CLEAR_CACHE:-0}  # 1 = rm -rf ~/.cache/huggingface/datasets after each
 
 # ── Dataset groups (copy/paste from supported_datasets.md) ────────────────────
-declare -A GROUPS
-GROUPS[asr_english]="librispeech_test_clean librispeech_test_other common_voice_15_en_test peoples_speech_test gigaspeech_test tedlium3_test tedlium3_long_form_test earnings21_test earnings22_test"
-GROUPS[asr_singlish]="imda_part1_asr_test imda_part2_asr_test imda_part3_30s_asr_test imda_part4_30s_asr_test imda_part5_30s_asr_test imda_part6_30s_asr_test"
-GROUPS[asr_mandarin]="aishell_asr_zh_test"
-GROUPS[speech_translation]="covost2_en_id_test covost2_en_zh_test covost2_en_ta_test covost2_id_en_test covost2_zh_en_test covost2_ta_en_test"
-GROUPS[sqa]="cn_college_listen_mcq_test slue_p2_sqa5_test dream_tts_mcq_test public_sg_speech_qa_test spoken_squad_test imda_part3_30s_sqa_human_test imda_part4_30s_sqa_human_test imda_part5_30s_sqa_human_test imda_part6_30s_sqa_human_test"
-GROUPS[spoken_dialog_summ]="imda_part3_30s_ds_human_test imda_part4_30s_ds_human_test imda_part5_30s_ds_human_test imda_part6_30s_ds_human_test"
-GROUPS[speech_instr]="openhermes_audio_test alpaca_audio_test spoken-mqa_short_digit spoken-mqa_long_digit spoken-mqa_single_step_reasoning spoken-mqa_multi_step_reasoning"
-GROUPS[aqa]="clotho_aqa_test wavcaps_qa_test audiocaps_qa_test"
-GROUPS[captioning]="wavcaps_test audiocaps_test"
-GROUPS[emotion]="iemocap_emotion_test meld_sentiment_test meld_emotion_test"
-GROUPS[accent]="voxceleb_accent_test imda_ar_sentence imda_ar_dialogue"
-GROUPS[gender]="voxceleb_gender_test iemocap_gender_test imda_gr_sentence imda_gr_dialogue"
-GROUPS[music]="mu_chomusic_test"
-GROUPS[code_switch]="seame_dev_man seame_dev_sge"
-GROUPS[all]="${GROUPS[asr_english]} ${GROUPS[asr_singlish]} ${GROUPS[asr_mandarin]} ${GROUPS[speech_translation]} ${GROUPS[sqa]} ${GROUPS[spoken_dialog_summ]} ${GROUPS[speech_instr]} ${GROUPS[aqa]} ${GROUPS[captioning]} ${GROUPS[emotion]} ${GROUPS[accent]} ${GROUPS[gender]} ${GROUPS[music]} ${GROUPS[code_switch]}"
+declare -A DS_GROUPS
+DS_GROUPS[asr_english]="librispeech_test_clean librispeech_test_other common_voice_15_en_test peoples_speech_test gigaspeech_test tedlium3_test tedlium3_long_form_test earnings21_test earnings22_test"
+DS_GROUPS[asr_singlish]="imda_part1_asr_test imda_part2_asr_test imda_part3_30s_asr_test imda_part4_30s_asr_test imda_part5_30s_asr_test imda_part6_30s_asr_test"
+DS_GROUPS[asr_mandarin]="aishell_asr_zh_test"
+DS_GROUPS[speech_translation]="covost2_en_id_test covost2_en_zh_test covost2_en_ta_test covost2_id_en_test covost2_zh_en_test covost2_ta_en_test"
+DS_GROUPS[sqa]="cn_college_listen_mcq_test slue_p2_sqa5_test dream_tts_mcq_test public_sg_speech_qa_test spoken_squad_test imda_part3_30s_sqa_human_test imda_part4_30s_sqa_human_test imda_part5_30s_sqa_human_test imda_part6_30s_sqa_human_test"
+DS_GROUPS[spoken_dialog_summ]="imda_part3_30s_ds_human_test imda_part4_30s_ds_human_test imda_part5_30s_ds_human_test imda_part6_30s_ds_human_test"
+DS_GROUPS[speech_instr]="openhermes_audio_test alpaca_audio_test spoken-mqa_short_digit spoken-mqa_long_digit spoken-mqa_single_step_reasoning spoken-mqa_multi_step_reasoning"
+DS_GROUPS[aqa]="clotho_aqa_test wavcaps_qa_test audiocaps_qa_test"
+DS_GROUPS[captioning]="wavcaps_test audiocaps_test"
+DS_GROUPS[emotion]="iemocap_emotion_test meld_sentiment_test meld_emotion_test"
+DS_GROUPS[accent]="voxceleb_accent_test imda_ar_sentence imda_ar_dialogue"
+DS_GROUPS[gender]="voxceleb_gender_test iemocap_gender_test imda_gr_sentence imda_gr_dialogue"
+DS_GROUPS[music]="mu_chomusic_test"
+DS_GROUPS[code_switch]="seame_dev_man seame_dev_sge"
+DS_GROUPS[all]="${DS_GROUPS[asr_english]} ${DS_GROUPS[asr_singlish]} ${DS_GROUPS[asr_mandarin]} ${DS_GROUPS[speech_translation]} ${DS_GROUPS[sqa]} ${DS_GROUPS[spoken_dialog_summ]} ${DS_GROUPS[speech_instr]} ${DS_GROUPS[aqa]} ${DS_GROUPS[captioning]} ${DS_GROUPS[emotion]} ${DS_GROUPS[accent]} ${DS_GROUPS[gender]} ${DS_GROUPS[music]} ${DS_GROUPS[code_switch]}"
 
 # ── Pick dataset list ─────────────────────────────────────────────────────────
 GROUP=${GROUP:-asr_english}
 if [ -n "$DATASETS" ]; then
     TARGETS="$DATASETS"
 else
-    TARGETS="${GROUPS[$GROUP]}"
+    TARGETS="${DS_GROUPS[$GROUP]}"
 fi
 if [ -z "$TARGETS" ]; then
     echo "No targets (unknown GROUP=$GROUP and empty DATASETS)"; exit 1
