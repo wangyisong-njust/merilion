@@ -39,7 +39,8 @@ GRAD_ACCUM=${GRAD_ACCUM:-4}
 LR=${LR:-3e-4}
 WARMUP_STEPS=${WARMUP_STEPS:-200}
 EPOCHS=${EPOCHS:-3}
-HIDDEN_LOSS_ALPHA=${HIDDEN_LOSS_ALPHA:-0.1}
+HIDDEN_LOSS_ALPHA=${HIDDEN_LOSS_ALPHA:-0.5}
+SCHED_SAMPLING_MAX=${SCHED_SAMPLING_MAX:-0.5}
 EVAL_EVERY=${EVAL_EVERY:-300}
 LOG_EVERY=${LOG_EVERY:-50}
 
@@ -175,6 +176,7 @@ else
         --batch_size "$BATCH_SIZE" --grad_accum "$GRAD_ACCUM" \
         --lr "$LR" --warmup_steps "$WARMUP_STEPS" --epochs "$EPOCHS" \
         --hidden_loss_alpha "$HIDDEN_LOSS_ALPHA" \
+        --sched_sampling_max "$SCHED_SAMPLING_MAX" \
         --eval_every "$EVAL_EVERY" --log_every "$LOG_EVERY" \
         --output "${EAGLE_OUT%.pt}_final.pt" \
         --output_best "$EAGLE_OUT" \
