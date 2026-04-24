@@ -64,23 +64,28 @@ def collate(batch, pad_id):
 
 
 def eagle_forward_train(eagle, rotary_emb, hiddens, tokens, mask,
-                        device, dtype):
+                        device, dtype, sched_sampling_prob=0.0):
     """
     hiddens (B, T, H), tokens (B, T), mask (B, T).
     Shift so that at position t (1..T-1):
       input_ids_t = tokens[t-1], prev_h_t = hiddens[t-1]
     and targets are tokens[t], hiddens[t].
 
-    Builds a causal attention mask over the T-1 shifted positions for
-    the single decoder layer.
+    If sched_sampling_prob > 0, do a TWO-PASS forward:
+      * Pass 1 (teacher-forced, no_grad): compute EAGLE's own h_draft at each
+        position using verifier's hiddens as input.
+      * Pass 2 (loss forward): with probability p at each position, substitute
+        the EAGLE h_draft from pass 1 (shifted by one step — the "previous
+        EAGLE-produced hidden") in place of verifier's hidden.
+
+    This matches the distribution EAGLE sees at inference K≥1, where prev_h
+    at step k comes from EAGLE's own step-(k-1) output.
     """
     B, T, H = hiddens.shape
     if T < 2:
         return None, None, None
-    # Shift
     prev_h     = hiddens[:, :-1].contiguous()   # (B, T-1, H)
-    prev_ids   = tokens[:, :-1].contiguous()    # (B, T-1)
-    prev_mask  = mask[:, :-1]
+    prev_ids   = tokens[:, :-1].contiguous()
     target_ids = tokens[:, 1:].contiguous()
     target_h   = hiddens[:, 1:].contiguous()
     tgt_mask   = mask[:, 1:]
@@ -91,22 +96,40 @@ def eagle_forward_train(eagle, rotary_emb, hiddens, tokens, mask,
     target_h = target_h.to(device, dtype=dtype, non_blocking=True)
     tgt_mask = tgt_mask.to(device, non_blocking=True)
 
-    # RoPE position_embeddings for T-1 positions.
-    position_ids = torch.arange(T - 1, device=device).unsqueeze(0)  # (1, T-1)
-    position_ids = position_ids.expand(B, -1)
-    # rotary_emb accepts hidden_states + position_ids
+    position_ids = torch.arange(T - 1, device=device).unsqueeze(0).expand(B, -1)
     position_embeddings = rotary_emb(prev_h, position_ids)
-
-    # Causal 4D mask (B, 1, T-1, T-1) with -inf above diag.
     min_v = torch.finfo(dtype).min
     causal = torch.full((T - 1, T - 1), min_v, dtype=dtype, device=device)
     causal = torch.triu(causal, diagonal=1)
-    attn_mask = causal[None, None, :, :]   # broadcast over B
-
+    attn_mask = causal[None, None, :, :]
     cache_position = torch.arange(T - 1, device=device)
+
+    if sched_sampling_prob > 0.0 and T > 2:
+        # Pass 1 (no_grad): teacher-forced EAGLE to compute its own h_draft.
+        with torch.no_grad():
+            _, h_draft_tf, _ = eagle(
+                input_ids=prev_ids,
+                prev_hidden=prev_h,
+                position_ids=position_ids,
+                attention_mask=attn_mask,
+                cache_position=cache_position,
+                past_key_value=None,
+                position_embeddings=position_embeddings,
+            )
+        # Build "EAGLE-produced previous hidden": at position t, use
+        # h_draft_tf[t-1].  At t=0 we keep verifier's prev_h[0] (no choice).
+        shifted = torch.cat([prev_h[:, :1], h_draft_tf[:, :-1]], dim=1)  # (B, T-1, H)
+        # Sample per-(B, T-1) positions with prob p to swap in shifted.
+        swap = (torch.rand(B, T - 1, device=device) < sched_sampling_prob)
+        swap[:, 0] = False                            # always teacher-force pos 0
+        swap = swap.unsqueeze(-1)                     # (B, T-1, 1)
+        prev_h_mixed = torch.where(swap, shifted, prev_h)
+    else:
+        prev_h_mixed = prev_h
+
     logits, h_next, _ = eagle(
         input_ids=prev_ids,
-        prev_hidden=prev_h,
+        prev_hidden=prev_h_mixed,
         position_ids=position_ids,
         attention_mask=attn_mask,
         cache_position=cache_position,
@@ -127,8 +150,12 @@ def main():
     ap.add_argument("--warmup_steps", type=int,  default=100)
     ap.add_argument("--epochs",      type=int,   default=2)
     ap.add_argument("--max_steps",   type=int,   default=-1)
-    ap.add_argument("--hidden_loss_alpha", type=float, default=0.1,
+    ap.add_argument("--hidden_loss_alpha", type=float, default=0.5,
                     help="Weight for MSE(h_draft, h_verifier_next) loss")
+    ap.add_argument("--sched_sampling_max", type=float, default=0.5,
+                    help="Max probability of substituting EAGLE's own h_draft "
+                         "for verifier's h during training.  Ramped linearly "
+                         "from 0 to this value over training.  Set 0 to disable.")
     ap.add_argument("--eval_every",  type=int,   default=200)
     ap.add_argument("--log_every",   type=int,   default=50)
     ap.add_argument("--device",      default="cuda")
@@ -221,8 +248,12 @@ def main():
         if global_step >= total_updates:
             break
         for hiddens, tokens, m in train_loader:
+            # Linear ramp for scheduled sampling probability over training.
+            p_ss = args.sched_sampling_max * min(1.0,
+                                                 global_step / max(1, total_updates))
             out = eagle_forward_train(eagle, rotary_emb, hiddens,
-                                      tokens, m, device, torch.bfloat16)
+                                      tokens, m, device, torch.bfloat16,
+                                      sched_sampling_prob=p_ss)
             if out[0] is None:
                 continue
             logits, h_next, (tgt_ids, tgt_h, tgt_mask) = out
@@ -255,7 +286,8 @@ def main():
                     eta = dt * (total_updates - global_step) / max(1, global_step) / 60
                     print(f"  [ep {epoch} step {global_step:5d}/{total_updates}] "
                           f"loss={loss.item():.3f}  ce={ce.item():.3f}  mse={mse.item():.4f}  "
-                          f"acc={acc.item():.3f}  lr={optim.param_groups[0]['lr']:.2e}  "
+                          f"acc={acc.item():.3f}  p_ss={p_ss:.2f}  "
+                          f"lr={optim.param_groups[0]['lr']:.2e}  "
                           f"elapsed={dt/60:.1f}m  eta={eta:.1f}m", flush=True)
 
                 if global_step % args.eval_every == 0 or global_step == total_updates:
