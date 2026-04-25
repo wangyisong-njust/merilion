@@ -952,12 +952,10 @@ def main():
         import evaluate
 
         data = load_from_disk(os.path.abspath(args.dataset))
-        shuffled = data.shuffle(seed=42)
-        # Clamp start so start + num_samples fits.  Small datasets
-        # (< 10500) fall back to index 0.
-        start = max(0, min(10500, len(shuffled) - args.num_samples))
-        end   = min(start + args.num_samples, len(shuffled))
-        subset = shuffled.select(range(start, end))
+        # Held-out eval region: take the first num_samples in original order so
+        # train (which starts at start_idx) cannot see these. No shuffle.
+        end    = min(args.num_samples, len(data))
+        subset = data.select(range(0, end))
 
         def _extract_audio(sample):
             """Support two schemas for the `context` field:

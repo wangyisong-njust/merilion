@@ -877,11 +877,9 @@ def main():
     from datasets import load_from_disk
     import evaluate
 
-    data     = load_from_disk(os.path.abspath(args.dataset))
-    shuffled = data.shuffle(seed=42)
-    start    = min(10500, len(shuffled))
-    end      = min(start + args.num_samples, len(shuffled))
-    subset   = shuffled.select(range(start, end))
+    data   = load_from_disk(os.path.abspath(args.dataset))
+    end    = min(args.num_samples, len(data))
+    subset = data.select(range(0, end))
 
     print("Warming up GPU …")
     s0    = subset[0]

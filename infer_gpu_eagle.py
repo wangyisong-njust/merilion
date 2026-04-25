@@ -284,10 +284,10 @@ def main():
     print("Warming up GPU …")
     from datasets import load_from_disk
     raw = load_from_disk(os.path.abspath(args.dataset))
-    shuffled = raw.shuffle(seed=42)
-    start = max(0, min(10500, len(shuffled) - args.num_samples))
-    end   = min(start + args.num_samples, len(shuffled))
-    data = shuffled.select(range(start, end))
+    # Held-out eval region: take the first num_samples in original order so
+    # train (which starts at start_idx) cannot see these. No shuffle.
+    end  = min(args.num_samples, len(raw))
+    data = raw.select(range(0, end))
 
     # Warmup
     warmup = data[0]
