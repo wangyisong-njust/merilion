@@ -114,18 +114,20 @@ else
     if [ "$FORCE" != "1" ] && [ "$existing" -gt 0 ]; then
         echo "  [skip] $existing shard(s) already present in $SHARDS_DIR"
     else
-        # Discover HF save_to_disk artefacts
-        DATASETS=()
-        for d in "$DATASET_ROOT"/*/; do
-            [ -d "$d" ] || continue
-            if [ -f "$d/state.json" ] || [ -f "$d/dataset_info.json" ]; then
-                DATASETS+=("${d%/}")
-            fi
-        done
+        # Discover HF save_to_disk artefacts under DATASET_ROOT (recurse up to
+        # depth 3 — handles both flat layouts and nested {corpus}/{part}/ ones).
+        mapfile -t DATASETS < <(
+            find -L "$DATASET_ROOT" -mindepth 1 -maxdepth 3 -type d \
+                \( -exec test -f "{}/state.json" \; -o \
+                   -exec test -f "{}/dataset_info.json" \; \) \
+                -print 2>/dev/null | sort -u
+        )
         if [ "${#DATASETS[@]}" -lt 1 ]; then
             echo "ERROR: no HF datasets under $DATASET_ROOT"; exit 1
         fi
-        echo "  found ${#DATASETS[@]} datasets; launching $NUM_SHARDS shards on GPUs ${GPU_ARR[*]}"
+        echo "  found ${#DATASETS[@]} datasets under $DATASET_ROOT:"
+        for d in "${DATASETS[@]}"; do echo "    - $d"; done
+        echo "  launching $NUM_SHARDS shards on GPUs ${GPU_ARR[*]}"
         PIDS=()
         for i in $(seq 0 $((NUM_SHARDS - 1))); do
             gpu="${GPU_ARR[$i]}"
