@@ -22,7 +22,7 @@ datasets==3.5.0
 numpy==1.26.4
 
 # Quantization stack (Marlin kernel).
-compressed-tensors==0.10.2
+compressed-tensors==0.9.3   # vllm 0.8.5 pins this exact version
 vllm==0.8.5
 
 # Optional: only for our existing infer_gpu.py paths (BnB int4/int8, AWQ).
