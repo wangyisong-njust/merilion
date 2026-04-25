@@ -78,26 +78,23 @@ def main():
     ] * (args.n_calib // 5 + 1)
     calib_texts = calib_texts[:args.n_calib]
 
-    # GPTQModel API
-    print("[4/5] Running GPTQ quantization with Marlin format …")
-    from gptqmodel import GPTQModel, QuantizeConfig
+    # auto-gptq API
+    print("[4/5] Running auto-gptq quantization (marlin-compatible format) …")
+    from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 
-    qcfg = QuantizeConfig(
+    qcfg = BaseQuantizeConfig(
         bits=args.bits,
         group_size=args.group_size,
-        desc_act=False,         # disable activation reordering — needed for Marlin
-        sym=True,               # Marlin requires symmetric
-        format="gptq",          # standard gptq packing (Marlin kernel reads this)
+        desc_act=False,         # required for Marlin
+        sym=True,               # required for Marlin
     )
 
-    # GPTQModel expects to load the model itself; but we've already loaded a
-    # custom MERaLiON wrapper.  Trick: temporarily save the text_decoder
-    # weights to a Gemma2 dir, point GPTQModel at that dir, then merge back.
-    print("  saving text_decoder to a temp Gemma2 dir for GPTQModel …")
+    # auto-gptq loads via from_pretrained on a model dir.  We first save the
+    # text_decoder as a standalone Gemma2 dir, then load + quantize there.
+    print("  saving text_decoder to a temp Gemma2 dir for auto-gptq …")
     tmp_gemma2 = os.path.join(args.out + "_tmp_gemma2")
     os.makedirs(tmp_gemma2, exist_ok=True)
 
-    # Build a Gemma2-only config from MERaLiON's text_config
     with open(os.path.join(args.src, "config.json")) as f:
         meralion_cfg = json.load(f)
     gemma2_cfg = dict(meralion_cfg["text_config"])
@@ -107,32 +104,42 @@ def main():
     with open(os.path.join(tmp_gemma2, "config.json"), "w") as f:
         json.dump(gemma2_cfg, f, indent=2)
 
-    # Save text_decoder weights as plain Gemma2 (strip "text_decoder." prefix
-    # from full model state_dict; we already have the module so just save it).
     from safetensors.torch import save_file
     sd = {k: v.detach().cpu().contiguous() for k, v in text_decoder.state_dict().items()}
     save_file(sd, os.path.join(tmp_gemma2, "model.safetensors"),
               metadata={"format": "pt"})
 
-    # Copy tokenizer files (GPTQModel needs to tokenize calibration samples)
     for f in ("tokenizer.json", "tokenizer_config.json", "tokenizer.model",
               "special_tokens_map.json", "generation_config.json"):
         sp = os.path.join(args.src, f)
         if os.path.exists(sp):
             shutil.copy2(sp, os.path.join(tmp_gemma2, f))
 
-    # Free the full_model's text_decoder copy on GPU before GPTQModel reloads.
+    # Free GPU mem before auto-gptq re-loads
     del text_decoder
     torch.cuda.empty_cache()
 
-    # Now let GPTQModel quantize the Gemma2 dir
+    # Build calibration examples (auto-gptq wants list of dicts with
+    # input_ids + attention_mask, or list of token-id lists).
+    calib_examples = []
+    for txt in calib_texts:
+        enc = tokenizer(txt, return_tensors="pt", truncation=True, max_length=256)
+        calib_examples.append({
+            "input_ids":      enc.input_ids,
+            "attention_mask": enc.attention_mask,
+        })
+
     t0 = time.time()
-    qmodel = GPTQModel.load(tmp_gemma2, qcfg)
-    qmodel.quantize(calib_texts, batch_size=1)
+    qmodel = AutoGPTQForCausalLM.from_pretrained(
+        tmp_gemma2, quantize_config=qcfg, torch_dtype=torch.bfloat16,
+        trust_remote_code=False)
+    qmodel.quantize(calib_examples, batch_size=1, use_triton=True)
     print(f"  quantize took {time.time()-t0:.1f}s")
 
-    # Save quantized text_decoder
-    qmodel.save(args.out)
+    # Save in safetensors format.  This writes a quantize_config.json + the
+    # quantized .safetensors with qweight/qzeros/scales — the layout HF
+    # transformers' GPTQConfig + auto-gptq's marlin kernel both understand.
+    qmodel.save_quantized(args.out, use_safetensors=True)
     del qmodel
     torch.cuda.empty_cache()
 
@@ -167,21 +174,29 @@ def main():
     save_file(merged, os.path.join(args.out, "model.safetensors"),
               metadata={"format": "pt"})
 
-    # 3) Patch config.json in args.out: use full MERaLiON config + the
-    #    GPTQ quantization_config that GPTQModel wrote (we keep that).
-    quant_cfg_path = os.path.join(args.out, "config.json")
-    with open(quant_cfg_path) as f:
-        gemma2_quant_cfg = json.load(f)
+    # 3) Patch config.json in args.out.  auto-gptq writes a separate
+    #    quantize_config.json (not embedded in config.json), so we build
+    #    quantization_config from that + the saved gptq metadata.
     final_cfg = dict(meralion_cfg)
-    # Carry the quantization_config across, but scope it to text_decoder only
-    qc = gemma2_quant_cfg.get("quantization_config")
-    if qc is None:
-        raise SystemExit("GPTQModel didn't write quantization_config!")
-    qc["modules_to_not_convert"] = qc.get("modules_to_not_convert", []) + \
-        ["speech_encoder", "speech_audio_adapter", "lm_head"]
+    qc_path = os.path.join(args.out, "quantize_config.json")
+    if os.path.exists(qc_path):
+        with open(qc_path) as f:
+            qcfg_dict = json.load(f)
+    else:
+        qcfg_dict = {"bits": args.bits, "group_size": args.group_size,
+                     "desc_act": False, "sym": True}
+    qc = {
+        "quant_method":              "gptq",
+        "bits":                      qcfg_dict["bits"],
+        "group_size":                qcfg_dict["group_size"],
+        "desc_act":                  qcfg_dict["desc_act"],
+        "sym":                       qcfg_dict["sym"],
+        "use_marlin":                True,
+        "modules_to_not_convert":    ["speech_encoder", "speech_audio_adapter", "lm_head"],
+    }
     final_cfg["quantization_config"] = qc
     final_cfg["torch_dtype"] = "bfloat16"
-    with open(quant_cfg_path, "w") as f:
+    with open(os.path.join(args.out, "config.json"), "w") as f:
         json.dump(final_cfg, f, indent=2)
 
     # 4) Copy MERaLiON's processor + custom modeling files
