@@ -246,6 +246,8 @@ def main():
                     help="Max probability of substituting EAGLE's own h_draft "
                          "for verifier's h during training.  Ramped linearly "
                          "from 0 to this value over training.  Set 0 to disable.")
+    ap.add_argument("--num_layers",   type=int, default=1,
+                    help="EAGLE decoder layers (default 1; try 2 for capacity).")
     ap.add_argument("--unroll_depth", type=int, default=1,
                     help="Number of multi-step autoregressive unroll depths "
                          "during training.  1 = standard teacher-forced (+ optional "
@@ -271,7 +273,8 @@ def main():
     for p in verifier.parameters():
         p.requires_grad_(False)
 
-    eagle, rotary_emb = attach_eagle(verifier, device, dtype=torch.bfloat16)
+    eagle, rotary_emb = attach_eagle(verifier, device, dtype=torch.bfloat16,
+                                     num_layers=args.num_layers)
     n_trainable = sum(p.numel() for p in eagle.parameters())
     print(f"  EAGLE trainable params: {n_trainable/1e6:.2f} M")
     vocab_size = verifier.text_decoder.lm_head.out_features
@@ -468,6 +471,7 @@ def main():
                                 "config":        dict(eagle.config.to_dict()
                                                       if hasattr(eagle.config, 'to_dict')
                                                       else vars(eagle.config)),
+                                "num_layers":    args.num_layers,
                                 "step":          global_step,
                                 "val_ce":        vce, "val_mse": vmse, "val_acc": vacc,
                                 "val_ms_acc":    ms_acc,
@@ -480,6 +484,7 @@ def main():
     torch.save({
         "eagle_state": eagle.trainable_state_dict(),
         "config":      dict(eagle.config.to_dict() if hasattr(eagle.config, 'to_dict') else vars(eagle.config)),
+        "num_layers":  args.num_layers,
         "step":        global_step,
     }, args.output)
     print(f"\nfinal saved → {args.output}")

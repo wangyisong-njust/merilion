@@ -44,6 +44,7 @@ SCHED_SAMPLING_MAX=${SCHED_SAMPLING_MAX:-0.5}
 UNROLL_DEPTH=${UNROLL_DEPTH:-1}    # 1 = teacher-force + sched sampling.
                                    # >=2 = multi-step autoregressive unroll
                                    # (better K scaling, D× train cost)
+NUM_LAYERS=${NUM_LAYERS:-1}        # EAGLE decoder layers (try 2 for capacity).
 EVAL_EVERY=${EVAL_EVERY:-300}
 LOG_EVERY=${LOG_EVERY:-50}
 
@@ -181,6 +182,7 @@ else
         --hidden_loss_alpha "$HIDDEN_LOSS_ALPHA" \
         --sched_sampling_max "$SCHED_SAMPLING_MAX" \
         --unroll_depth "$UNROLL_DEPTH" \
+        --num_layers "$NUM_LAYERS" \
         --eval_every "$EVAL_EVERY" --log_every "$LOG_EVERY" \
         --output "${EAGLE_OUT%.pt}_final.pt" \
         --output_best "$EAGLE_OUT" \

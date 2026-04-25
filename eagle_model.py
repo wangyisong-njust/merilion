@@ -36,9 +36,10 @@ class EAGLE(nn.Module):
     stores only the trainable part (fuse + layer + final_ln).
     """
     def __init__(self, verifier_config, verifier_embed_tokens,
-                 verifier_lm_head, layer_cls):
+                 verifier_lm_head, layer_cls, num_layers=1):
         super().__init__()
         self.config = verifier_config
+        self.num_layers = num_layers
         H = verifier_config.hidden_size
 
         # fuse(cat(emb, h)) → H
@@ -49,10 +50,13 @@ class EAGLE(nn.Module):
             self.fuse.weight[:, H:] = torch.eye(H, dtype=self.fuse.weight.dtype,
                                                 device=self.fuse.weight.device)
 
-        # Single decoder layer — use the same class as the verifier.
-        # layer_idx=1 makes is_sliding=False (Gemma2 uses sliding window on
+        # Decoder layers — use same class as the verifier.
+        # layer_idx=1,3,5,... → is_sliding=False (Gemma2 uses sliding window on
         # even-indexed layers); we want full global attention in the draft.
-        self.layer = layer_cls(verifier_config, layer_idx=1)
+        self.layers = nn.ModuleList([
+            layer_cls(verifier_config, layer_idx=2 * i + 1)
+            for i in range(num_layers)
+        ])
         # Gemma2 normalises outputs at the end of its decoder stack.
         self.final_ln = nn.RMSNorm(H, eps=verifier_config.rms_norm_eps)
 
@@ -90,25 +94,22 @@ class EAGLE(nn.Module):
         Returns (logits, next_hidden, past_key_value).
         """
         emb  = self._embed(input_ids)                      # (B, T, H)
-        fused = self.fuse(torch.cat([emb, prev_hidden], dim=-1))  # (B, T, H)
+        h    = self.fuse(torch.cat([emb, prev_hidden], dim=-1))  # (B, T, H)
 
-        layer_out = self.layer(
-            hidden_states=fused,
-            position_embeddings=position_embeddings,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            past_key_value=past_key_value,
-            output_attentions=False,
-            use_cache=(past_key_value is not None),
-            cache_position=cache_position,
-        )
-        # Gemma2DecoderLayer returns either a tuple or (hidden, attn, ...).
-        if isinstance(layer_out, tuple):
-            h_next = layer_out[0]
-        else:
-            h_next = layer_out
+        for layer in self.layers:
+            layer_out = layer(
+                hidden_states=h,
+                position_embeddings=position_embeddings,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_value=past_key_value,
+                output_attentions=False,
+                use_cache=(past_key_value is not None),
+                cache_position=cache_position,
+            )
+            h = layer_out[0] if isinstance(layer_out, tuple) else layer_out
 
-        h_next = self.final_ln(h_next)
+        h_next = self.final_ln(h)
         logits = h_next @ self._lm_head.weight.t()         # shared lm_head
         return logits, h_next, past_key_value
 
@@ -130,7 +131,7 @@ class EAGLE(nn.Module):
             print(f"  EAGLE.load: unexpected keys: {unexpected[:5]}")
 
 
-def attach_eagle(verifier_model, device, dtype=torch.bfloat16):
+def attach_eagle(verifier_model, device, dtype=torch.bfloat16, num_layers=1):
     """Build an EAGLE draft for the given MERaLiON-2 verifier and place it
     on `device`.  Returns (eagle, rotary_emb) — the rotary module is the
     verifier's own, reused to compute position_embeddings without
@@ -138,7 +139,8 @@ def attach_eagle(verifier_model, device, dtype=torch.bfloat16):
     td = verifier_model.text_decoder
     cfg = td.model.config
     layer_cls = type(td.model.layers[0])          # Gemma2DecoderLayer
-    eagle = EAGLE(cfg, td.base_model.embed_tokens, td.lm_head, layer_cls)
+    eagle = EAGLE(cfg, td.base_model.embed_tokens, td.lm_head, layer_cls,
+                  num_layers=num_layers)
     eagle = eagle.to(device).to(dtype)
     # Re-bind shared references post-.to() (module.to() clones them).
     object.__setattr__(eagle, "_embed",   td.base_model.embed_tokens)

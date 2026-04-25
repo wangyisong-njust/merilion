@@ -37,7 +37,9 @@ from eagle_model import EAGLE, attach_eagle
 
 def load_eagle(model, ckpt_path, device):
     ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
-    eagle, rotary = attach_eagle(model, device, dtype=torch.bfloat16)
+    n_layers = ckpt.get("num_layers", 1)
+    eagle, rotary = attach_eagle(model, device, dtype=torch.bfloat16,
+                                 num_layers=n_layers)
     eagle.load_trainable_state_dict(ckpt["eagle_state"])
     eagle.eval()
     for p in eagle.parameters():
