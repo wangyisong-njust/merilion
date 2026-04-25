@@ -82,6 +82,21 @@ def main():
     print("[4/5] Running auto-gptq quantization (marlin-compatible format) …")
     from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 
+    # auto-gptq < 0.8 doesn't know about gemma2.  Architecturally Gemma2 has
+    # the same Linear modules as Gemma (q/k/v/o/gate/up/down_proj) — only the
+    # RMSNorm layout differs, which we don't quantize.  Register gemma2 to use
+    # the existing Gemma handler.
+    try:
+        from auto_gptq.modeling._const import SUPPORTED_MODELS
+        if "gemma2" not in SUPPORTED_MODELS:
+            SUPPORTED_MODELS.append("gemma2")
+        from auto_gptq.modeling.auto import GPTQ_CAUSAL_LM_MODEL_MAP
+        from auto_gptq.modeling.gemma import GemmaGPTQForCausalLM
+        GPTQ_CAUSAL_LM_MODEL_MAP["gemma2"] = GemmaGPTQForCausalLM
+        print("  [patched] registered gemma2 → GemmaGPTQForCausalLM")
+    except Exception as e:
+        print(f"  [warn] couldn't patch gemma2 support: {e}")
+
     qcfg = BaseQuantizeConfig(
         bits=args.bits,
         group_size=args.group_size,
