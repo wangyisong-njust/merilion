@@ -14,8 +14,13 @@ def check(name, attr=None):
                 s += f"  [{a}={'y' if ok else 'n'}]"
         print(s)
         return True
-    except ImportError:
-        print(f"  ✗ {name:<28} NOT installed")
+    except ImportError as e:
+        print(f"  ✗ {name:<28} NOT installed  ({e})")
+        return False
+    except Exception as e:
+        # Module is installed but import failed (e.g. dep version mismatch).
+        # Don't silently say "NOT installed" — show the real error.
+        print(f"  ! {name:<28} INSTALLED BUT IMPORT FAILED: {type(e).__name__}: {e}")
         return False
 
 
