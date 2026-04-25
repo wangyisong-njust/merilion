@@ -91,18 +91,24 @@ def time_decode(model, processor, n_steps, prompt, device, warmup=5):
 
 
 def detect_quantized_linears(model):
-    """Walk text_decoder, count and name the Linear-like classes in use.
-
-    Tells us whether HfQuantizer actually swapped nn.Linear for
-    CompressedLinear / Marlin variants.
+    """Walk text_decoder, count every leaf-ish module that has a weight-like
+    buffer.  We don't filter by class name — that's exactly what we want
+    to discover (CompressedLinear / MarlinLinear / etc.).
     """
     from collections import Counter
     cnt = Counter()
     for name, mod in model.text_decoder.named_modules():
-        if hasattr(mod, "weight") and not list(mod.children()):
-            cls = type(mod).__name__
-            if "Linear" in cls or "Compressed" in cls or "Marlin" in cls:
-                cnt[cls] += 1
+        # Treat as leaf if it has any weight-ish attr (weight, weight_packed,
+        # qweight, B, qzeros, …) and no Linear-like submodules.
+        has_w = any(hasattr(mod, attr) for attr in
+                    ("weight", "weight_packed", "qweight", "B", "qzeros"))
+        if not has_w:
+            continue
+        has_linear_child = any(
+            type(c).__name__.endswith("Linear") for c in mod.children())
+        if has_linear_child:
+            continue
+        cnt[type(mod).__name__] += 1
     return cnt
 
 
