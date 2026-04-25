@@ -229,7 +229,10 @@ def transcribe_eagle_tree(model, eagle, rotary_emb, processor,
                 cache_position=spec_cpos,
                 output_hidden_states=True, return_dict=True,
             )
-            n_spec_tot += N_tree
+            # Comparable-to-chain accept rate: divide by chain depth K, not
+            # by tree size (the unselected branch's drafts are NOT wasted —
+            # they're just losers in the path competition, not "rejected").
+            n_spec_tot += K
 
             # ── Step 3: walk the tree, accept the longest matching path ───────
             v_logits_flat = v_out.logits[0]
@@ -297,12 +300,16 @@ def main():
     ap.add_argument("--output",  default="gpu_3B_eagle_tree.json")
     args = ap.parse_args()
 
-    # FA2 cannot accept custom 4D tree masks — disable.
+    # FA2 cannot accept custom 4D tree masks — disable.  Use SDPA (supports
+    # 4D masks AND fused kernels) by default; user can override to eager via
+    # EAGLE_TREE_ATTN=eager for debugging.
     model, processor = load_model_gpu(
         args.model, quant="bf16", flash_attn=False, device=args.device)
-    model.text_decoder.config._attn_implementation = "eager"
+    attn_impl = os.environ.get("EAGLE_TREE_ATTN", "sdpa")
+    model.text_decoder.config._attn_implementation = attn_impl
     if hasattr(model.text_decoder, "model"):
-        model.text_decoder.model.config._attn_implementation = "eager"
+        model.text_decoder.model.config._attn_implementation = attn_impl
+    print(f"  attention impl: {attn_impl}")
     gpu_load_gb = torch.cuda.max_memory_allocated(args.device) / 1e9
     print(f"  VRAM after model load: {gpu_load_gb:.2f} GB")
 
@@ -358,27 +365,27 @@ def main():
     except ImportError:
         wer = 0.0
 
+    avg_lat   = total_time / len(results) if results else 0.0
+    avg_tps   = total_toks / total_time if total_time > 0 else 0.0
+    avg_acc   = total_acc_r / len(results) if results else 0.0
+    vram_peak = torch.cuda.max_memory_allocated(args.device) / 1e9
     summary = {
-        "model":              args.model,
-        "eagle":              args.eagle,
-        "dataset":            args.dataset,
-        "num_samples":        len(results),
-        "K":                  args.K,
-        "B":                  args.B,
-        "max_new_tokens":     args.max_new_tokens,
-        "total_time_s":       total_time,
-        "total_tokens":       total_toks,
-        "decode_tps_avg":     total_toks / total_time if total_time else 0.0,
-        "spec_accept_rate":   total_acc_r / max(1, len(results)),
-        "wer":                wer,
-        "vram_gb":            gpu_load_gb,
-        "results":            results,
+        "wer":                  wer,
+        "avg_latency_s":        avg_lat,
+        "avg_decode_tps":       avg_tps,
+        "avg_spec_accept_rate": avg_acc,
+        "gpu_mem_peak_gb":      vram_peak,
+        "num_samples":          len(results),
+        "K":                    args.K,
+        "B":                    args.B,
+        "eagle_path":           args.eagle,
+        "attn_impl":            attn_impl,
     }
     with open(args.output, "w") as f:
-        json.dump(summary, f, indent=2, default=str)
+        json.dump({**summary, "results": results}, f, indent=2, default=str)
     print(f"\nSaved → {args.output}")
-    print(f"  total {total_time:.2f}s   tok/s {summary['decode_tps_avg']:.1f}   "
-          f"acc {summary['spec_accept_rate']:.1%}   WER {wer*100:.2f}%")
+    print(f"  total {total_time:.2f}s   avg_tps {avg_tps:.1f}   "
+          f"acc {avg_acc:.1%}   WER {wer*100:.2f}%")
 
 
 if __name__ == "__main__":
