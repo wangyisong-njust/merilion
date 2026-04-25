@@ -1,0 +1,38 @@
+# Clean env for vLLM + Marlin smoke test on A100 sm_80.
+# Tested combo: Python 3.10, CUDA 12.4.
+#
+# Install in this order:
+#   conda create -n marlin_test python=3.10 -y && conda activate marlin_test
+#   pip install --index-url https://download.pytorch.org/whl/cu124 torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
+#   pip install -r requirements_marlin.txt
+
+# --- core (torch already installed via index-url; do NOT re-install here) ---
+triton==3.2.0
+
+# Transformers + tokenizers + hf_hub: the trio that broke last time.
+# 4.51.3 + tokenizers 0.21.1 + hf_hub 0.30.2 was what vLLM 0.8.5 / autoawq
+# were originally validated against (predates hf_hub strict_dataclass +
+# str|None bug, predates tokenizers 0.22 incompat).
+transformers==4.51.3
+tokenizers==0.21.1
+huggingface-hub==0.30.2
+accelerate==1.5.2
+safetensors==0.5.3
+datasets==3.5.0
+numpy==1.26.4
+
+# Quantization stack (Marlin kernel).
+compressed-tensors==0.10.2
+vllm==0.8.5
+
+# Optional: only for our existing infer_gpu.py paths (BnB int4/int8, AWQ).
+# Skip if you only want vLLM + Marlin.
+bitsandbytes==0.45.3
+autoawq==0.2.9
+
+# ASR eval / audio.
+jiwer==3.0.4
+librosa==0.10.2
+soundfile==0.12.1
+evaluate==0.4.2
+audiomentations==0.36.0
