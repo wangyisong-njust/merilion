@@ -52,6 +52,7 @@ EAGLE_OUT=${EAGLE_OUT:-$WORKDIR/eagle_best.pt}
 
 # ── Inference / bench knobs ────────────────────────────────────────────────────
 K=${K:-4}
+TREE_B=${TREE_B:-0}              # 0 = chain (FA2); >=2 = tree mode (eager attn)
 BENCH_NUM_SAMPLES=${BENCH_NUM_SAMPLES:-20}
 MAX_NEW_TOKENS=${MAX_NEW_TOKENS:-128}
 BASELINE_OUT=${BASELINE_OUT:-$WORKDIR/gpu_bf16_nospec.json}
@@ -224,13 +225,23 @@ fi
 if [ "$FORCE" != "1" ] && [ "$FORCE_BENCH" != "1" ] && [ -s "$EAGLE_BENCH_OUT" ]; then
     echo "  [skip] eagle bench: $EAGLE_BENCH_OUT exists  (FORCE_BENCH=1 to re-run)"
 else
-    echo "  [2/2] EAGLE (K=$K) …"
-    CUDA_VISIBLE_DEVICES="$BENCH_GPU" "$PYTHON_PATH" -u "$WORKDIR/infer_gpu_eagle.py" \
-        --model "$MODEL" --eagle "$EAGLE_OUT" \
-        --dataset "$BENCH_DATASET" \
-        --num_samples "$BENCH_NUM_SAMPLES" --max_new_tokens "$MAX_NEW_TOKENS" \
-        --K "$K" --output "$EAGLE_BENCH_OUT" \
-        | tee "${EAGLE_BENCH_OUT%.json}.log"
+    if [ "$TREE_B" != "0" ]; then
+        echo "  [2/2] EAGLE-tree (K=$K, B=$TREE_B) …"
+        CUDA_VISIBLE_DEVICES="$BENCH_GPU" "$PYTHON_PATH" -u "$WORKDIR/infer_gpu_eagle_tree.py" \
+            --model "$MODEL" --eagle "$EAGLE_OUT" \
+            --dataset "$BENCH_DATASET" \
+            --num_samples "$BENCH_NUM_SAMPLES" --max_new_tokens "$MAX_NEW_TOKENS" \
+            --K "$K" --B "$TREE_B" --output "$EAGLE_BENCH_OUT" \
+            | tee "${EAGLE_BENCH_OUT%.json}.log"
+    else
+        echo "  [2/2] EAGLE chain (K=$K) …"
+        CUDA_VISIBLE_DEVICES="$BENCH_GPU" "$PYTHON_PATH" -u "$WORKDIR/infer_gpu_eagle.py" \
+            --model "$MODEL" --eagle "$EAGLE_OUT" \
+            --dataset "$BENCH_DATASET" \
+            --num_samples "$BENCH_NUM_SAMPLES" --max_new_tokens "$MAX_NEW_TOKENS" \
+            --K "$K" --output "$EAGLE_BENCH_OUT" \
+            | tee "${EAGLE_BENCH_OUT%.json}.log"
+    fi
 fi
 
 # Summary
