@@ -283,6 +283,9 @@ def main():
     ap.add_argument("--bf16_path", default=None,
                     help="Original bf16 MERaLiON dir (required when "
                          "--quant gptq_marlin; supplies speech_encoder weights)")
+    ap.add_argument("--gptq_kernel", default="exllamav2",
+                    choices=["marlin", "exllama", "exllamav2"],
+                    help="auto-gptq W4A16 kernel (only used with --quant gptq_marlin)")
     args = ap.parse_args()
 
     if args.quant == "gptq_marlin":
@@ -291,7 +294,7 @@ def main():
         from load_gptq_marlin import load_meralion2_gptq_marlin
         model, processor = load_meralion2_gptq_marlin(
             args.model, args.bf16_path, device=args.device,
-            dtype=torch.float16)
+            dtype=torch.float16, kernel=args.gptq_kernel)
     else:
         model, processor = load_model_gpu(
             args.model, quant="bf16", flash_attn=True, device=args.device)

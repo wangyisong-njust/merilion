@@ -96,7 +96,8 @@ def _patch_autogptq_for_gemma2():
 
 
 def load_meralion2_gptq_marlin(model_path, bf16_path, device,
-                                dtype=torch.float16, cache_dir=None):
+                                dtype=torch.float16, cache_dir=None,
+                                kernel="exllamav2"):
     """Load a MERaLiON-2-3B with marlin-quantized text_decoder.
 
     Args:
@@ -107,16 +108,20 @@ def load_meralion2_gptq_marlin(model_path, bf16_path, device,
         device:      target device
         cache_dir:   where to write the extracted standalone Gemma2 dir.
                      Default = model_path + "_gemma2_only".
-        dtype:       must be torch.float16 — auto-gptq's marlin kernel
-                     requires fp16 I/O.  We load the rest of MERaLiON
-                     (speech_encoder / audio_adapter) in fp16 too so the
-                     boundary tensors don't need casting.
+        dtype:       must be torch.float16 — all auto-gptq W4A16 kernels
+                     (marlin / exllama / exllamav2) require fp16 I/O.
+                     The rest of MERaLiON loads in fp16 too.
+        kernel:      "marlin" | "exllama" | "exllamav2"  (default exllamav2,
+                     fastest at batch=1 decode which is what EAGLE's draft
+                     and most-of-the-time verifier do).
     Returns: (model, processor)
     """
     if dtype != torch.float16:
         raise ValueError(
-            "auto-gptq Marlin kernel requires dtype=torch.float16 "
+            "auto-gptq W4A16 kernels require dtype=torch.float16 "
             f"(got {dtype})")
+    if kernel not in ("marlin", "exllama", "exllamav2"):
+        raise ValueError(f"unknown kernel: {kernel}")
     from meralion2_bl.modeling_meralion2 import MERaLiON2ForConditionalGeneration
     from transformers import AutoProcessor
 
@@ -128,16 +133,23 @@ def load_meralion2_gptq_marlin(model_path, bf16_path, device,
     print(f"[1/3] Extracting text_decoder → {gemma2_dir}")
     _extract_gemma2_dir(model_path, gemma2_dir)
 
-    # 2) Load with auto-gptq + marlin (auto-repacks qweight → B/s)
-    print(f"[2/3] Loading Gemma2 W4A16 via auto-gptq (use_marlin=True) …")
+    # 2) Load with auto-gptq, dispatching to the chosen kernel.
+    if kernel == "marlin":
+        from_q_kw = dict(use_marlin=True)
+    elif kernel == "exllamav2":
+        # auto-gptq picks exllamav2 by default unless disabled
+        from_q_kw = dict(disable_exllama=True, disable_exllamav2=False)
+    elif kernel == "exllama":
+        from_q_kw = dict(disable_exllama=False, disable_exllamav2=True)
+    else:
+        from_q_kw = {}
+    print(f"[2/3] Loading Gemma2 W4A16 via auto-gptq (kernel={kernel}) …")
     t0 = time.time()
-    # Don't pass `device=` — auto-gptq's signature varies across versions and
-    # often hits NoneType combinations. Move to GPU after load.
     qmodel = AutoGPTQForCausalLM.from_quantized(
         gemma2_dir,
-        use_marlin=True,
         torch_dtype=dtype,
         trust_remote_code=False,
+        **from_q_kw,
     )
     qmodel = qmodel.to(device)
     print(f"  loaded in {time.time()-t0:.1f}s "
@@ -163,9 +175,12 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--model",     required=True, help="GPTQ-Marlin MERaLiON dir")
     ap.add_argument("--bf16_path", required=True, help="Original bf16 MERaLiON dir")
+    ap.add_argument("--kernel", default="exllamav2",
+                    choices=["marlin", "exllama", "exllamav2"])
     args = ap.parse_args()
 
-    m, p = load_meralion2_gptq_marlin(args.model, args.bf16_path, "cuda")
+    m, p = load_meralion2_gptq_marlin(args.model, args.bf16_path, "cuda",
+                                       kernel=args.kernel)
     print("\n[OK] Loaded.")
     print(f"  text_decoder type: {type(m.text_decoder).__name__}")
     # Quick smoke forward on text-only input

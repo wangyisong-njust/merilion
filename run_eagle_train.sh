@@ -240,7 +240,8 @@ else
             : "${GPTQ_MARLIN_MODEL:?GPTQ_MARLIN_MODEL must be set when VERIFIER_QUANT=gptq_marlin}"
             : "${BF16_MODEL:?BF16_MODEL (path to bf16 MERaLiON for speech_encoder) must be set}"
             EXTRA_ARGS+=( --quant gptq_marlin --model "$GPTQ_MARLIN_MODEL"
-                          --bf16_path "$BF16_MODEL" )
+                          --bf16_path "$BF16_MODEL"
+                          --gptq_kernel "${GPTQ_KERNEL:-exllamav2}" )
         else
             EXTRA_ARGS+=( --model "$MODEL" )
         fi
