@@ -131,13 +131,15 @@ def load_meralion2_gptq_marlin(model_path, bf16_path, device,
     # 2) Load with auto-gptq + marlin (auto-repacks qweight → B/s)
     print(f"[2/3] Loading Gemma2 W4A16 via auto-gptq (use_marlin=True) …")
     t0 = time.time()
+    # Don't pass `device=` — auto-gptq's signature varies across versions and
+    # often hits NoneType combinations. Move to GPU after load.
     qmodel = AutoGPTQForCausalLM.from_quantized(
         gemma2_dir,
         use_marlin=True,
-        device=device,
         torch_dtype=dtype,
         trust_remote_code=False,
     )
+    qmodel = qmodel.to(device)
     print(f"  loaded in {time.time()-t0:.1f}s "
           f"(VRAM peak: {torch.cuda.max_memory_allocated()/1e9:.2f} GB)")
 
