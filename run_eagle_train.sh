@@ -234,9 +234,18 @@ else
             --K "$K" --B "$TREE_B" --output "$EAGLE_BENCH_OUT" \
             | tee "${EAGLE_BENCH_OUT%.json}.log"
     else
-        echo "  [2/2] EAGLE chain (K=$K) …"
+        echo "  [2/2] EAGLE chain (K=$K, quant=${VERIFIER_QUANT:-bf16}) …"
+        EXTRA_ARGS=()
+        if [ "${VERIFIER_QUANT:-bf16}" = "gptq_marlin" ]; then
+            : "${GPTQ_MARLIN_MODEL:?GPTQ_MARLIN_MODEL must be set when VERIFIER_QUANT=gptq_marlin}"
+            : "${BF16_MODEL:?BF16_MODEL (path to bf16 MERaLiON for speech_encoder) must be set}"
+            EXTRA_ARGS+=( --quant gptq_marlin --model "$GPTQ_MARLIN_MODEL"
+                          --bf16_path "$BF16_MODEL" )
+        else
+            EXTRA_ARGS+=( --model "$MODEL" )
+        fi
         CUDA_VISIBLE_DEVICES="$BENCH_GPU" "$PYTHON_PATH" -u "$WORKDIR/infer_gpu_eagle.py" \
-            --model "$MODEL" --eagle "$EAGLE_OUT" \
+            "${EXTRA_ARGS[@]}" --eagle "$EAGLE_OUT" \
             --dataset "$BENCH_DATASET" \
             --num_samples "$BENCH_NUM_SAMPLES" --max_new_tokens "$MAX_NEW_TOKENS" \
             --K "$K" --output "$EAGLE_BENCH_OUT" \

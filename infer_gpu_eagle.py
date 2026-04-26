@@ -38,7 +38,12 @@ from eagle_model import EAGLE, attach_eagle
 def load_eagle(model, ckpt_path, device):
     ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     n_layers = ckpt.get("num_layers", 1)
-    eagle, rotary = attach_eagle(model, device, dtype=torch.bfloat16,
+    # Match verifier dtype — gptq_marlin path forces fp16, otherwise bf16.
+    verifier_dtype = next(
+        (p.dtype for p in model.text_decoder.parameters()
+         if p.dtype in (torch.float16, torch.bfloat16)),
+        torch.bfloat16)
+    eagle, rotary = attach_eagle(model, device, dtype=verifier_dtype,
                                  num_layers=n_layers)
     eagle.load_trainable_state_dict(ckpt["eagle_state"])
     eagle.eval()
@@ -272,10 +277,24 @@ def main():
     ap.add_argument("--device",  default="cuda")
     ap.add_argument("--audiobench_norm", action="store_true")
     ap.add_argument("--output",  default="gpu_3B_eagle.json")
+    ap.add_argument("--quant", default="bf16",
+                    choices=["bf16", "gptq_marlin"],
+                    help="bf16 = standard load; gptq_marlin = W4A16 marlin verifier")
+    ap.add_argument("--bf16_path", default=None,
+                    help="Original bf16 MERaLiON dir (required when "
+                         "--quant gptq_marlin; supplies speech_encoder weights)")
     args = ap.parse_args()
 
-    model, processor = load_model_gpu(
-        args.model, quant="bf16", flash_attn=True, device=args.device)
+    if args.quant == "gptq_marlin":
+        if not args.bf16_path:
+            raise SystemExit("--bf16_path is required when --quant gptq_marlin")
+        from load_gptq_marlin import load_meralion2_gptq_marlin
+        model, processor = load_meralion2_gptq_marlin(
+            args.model, args.bf16_path, device=args.device,
+            dtype=torch.float16)
+    else:
+        model, processor = load_model_gpu(
+            args.model, quant="bf16", flash_attn=True, device=args.device)
     gpu_load_gb = torch.cuda.max_memory_allocated(args.device) / 1e9
     print(f"  VRAM after model load: {gpu_load_gb:.2f} GB")
 
