@@ -129,12 +129,19 @@ def main():
     print("=" * 64)
 
     results = {}
-    for tag, path, quant in [("bf16", args.bf16, "bf16"),
-                             ("w4a16", args.w4a16, "bf16")]:  # W4A16 dispatched via config
+    for tag, path in [("bf16", args.bf16), ("w4a16", args.w4a16)]:
         print(f"\n── {tag.upper()} : {path}")
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats(args.device)
-        m, p = load_model_gpu(path, quant=quant, flash_attn=True, device=args.device)
+        if tag == "w4a16":
+            # GPTQ-Marlin path: bypass HfQuantizer (optimum→gptqmodel→pcre is
+            # blocked); use auto-gptq's from_quantized directly via our loader.
+            from load_gptq_marlin import load_meralion2_gptq_marlin
+            m, p = load_meralion2_gptq_marlin(
+                path, args.bf16, device=args.device, dtype=torch.float16)
+        else:
+            m, p = load_model_gpu(path, quant="bf16",
+                                  flash_attn=True, device=args.device)
         vram_load = torch.cuda.max_memory_allocated(args.device) / 1e9
         cnt = detect_quantized_linears(m)
         print(f"  VRAM after load: {vram_load:.2f} GB")
