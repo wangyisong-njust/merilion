@@ -96,7 +96,7 @@ def _patch_autogptq_for_gemma2():
 
 
 def load_meralion2_gptq_marlin(model_path, bf16_path, device,
-                                dtype=torch.bfloat16, cache_dir=None):
+                                dtype=torch.float16, cache_dir=None):
     """Load a MERaLiON-2-3B with marlin-quantized text_decoder.
 
     Args:
@@ -107,8 +107,16 @@ def load_meralion2_gptq_marlin(model_path, bf16_path, device,
         device:      target device
         cache_dir:   where to write the extracted standalone Gemma2 dir.
                      Default = model_path + "_gemma2_only".
+        dtype:       must be torch.float16 — auto-gptq's marlin kernel
+                     requires fp16 I/O.  We load the rest of MERaLiON
+                     (speech_encoder / audio_adapter) in fp16 too so the
+                     boundary tensors don't need casting.
     Returns: (model, processor)
     """
+    if dtype != torch.float16:
+        raise ValueError(
+            "auto-gptq Marlin kernel requires dtype=torch.float16 "
+            f"(got {dtype})")
     from meralion2_bl.modeling_meralion2 import MERaLiON2ForConditionalGeneration
     from transformers import AutoProcessor
 
