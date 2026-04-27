@@ -63,8 +63,9 @@ def main():
     ap.add_argument("--repo",
                     default="YOUR_HF_USERNAME/MERaLiON-2-3B-EAGLE-W4A16",
                     help="HF repo id (or local path) of this package")
-    ap.add_argument("--base", default="MERaLiON/MERaLiON-2-3B",
-                    help="HF repo id of the BF16 base model")
+    ap.add_argument("--base", default=None,
+                    help="(optional) Override BF16 base path. By default we "
+                         "use the bundled base_bf16/ inside --repo.")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--max_new_tokens", type=int, default=128)
     ap.add_argument("--K",      type=int, default=4)

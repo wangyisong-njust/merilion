@@ -58,7 +58,7 @@ class MERaLiON2EAGLEForASR(nn.Module):
     def from_pretrained(
         cls,
         pretrained_model_name_or_path: str,
-        base_model: str = "MERaLiON/MERaLiON-2-3B",
+        base_model: str | None = None,
         torch_dtype: torch.dtype = torch.float16,
         gptq_kernel: str = "exllama",
         device: str = "cuda",
@@ -66,9 +66,12 @@ class MERaLiON2EAGLEForASR(nn.Module):
     ):
         """Args:
             pretrained_model_name_or_path:  HF repo id or local dir holding
-                eagle.safetensors / text_decoder_w4a16/ / meralion2_bl/.
-            base_model:        Source for the BF16 speech encoder + audio
-                               adapter (default: the original MERaLiON-2-3B).
+                eagle.safetensors / text_decoder_w4a16/ / base_bf16/.
+            base_model:        Optional override for the BF16 base model
+                               (speech_encoder + audio_adapter source).  By
+                               default we use the bundled `base_bf16/`
+                               sub-dir, which guarantees byte-exact match
+                               with what EAGLE was trained against.
             torch_dtype:       Must be torch.float16 — required by all auto-
                                gptq W4A16 kernels.
             gptq_kernel:       'exllama' (default, fastest at batch=1) |
@@ -89,12 +92,22 @@ class MERaLiON2EAGLEForASR(nn.Module):
                 local_files_only=local_files_only,
             )
 
-        td_dir   = os.path.join(local_dir, "text_decoder_w4a16")
-        eag_path = os.path.join(local_dir, "eagle.safetensors")
-        eag_cfg  = os.path.join(local_dir, "eagle_config.json")
+        td_dir       = os.path.join(local_dir, "text_decoder_w4a16")
+        eag_path     = os.path.join(local_dir, "eagle.safetensors")
+        eag_cfg      = os.path.join(local_dir, "eagle_config.json")
+        bundled_base = os.path.join(local_dir, "base_bf16")
         for p in (td_dir, eag_path, eag_cfg):
             if not os.path.exists(p):
                 raise FileNotFoundError(f"missing: {p}")
+        # Resolve which base to use: bundled > user override > error
+        if base_model is None:
+            if os.path.isdir(bundled_base):
+                base_model = bundled_base
+            else:
+                raise FileNotFoundError(
+                    f"no bundled base_bf16/ in {local_dir} and no base_model "
+                    f"override given. Pass base_model='/path/to/MERaLiON-2-3B' "
+                    f"or rebuild the package with build.sh BF16_BASE=...")
 
         # 1. Load the W4A16 Gemma2 text decoder via auto-gptq.
         _patch_autogptq_for_gemma2()

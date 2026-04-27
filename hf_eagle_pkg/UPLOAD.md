@@ -10,6 +10,7 @@ This package is split into:
 ```bash
 GPTQ_MARLIN_DIR=quant_checkpoints/MERaLiON-2-3B-W4A16-GPTQ-Marlin \
 EAGLE_CKPT=eagle_best.pt \
+BF16_BASE=/path/to/MERaLiON-2-3B \
 OUT_DIR=hf_eagle_pkg/_built \
 bash hf_eagle_pkg/build.sh
 ```
@@ -57,6 +58,7 @@ git push origin main
 | File | Size |
 |---|---|
 | `text_decoder_w4a16/model.safetensors` | ~1.3 GB (W4A16 of Gemma2-2.6B) |
+| `base_bf16/model.safetensors`          | ~1.5 GB (Whisper encoder + adapter, BF16) |
 | `eagle.safetensors`                    | ~85 MB  |
 | code + configs                         | <1 MB   |
-| **Total**                              | **~1.4 GB** |
+| **Total**                              | **~3 GB** |

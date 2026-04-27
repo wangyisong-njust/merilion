@@ -52,7 +52,6 @@ from modeling_eagle import MERaLiON2EAGLEForASR
 
 model = MERaLiON2EAGLEForASR.from_pretrained(
     "YOUR_HF_USERNAME/MERaLiON-2-3B-EAGLE-W4A16",
-    base_model="MERaLiON/MERaLiON-2-3B",   # for the BF16 speech encoder
     torch_dtype=torch.float16,             # required by W4A16 kernels
     gptq_kernel="exllama",                 # exllama | exllamav2 | marlin
 ).to("cuda")
@@ -107,7 +106,7 @@ to score them; we accept the longest matching prefix.
 | `eagle_config.json` | EAGLE hyperparameters (num_layers, hidden_size, …) |
 | `text_decoder_w4a16/` | GPTQ-quantized Gemma2 text decoder (qweight + scales) |
 | `text_decoder_w4a16/quantize_config.json` | bits, group_size, sym, desc_act |
-| `meralion2_bl/` | Custom MERaLiON-2 modeling code (vendored) |
+| `base_bf16/` | BF16 base (speech_encoder + audio_adapter + processor + custom modeling code) — bundled so the package is self-contained |
 | `eagle_model.py` | EAGLE class |
 | `modeling_eagle.py` | `MERaLiON2EAGLEForASR` wrapper with `generate_eagle()` |
 | `example_inference.py` | End-to-end audio → transcript example |

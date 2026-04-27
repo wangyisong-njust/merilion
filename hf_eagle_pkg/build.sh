@@ -5,11 +5,16 @@
 #   GPTQ_MARLIN_DIR  — quant_checkpoints/MERaLiON-2-3B-W4A16-GPTQ-Marlin
 #                      (output of quantize_gptq_marlin.py)
 #   EAGLE_CKPT       — eagle_best.pt produced by run_eagle_train.sh
+#   BF16_BASE        — local bf16 MERaLiON-2-3B dir (training-time base);
+#                      its speech_encoder + audio_adapter weights are
+#                      bundled into the package so users don't have to
+#                      redownload (and avoid HF version drift).
 #   OUT_DIR          — destination (default: ./hf_eagle_pkg_built)
 #
 # Usage:
 #   GPTQ_MARLIN_DIR=quant_checkpoints/MERaLiON-2-3B-W4A16-GPTQ-Marlin \
 #   EAGLE_CKPT=eagle_best.pt \
+#   BF16_BASE=/path/to/MERaLiON-2-3B \
 #   bash build.sh
 set -euo pipefail
 
@@ -18,6 +23,7 @@ SRC_REPO="$(cd "$WORKDIR/.." && pwd)"            # main merilion repo
 
 GPTQ_MARLIN_DIR=${GPTQ_MARLIN_DIR:?set GPTQ_MARLIN_DIR=quant_checkpoints/...}
 EAGLE_CKPT=${EAGLE_CKPT:?set EAGLE_CKPT=path/to/eagle_best.pt}
+BF16_BASE=${BF16_BASE:?set BF16_BASE=/path/to/MERaLiON-2-3B (local bf16 base)}
 OUT_DIR=${OUT_DIR:-$WORKDIR/_built}
 
 PYTHON_PATH=${PYTHON_PATH:-python}
@@ -86,7 +92,51 @@ for f in config.json quantize_config.json model.safetensors \
     fi
 done
 
-# 5) Copy the patch script so users can rebuild auto-gptq
+# 5) Bundle bf16 base (speech_encoder + audio_adapter + processor + custom
+#    modeling code), excluding text_decoder.* (which we ship quantized).
+#    This makes the package self-contained — no network access needed at
+#    load time, and no risk of a divergent HF base.
+echo "Bundling bf16 base from $BF16_BASE → $OUT_DIR/base_bf16/ …"
+mkdir -p "$OUT_DIR/base_bf16"
+"$PYTHON_PATH" - <<PYEOF
+import glob, json, os, shutil
+from safetensors import safe_open
+from safetensors.torch import save_file
+
+src = "$BF16_BASE"
+dst = "$OUT_DIR/base_bf16"
+
+# Copy non-weight files (config + processor + tokenizer + custom modeling)
+for fname in os.listdir(src):
+    sp = os.path.join(src, fname)
+    if os.path.isdir(sp):
+        # copy nested dirs (e.g. meralion2_bl/ if present)
+        if fname not in ("__pycache__",):
+            shutil.copytree(sp, os.path.join(dst, fname), dirs_exist_ok=True)
+    elif fname.endswith(".safetensors") or fname.endswith(".bin"):
+        continue   # weights handled below
+    else:
+        shutil.copy2(sp, os.path.join(dst, fname))
+
+# Walk safetensors shards, keep only non-text-decoder keys.
+sd_out = {}
+for sf in sorted(glob.glob(os.path.join(src, "*.safetensors"))):
+    with safe_open(sf, framework="pt") as f:
+        for k in f.keys():
+            if not k.startswith("text_decoder."):
+                sd_out[k] = f.get_tensor(k)
+save_file(sd_out, os.path.join(dst, "model.safetensors"),
+          metadata={"format": "pt"})
+
+# Update model.safetensors.index.json (or remove — we have a single shard)
+idx = os.path.join(dst, "model.safetensors.index.json")
+if os.path.exists(idx):
+    os.remove(idx)
+print(f"  bundled {len(sd_out)} non-text-decoder weights "
+      f"({sum(v.numel() * v.element_size() for v in sd_out.values())/1e9:.2f} GB)")
+PYEOF
+
+# 6) Copy the patch script so users can rebuild auto-gptq
 cp -v "$SRC_REPO/patch_autogptq_marlin_only.py" "$OUT_DIR/"
 cp -v "$SRC_REPO/setup_cuda_includes.sh" "$OUT_DIR/" 2>/dev/null || true
 
