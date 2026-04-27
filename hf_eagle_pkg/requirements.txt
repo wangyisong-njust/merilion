@@ -1,0 +1,32 @@
+# Tested env: Python 3.10, A100 (sm_80), CUDA 12.4.
+#
+# Install order matters — torch first (pinned cu124 wheel), then everything
+# else with --no-deps to avoid auto-upgrades that break the trio
+# transformers / tokenizers / hf_hub.
+#
+#   pip install --index-url https://download.pytorch.org/whl/cu124 \
+#       torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
+#   pip install -r requirements.txt
+#
+# auto-gptq is NOT installable from PyPI for this combo (the prebuilt wheel
+# has no CUDA extensions; the source build of cuda_64/cuda_256 fails on
+# torch 2.6's removed `vec.type()` API).  Install it from source with only
+# the kernels we use:
+#
+#   git clone --depth=1 https://github.com/AutoGPTQ/AutoGPTQ.git /tmp/AutoGPTQ
+#   # patch_autogptq_marlin_only.py is in the repo this README ships with —
+#   # apply it to keep marlin + exllama + exllamav2, drop the rest.
+#   python patch_autogptq_marlin_only.py --setup-py /tmp/AutoGPTQ/setup.py
+#   cd /tmp/AutoGPTQ
+#   TORCH_CUDA_ARCH_LIST="8.0" python setup.py bdist_wheel
+#   pip install --no-deps --force-reinstall dist/auto_gptq*.whl
+
+triton==3.2.0
+transformers==4.51.3
+tokenizers==0.21.1
+huggingface-hub==0.30.2
+accelerate==1.5.2
+safetensors==0.5.3
+numpy==1.26.4
+soundfile==0.12.1
+librosa==0.10.2
