@@ -189,9 +189,15 @@ class MERaLiON2EAGLEForASR(nn.Module):
         feature_attention_mask,
         max_new_tokens: int = 128,
         K: int = 4,
+        return_stats: bool = False,
     ):
-        """Greedy K-step chain speculative decoding.  Returns the full
-        token-id sequence (prompt + generated).
+        """Greedy K-step chain speculative decoding.
+
+        Returns:
+            output_ids (LongTensor of shape (1, prompt_len + n_generated))
+            stats (dict, only if return_stats=True): keys
+                prefill_dt, decode_dt, n_generated, prompt_len,
+                n_spec_acc, n_spec_tot
         """
         from transformers.cache_utils import HybridCache, DynamicCache
 
@@ -209,6 +215,8 @@ class MERaLiON2EAGLEForASR(nn.Module):
         eos_ids.discard(None)
 
         # Prefill (full multimodal forward)
+        torch.cuda.synchronize()
+        t_prefill_start = time.time()
         out = self.model(
             input_ids=input_ids, attention_mask=attention_mask,
             input_features=input_features,
@@ -217,10 +225,14 @@ class MERaLiON2EAGLEForASR(nn.Module):
             cache_position=torch.arange(0, seq_len, device=device),
             output_hidden_states=True, return_dict=True,
         )
+        torch.cuda.synchronize()
+        prefill_dt = time.time() - t_prefill_start
         h_last   = out.hidden_states[-1][0, -1:, :]
         next_tok = int(out.logits[0, -1].argmax())
         generated = list(input_ids[0].tolist()) + [next_tok]
         cur_pos   = seq_len
+        n_spec_acc = n_spec_tot = 0
+        t_decode_start = time.time()
 
         while len(generated) - seq_len < max_new_tokens and next_tok not in eos_ids:
             # Draft: K sequential EAGLE steps, fresh KV cache each round
@@ -261,6 +273,7 @@ class MERaLiON2EAGLEForASR(nn.Module):
                 cache_position=spec_cpos,
                 output_hidden_states=True, return_dict=True,
             )
+            n_spec_tot += K_act
 
             # Greedy chain accept
             n_acc, stopped = 0, False
@@ -270,6 +283,7 @@ class MERaLiON2EAGLEForASR(nn.Module):
                 pred = int(v_out.logits[0, i].argmax())
                 if pred == draft_tokens[i]:
                     generated.append(draft_tokens[i]); n_acc += 1
+                    n_spec_acc += 1
                     next_tok = draft_tokens[i]
                     if draft_tokens[i] in eos_ids:
                         stopped = True; break
@@ -296,4 +310,17 @@ class MERaLiON2EAGLEForASR(nn.Module):
             h_last = v_out.hidden_states[-1][0, idx_h:idx_h + 1, :]
             cur_pos = valid_end
 
-        return torch.tensor([generated], dtype=torch.long, device=device)
+        torch.cuda.synchronize()
+        decode_dt = time.time() - t_decode_start
+        out_ids = torch.tensor([generated], dtype=torch.long, device=device)
+        if return_stats:
+            stats = {
+                "prefill_dt":  prefill_dt,
+                "decode_dt":   decode_dt,
+                "n_generated": len(generated) - seq_len,
+                "prompt_len":  seq_len,
+                "n_spec_acc":  n_spec_acc,
+                "n_spec_tot":  n_spec_tot,
+            }
+            return out_ids, stats
+        return out_ids
