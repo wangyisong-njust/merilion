@@ -104,7 +104,19 @@ def main():
         dtype=torch.long, device=args.device)
     attention_mask = torch.ones_like(input_ids)
 
+    # Warmup pass — first call eats CUDA kernel JIT + allocator init time;
+    # don't include it in the timing.  Same audio / prompt, short max_new.
+    print("Warmup …")
+    _ = model.generate_eagle(
+        input_ids=input_ids, attention_mask=attention_mask,
+        input_features=input_features,
+        feature_attention_mask=feature_attention_mask,
+        max_new_tokens=16, K=args.K,
+    )
+    torch.cuda.synchronize()
+
     print(f"Transcribing with EAGLE+W4A16 (K={args.K}, kernel={args.gptq_kernel}) …")
+    torch.cuda.synchronize()
     t0 = time.time()
     out_ids = model.generate_eagle(
         input_ids=input_ids, attention_mask=attention_mask,
@@ -112,6 +124,7 @@ def main():
         feature_attention_mask=feature_attention_mask,
         max_new_tokens=args.max_new_tokens, K=args.K,
     )
+    torch.cuda.synchronize()
     dt = time.time() - t0
     n_gen = out_ids.shape[1] - input_ids.shape[1]
 
