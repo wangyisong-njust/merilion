@@ -72,6 +72,10 @@ def main():
     ap.add_argument("--gptq_kernel", default="exllama",
                     choices=["exllama", "exllamav2", "marlin"])
     ap.add_argument("--instruction", default="Transcribe the speech")
+    ap.add_argument("--bf16_full", default=None,
+                    help="Optional: path to a full BF16 MERaLiON-2-3B dir "
+                         "to run a side-by-side baseline (no EAGLE, no "
+                         "quantization) on the same audio sample.")
     args = ap.parse_args()
 
     if not os.path.exists(args.audio_path):
@@ -132,7 +136,85 @@ def main():
                              skip_special_tokens=True)
     text = text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
     print(f"\n  decode: {dt:.2f}s  ({n_gen / dt:.1f} tok/s)")
-    print(f"\nTranscription:\n  {text}")
+    print(f"\nTranscription (EAGLE + W4A16):\n  {text}")
+    eagle_tps = n_gen / dt
+    eagle_dt  = dt
+
+    # ── Optional: BF16 baseline comparison on the same audio ──────────────────
+    if args.bf16_full:
+        print(f"\n[baseline] Loading full BF16 model from {args.bf16_full} …")
+        # Free EAGLE+W4A16 GPU mem first
+        del model
+        torch.cuda.empty_cache()
+
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from meralion2_bl.modeling_meralion2 import MERaLiON2ForConditionalGeneration
+        from transformers.cache_utils import HybridCache
+
+        bf16 = MERaLiON2ForConditionalGeneration.from_pretrained(
+            args.bf16_full, torch_dtype=torch.bfloat16, use_safetensors=True)
+        bf16 = bf16.to(args.device)
+        bf16.eval()
+
+        # Re-cast input_features to bf16 for this run
+        input_features_b = input_features.to(torch.bfloat16)
+
+        eos_ids = {tokenizer.eos_token_id,
+                   tokenizer.convert_tokens_to_ids("<end_of_turn>")}
+        eos_ids.discard(None)
+
+        def _greedy(max_new):
+            seq_len   = input_ids.shape[1]
+            max_cache = seq_len + max_new
+            kv = HybridCache(
+                bf16.text_decoder.model.config, max_batch_size=1,
+                max_cache_len=max_cache, dtype=torch.bfloat16, device=args.device)
+            with torch.inference_mode():
+                out = bf16(
+                    input_ids=input_ids, attention_mask=attention_mask,
+                    input_features=input_features_b,
+                    feature_attention_mask=feature_attention_mask,
+                    past_key_values=kv, use_cache=True,
+                    cache_position=torch.arange(0, seq_len, device=args.device),
+                    return_dict=True)
+                next_tok = int(out.logits[0, -1].argmax())
+                gen = [next_tok]
+                cur = seq_len
+                while len(gen) < max_new and next_tok not in eos_ids:
+                    o = bf16.text_decoder(
+                        input_ids=torch.tensor([[next_tok]], dtype=torch.long, device=args.device),
+                        attention_mask=torch.ones(1, cur + 1, dtype=torch.long, device=args.device),
+                        past_key_values=kv, use_cache=True,
+                        cache_position=torch.tensor([cur], device=args.device),
+                        return_dict=True)
+                    next_tok = int(o.logits[0, -1].argmax())
+                    gen.append(next_tok); cur += 1
+            return gen
+
+        # warmup
+        print("[baseline] warmup …")
+        _ = _greedy(16)
+        torch.cuda.synchronize()
+
+        print(f"[baseline] decoding (greedy, no spec) …")
+        torch.cuda.synchronize()
+        t0 = time.time()
+        gen = _greedy(args.max_new_tokens)
+        torch.cuda.synchronize()
+        bf16_dt  = time.time() - t0
+        bf16_tps = len(gen) / bf16_dt
+
+        bf16_text = tokenizer.decode(gen, skip_special_tokens=True)
+        bf16_text = bf16_text.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
+        print(f"\n  decode: {bf16_dt:.2f}s  ({bf16_tps:.1f} tok/s)")
+        print(f"\nTranscription (BF16 baseline):\n  {bf16_text}")
+
+        print("\n" + "=" * 64)
+        print(f"{'config':<20} {'dt(s)':>8} {'tok/s':>8} {'speedup':>8}")
+        print(f"{'BF16 baseline':<20} {bf16_dt:>8.2f} {bf16_tps:>8.1f} {'1.00x':>8}")
+        print(f"{'EAGLE + W4A16':<20} {eagle_dt:>8.2f} {eagle_tps:>8.1f} "
+              f"{eagle_tps/bf16_tps:>7.2f}x")
+        print("=" * 64)
 
 
 if __name__ == "__main__":
