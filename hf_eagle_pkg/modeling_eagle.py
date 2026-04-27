@@ -18,7 +18,7 @@ import time
 import torch
 import torch.nn as nn
 
-from .eagle_model import EAGLE
+from eagle_model import EAGLE
 
 
 def _patch_autogptq_for_gemma2():
@@ -118,7 +118,7 @@ class MERaLiON2EAGLEForASR(nn.Module):
 
         # 2. Load BF16 base model from HF for speech_encoder + adapter.
         print(f"Loading BF16 base model: {base_model}")
-        from .meralion2_bl.modeling_meralion2 import MERaLiON2ForConditionalGeneration
+        from meralion2_bl.modeling_meralion2 import MERaLiON2ForConditionalGeneration
         from transformers import AutoProcessor
 
         processor = AutoProcessor.from_pretrained(
@@ -142,7 +142,7 @@ class MERaLiON2EAGLEForASR(nn.Module):
         # The marlin/exllama text_decoder's Gemma2DecoderLayer class won't
         # have plain Linear projs — but we need a vanilla Gemma2DecoderLayer
         # for EAGLE.  Import from the vendored modeling code.
-        from .meralion2_bl.modeling_gemma2 import Gemma2DecoderLayer
+        from meralion2_bl.modeling_gemma2 import Gemma2DecoderLayer
         eagle = EAGLE(verif_cfg, td.base_model.embed_tokens, td.lm_head,
                       Gemma2DecoderLayer, num_layers=n_layers)
         eagle = eagle.to(device).to(torch_dtype)
