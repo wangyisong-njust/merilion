@@ -72,7 +72,7 @@ def main():
     ap.add_argument("--gptq_kernel", default="exllama",
                     choices=["exllama", "exllamav2", "marlin"])
     ap.add_argument("--instruction", default="Transcribe the speech")
-    ap.add_argument("--bf16_full", default=None,
+    ap.add_argument("--compared_model", default=None,
                     help="Optional: path to a full BF16 MERaLiON-2-3B dir "
                          "to run a side-by-side baseline (no EAGLE, no "
                          "quantization) on the same audio sample.")
@@ -141,8 +141,8 @@ def main():
     eagle_dt  = dt
 
     # ── Optional: BF16 baseline comparison on the same audio ──────────────────
-    if args.bf16_full:
-        print(f"\n[baseline] Loading full BF16 model from {args.bf16_full} …")
+    if args.compared_model:
+        print(f"\n[baseline] Loading full BF16 model from {args.compared_model} …")
         # Free EAGLE+W4A16 GPU mem first
         del model
         torch.cuda.empty_cache()
@@ -152,7 +152,7 @@ def main():
         from transformers.cache_utils import HybridCache
 
         bf16 = MERaLiON2ForConditionalGeneration.from_pretrained(
-            args.bf16_full, torch_dtype=torch.bfloat16, use_safetensors=True)
+            args.compared_model, torch_dtype=torch.bfloat16, use_safetensors=True)
         bf16 = bf16.to(args.device)
         bf16.eval()
 
