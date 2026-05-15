@@ -531,6 +531,7 @@ bash run_eagle_train.sh
 | auto-gptq cuda_64 编译报 `vec.type()` → ScalarType 转换失败 | torch 2.6 移除了 DeprecatedTypeProperties → ScalarType 隐式转换 | `patch_autogptq_marlin_only.py` 直接跳过这两个 kernel |
 | 缺 `crt/host_defines.h` / `cusparse.h` / `nv/target` / `cublas_v2.h` | conda env 装了 nvcc 但没装完整 toolkit dev headers | `setup_cuda_includes.sh`：扫 pkgs cache 把所有 cuda-*-dev 的 include 加进 CPATH |
 | `libc10.so: cannot open shared object file` | torch 的 lib 没在 LD_LIBRARY_PATH | `export LD_LIBRARY_PATH=$(python -c "import torch,os;print(os.path.dirname(torch.__file__))")/lib:$LD_LIBRARY_PATH` |
+| auto-gptq 编译报 `No such file or directory: '/usr/local/cuda-12.8/bin/nvcc'` | 系统 CUDA 路径与编译时不符；nvcc 实际在 conda env 里 | 编译前设 `export PATH=/home/jinchao/miniconda3/envs/audiobench_quant_vLLMv0/bin:$PATH` 和 `export CUDA_HOME=/home/jinchao/miniconda3/envs/audiobench_quant_vLLMv0`，用 conda env 自带的 nvcc，不依赖系统 CUDA |
 | `optimum.gptq → gptqmodel → ModuleNotFoundError: pcre` | optimum 1.24+ 切到 gptqmodel 后端，gptqmodel 依赖 python-pcre（要系统 libpcre dev）| 绕过 HfQuantizer，写 `load_gptq_marlin.py` 直接调 auto-gptq from_quantized |
 | `Marlin kernel requires torch_dtype=torch.float16` | auto-gptq 三个 W4A16 kernel 都要求 fp16 I/O | 整个 MERaLiON 加载用 fp16 而非 bf16 |
 | pip 把 torch / transformers / tokenizers / hf_hub 顺手升级搞坏 env | gptqmodel + autoawq_kernels 拉了不兼容版本 | 全程 `pip install --no-deps`，并 pin `transformers==4.51.3 / tokenizers==0.21.x / hf_hub==0.30.x / triton==3.2.0`；最终重建 env，见 `requirements_marlin.txt` |
