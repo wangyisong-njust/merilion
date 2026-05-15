@@ -381,24 +381,13 @@ def main():
     # ── model loading ─────────────────────────────────────────────────────────
     torch.cuda.reset_peak_memory_stats(args.device)
 
-    hf_wrapper = None   # MERaLiON2EAGLEForASR when loaded from HF package
     if args.hf_repo:
         local_dir = _resolve_hf_repo(args.hf_repo)
-        if args.no_eagle:
-            # No-EAGLE path: load just the W4A16 verifier directly
-            model, processor = _load_from_hf_package(
-                local_dir, args.device, dtype=torch.float16, kernel=args.gptq_kernel)
-        else:
-            # Use the HF package's own MERaLiON2EAGLEForASR.generate_eagle()
-            # to guarantee parity with the published 1.9× reference.
-            sys.path.insert(0, local_dir)
-            from modeling_eagle import MERaLiON2EAGLEForASR
-            print(f"Loading via MERaLiON2EAGLEForASR.from_pretrained({args.hf_repo}) …")
-            hf_wrapper = MERaLiON2EAGLEForASR.from_pretrained(
-                args.hf_repo, torch_dtype=torch.float16,
-                gptq_kernel=args.gptq_kernel, device=args.device)
-            model     = hf_wrapper.model
-            processor = hf_wrapper.processor
+        model, processor = _load_from_hf_package(
+            local_dir, args.device, dtype=torch.float16, kernel=args.gptq_kernel)
+        if not args.no_eagle:
+            eagle_st  = os.path.join(local_dir, "eagle.safetensors")
+            eagle, rotary_emb = load_eagle(model, eagle_st, args.device)
     else:
         # Legacy --model path
         if args.quant == "gptq_marlin":
@@ -426,30 +415,6 @@ def main():
     data = raw.select(range(0, end))
 
     # ── helpers ───────────────────────────────────────────────────────────────
-    def _build_eagle_inputs(aud, sr, instr):
-        """Reproduce the audio + prompt preprocessing from transcribe_eagle."""
-        input_features, feature_attention_mask, n_speech = prepare_audio(
-            aud, sr, processor)
-        tokenizer = processor.tokenizer
-        speech_token_id = model.config.speech_token_index
-        conv = [{"role": "user",
-                 "content": (f"Instruction: {instr} \n"
-                             "Follow the text instruction based on the "
-                             "following audio: <SpeechHere>")}]
-        prompt = tokenizer.apply_chat_template(
-            conv, tokenize=False, add_generation_prompt=True)
-        raw_ids = tokenizer.encode(prompt, add_special_tokens=False)
-        pos = raw_ids.index(speech_token_id)
-        input_ids = torch.tensor(
-            [raw_ids[:pos] + [speech_token_id] * n_speech + raw_ids[pos + 1:]],
-            dtype=torch.long, device=args.device)
-        attn = torch.ones_like(input_ids)
-        td_dtype = next(p.dtype for p in model.text_decoder.parameters()
-                        if p.dtype in (torch.float16, torch.bfloat16))
-        input_features = input_features.to(args.device).to(td_dtype)
-        feature_attention_mask = feature_attention_mask.to(args.device)
-        return input_ids, attn, input_features, feature_attention_mask
-
     def _run_sample(ao, ref, warmup=False):
         aud = np.asarray(ao["array"], dtype=np.float32)
         sr  = ao.get("sampling_rate", SAMPLE_RATE)
@@ -462,31 +427,6 @@ def main():
                 instruction=instr, max_new_tokens=mnt,
                 device=args.device, speculative=False)
             stats.setdefault("spec_accept_rate", None)
-        elif hf_wrapper is not None:
-            input_ids, attn, infeat, fmask = _build_eagle_inputs(aud, sr, instr)
-            seq_len = input_ids.shape[1]
-            torch.cuda.synchronize()
-            t0 = time.time()
-            out_ids, gstats = hf_wrapper.generate_eagle(
-                input_ids=input_ids, attention_mask=attn,
-                input_features=infeat, feature_attention_mask=fmask,
-                max_new_tokens=mnt, K=args.K, return_stats=True)
-            torch.cuda.synchronize()
-            # Decode generated text
-            gen = out_ids[0, seq_len:].tolist()
-            tokenizer = processor.tokenizer
-            hyp = tokenizer.decode(gen, skip_special_tokens=True)
-            hyp = hyp.replace("<Speaker1>:", "").replace("<Speaker2>:", "").strip()
-            n_tot = gstats["n_spec_tot"]
-            n_acc = gstats["n_spec_acc"]
-            decode_dt = gstats["decode_dt"]
-            n_gen = gstats["n_generated"]
-            stats = {
-                "n_tokens":         n_gen,
-                "decode_tps":       max(n_gen - 1, 1) / decode_dt if decode_dt > 0 else 0.0,
-                "spec_accept_rate": (n_acc / n_tot) if n_tot > 0 else 0.0,
-            }
-            hyp = hyp
         else:
             hyp, stats = transcribe_eagle(
                 model, eagle, rotary_emb, processor, aud, sr,
