@@ -50,6 +50,18 @@ for pat in "${CANDIDATES[@]}"; do
 done
 export CPATH
 
+# ── encmamba env: nvcc + CUDA runtime + LD path ──────────────────────────────
+ENCMAMBA=/home/jinchao/miniconda3/envs/encmamba
+export PATH=$ENCMAMBA/bin:$PATH
+export CUDA_HOME=$ENCMAMBA
+export LD_LIBRARY_PATH=$ENCMAMBA/lib:$LD_LIBRARY_PATH
+
+echo "encmamba env set:"
+echo "  PATH      → $ENCMAMBA/bin prepended"
+echo "  CUDA_HOME → $ENCMAMBA"
+echo "  LD_LIBRARY_PATH → $ENCMAMBA/lib prepended"
+
+echo ""
 echo "Added ${#added[@]} CUDA include dir(s) to CPATH:"
 for d in "${added[@]}"; do echo "  $d"; done
 
