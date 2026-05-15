@@ -434,10 +434,15 @@ def main():
         return hyp, stats
 
     # ── warmup ────────────────────────────────────────────────────────────────
-    print("Warming up GPU …")
-    ao0 = _extract_audio(data[0])
-    if ao0 is not None and ao0.get("array") is not None:
-        _run_sample(ao0, "", warmup=True)
+    # 3 warmup passes — single pass insufficient for exllama kernel cache to
+    # settle (verified empirically: pass 1 vs pass 3 latency can differ 20%).
+    print("Warming up GPU (3 passes) …")
+    for wi in range(min(3, len(data))):
+        aw = _extract_audio(data[wi])
+        if aw is not None and aw.get("array") is not None:
+            t_w = time.time()
+            _run_sample(aw, "", warmup=True)
+            print(f"  warmup {wi+1}: {time.time()-t_w:.2f}s")
     torch.cuda.reset_peak_memory_stats(args.device)
 
     # ── benchmark loop ────────────────────────────────────────────────────────
