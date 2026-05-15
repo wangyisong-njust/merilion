@@ -1,18 +1,28 @@
 #!/usr/bin/env python3
-"""Generate a self-contained HTML demo page from CPU benchmark JSON results.
+"""Generate a self-contained HTML demo page from CPU or GPU benchmark JSON results.
 
-Each JSON must have been produced with --save_samples (and optionally --audio_dir).
+Accepts JSONs from infer_cpu.py, infer_gpu.py, or infer_gpu_eagle.py.
+The schema differences are normalised automatically:
+  - EAGLE: results[].{hyp,ref,lat_s}  → samples[].{prediction,reference,latency_s}
+  - GPU:   gpu_mem_peak_gb             → ram_mb equivalent
+
 Audio files are embedded as base64 so the HTML page is fully self-contained.
 
-Usage:
+Usage (CPU):
     python make_demo_html.py \
         --configs \
             "Original FP32:cpu_fp32_original.json" \
-            "mid3-22 INT8:cpu_int8_v3-td50-mid3-22.json" \
-            "mid4-23 INT4+compile:cpu_int4_v3-td50-mid4-23.json" \
-            "mid3-23 INT4+compile:cpu_int4_v3-td50-mid3-23.json" \
-            "mid3-22 INT4+compile:cpu_int4_v3-td50-mid3-22.json" \
-        --output demo.html
+            "mid3-22 INT8:cpu_int8_mid3-22.json" \
+        --output demo_cpu.html
+
+Usage (GPU / EAGLE):
+    python make_demo_html.py \
+        --title "MERaLiON-2-3B — EAGLE Speculative Decoding" \
+        --configs \
+            "BF16 no-spec:eagle_bench_bf16_nospec.json" \
+            "BF16+EAGLE K=4:eagle_bench_bf16_eagle_K4.json" \
+            "W4A16+EAGLE K=4:eagle_bench_w4a16_eagle_K4.json" \
+        --output demo_eagle.html
 """
 import argparse
 import base64
@@ -22,6 +32,40 @@ import re
 import sys
 
 # ── helpers ───────────────────────────────────────────────────────────────
+
+def _normalize_data(data: dict) -> dict:
+    """Normalise GPU / EAGLE JSON to the common schema expected by build_html.
+
+    Handles two divergent schemas:
+      infer_gpu_eagle.py  → top-level key is "results", items have keys
+                            hyp / ref / lat_s / stats.spec_accept_rate
+      infer_gpu.py        → top-level key is "samples" (if --save_samples),
+                            items have prediction / reference / latency_s
+      infer_cpu.py        → same as infer_gpu.py samples schema
+
+    Also maps gpu_mem_peak_gb → ram_mb so the table builder finds a
+    consistent key regardless of backend.
+    """
+    data = dict(data)  # shallow copy — don't mutate caller's dict
+
+    # samples schema normalisation
+    if "samples" not in data and "results" in data:
+        data["samples"] = [
+            {
+                "prediction": r.get("hyp", ""),
+                "reference":  r.get("ref", ""),
+                "latency_s":  r.get("lat_s", r.get("latency_s", 0.0)),
+                **(r.get("stats") or {}),
+            }
+            for r in data["results"]
+        ]
+
+    # memory field normalisation (prefer explicit ram_mb, fall back to gpu field)
+    if "ram_mb" not in data and "gpu_mem_peak_gb" in data:
+        data["ram_mb"] = data["gpu_mem_peak_gb"] * 1024
+
+    return data
+
 
 def _audio_data_uri(path: str) -> str:
     with open(path, "rb") as f:
@@ -59,10 +103,15 @@ def _config_note(model_path: str, quant_method: str) -> str:
     else:
         prune = name
     qmap = {
-        "fp32":    "FP32, no quantization",
-        "int8":    "INT8 dynamic quantization (no compile)",
-        "int8ao":  "INT8 weight-only + torch.compile",
-        "int4":    "INT4 weight-only + torch.compile",
+        "fp32":         "FP32, no quantization",
+        "int8":         "INT8 dynamic quantization (no compile)",
+        "int8ao":       "INT8 weight-only + torch.compile",
+        "int4":         "INT4 weight-only + torch.compile",
+        "bf16":         "BF16 full precision (GPU)",
+        "fp16":         "FP16 full precision (GPU)",
+        "gptq_marlin":  "W4A16 GPTQ (Marlin / ExllamaV1 kernel)",
+        "bnb_int8":     "BitsAndBytes INT8 (GPU)",
+        "bnb_int4":     "BitsAndBytes NF4 INT4 (GPU)",
     }
     q = qmap.get(quant_method.replace("_native", ""), quant_method)
     return f"{prune}; {q}"
@@ -76,7 +125,7 @@ _HTML = """\
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MERaLiON-2-3B CPU Benchmark Demo</title>
+<title>@@PAGE_TITLE@@</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -104,9 +153,8 @@ _HTML = """\
 <body>
 <div class="container py-5">
 
-  <h1 class="fw-bold mb-1">MERaLiON-2-3B &mdash; CPU Benchmark Demo</h1>
-  <p class="text-muted mb-1">Pruning &amp; quantization tradeoffs &middot; @@N_SAMPLES@@ samples &middot; IMDA PART1 ASR</p>
-  <p class="text-muted small mb-4">CPU: AMD EPYC 7742 64-Core Processor &nbsp;(on Nvidia A100 8-GPU server)</p>
+  <h1 class="fw-bold mb-1">@@PAGE_TITLE@@</h1>
+  <p class="text-muted mb-1">@@PAGE_SUBTITLE@@</p>
 
   <!-- ── Performance Table ──────────────────────────────────────────────── -->
   <div class="card-section">
@@ -121,7 +169,8 @@ _HTML = """\
             <th>WER</th>
             <th>&Delta;WER vs Original</th>
             <th>Decode Speed</th>
-            <th>RAM (GB)</th>
+            <th>Spec Acc%</th>
+            <th>VRAM/RAM (GB)</th>
           </tr>
         </thead>
         <tbody>@@TABLE_ROWS@@</tbody>
@@ -284,7 +333,12 @@ def _pareto_frontier(points):
     return sorted(non_dom, key=lambda p: p["speedup"])
 
 
-def build_html(configs: dict, n_samples: int) -> str:
+def build_html(configs: dict, n_samples: int,
+               title: str = "MERaLiON-2 Benchmark Demo",
+               subtitle: str = "") -> str:
+    # ── normalise all configs to the common schema ─────────────────────────
+    configs = {lbl: _normalize_data(data) for lbl, data in configs.items()}
+
     # ── rename configs: first → "Original Model", rest → A, B, C, … ──────
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     orig_labels = list(configs.keys())
@@ -296,6 +350,10 @@ def build_html(configs: dict, n_samples: int) -> str:
     base_lat  = base_data.get("avg_latency_s", 1.0)
     base_wer  = base_data.get("wer", 0.0) * 100
 
+    if not subtitle:
+        n = n_samples if isinstance(n_samples, int) else "?"
+        subtitle = f"{n} samples &middot; IMDA PART1 ASR"
+
     # ── summary table rows ────────────────────────────────────────────────
     table_rows = ""
     for i, (orig_lbl, data) in enumerate(configs.items()):
@@ -304,6 +362,7 @@ def build_html(configs: dict, n_samples: int) -> str:
         wer   = data.get("wer", float("nan")) * 100
         ram   = data.get("ram_mb", 0) / 1024
         tps   = data.get("avg_decode_tps", None)
+        acc   = data.get("avg_spec_accept_rate")
         spd   = base_lat / lat if lat > 0 else 0
         dwer  = wer - base_wer
         row_cls = ' class="best-row"' if i == 0 else ""
@@ -313,6 +372,7 @@ def build_html(configs: dict, n_samples: int) -> str:
         else:
             dwer_str = f"{dwer:+.1f}%"
             spd_str  = f"{spd:.2f}×"
+        acc_str = f"{acc*100:.1f}%" if acc is not None else "—"
         table_rows += f"""
         <tr{row_cls}>
           <td><strong>{disp}</strong></td>
@@ -321,6 +381,7 @@ def build_html(configs: dict, n_samples: int) -> str:
           <td class="acc-cell">{wer:.2f}%</td>
           <td>{dwer_str}</td>
           <td>{f"{tps:.2f} tok/s" if tps is not None else "—"}</td>
+          <td>{acc_str}</td>
           <td>{ram:.2f} GB</td>
         </tr>"""
 
@@ -389,6 +450,8 @@ def build_html(configs: dict, n_samples: int) -> str:
     html = _HTML.replace("{{", "{").replace("}}", "}")
     # Step 2: substitute tokens — inserted JSON uses plain { } and is safe.
     html = (html
+        .replace("@@PAGE_TITLE@@",         title)
+        .replace("@@PAGE_SUBTITLE@@",      subtitle)
         .replace("@@N_SAMPLES@@",          str(n_samples))
         .replace("@@TABLE_ROWS@@",         table_rows)
         .replace("@@SAMPLES_JSON@@",       json.dumps(samples_js, ensure_ascii=False))
@@ -404,11 +467,15 @@ def build_html(configs: dict, n_samples: int) -> str:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate HTML demo page from CPU benchmark JSON results")
+        description="Generate HTML demo page from CPU or GPU benchmark JSON results")
     parser.add_argument("--configs", nargs="+", required=True,
                         help='"Label:json_file" pairs in display order')
     parser.add_argument("--num_samples", type=int, default=None,
                         help="Override sample count shown in subtitle")
+    parser.add_argument("--title", default="MERaLiON-2 Benchmark Demo",
+                        help="Page title (default: MERaLiON-2 Benchmark Demo)")
+    parser.add_argument("--subtitle", default="",
+                        help="Page subtitle (default: auto-generated from num_samples)")
     parser.add_argument("--output", default="demo.html")
     args = parser.parse_args()
 
@@ -426,7 +493,7 @@ def main():
         sys.exit("No valid config files found.")
 
     n = args.num_samples or next(iter(configs.values())).get("num_samples", "?")
-    html = build_html(configs, n)
+    html = build_html(configs, n, title=args.title, subtitle=args.subtitle)
     with open(args.output, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Demo saved → {args.output}  ({os.path.getsize(args.output) // 1024} KB)")
