@@ -17,10 +17,10 @@ export PYTHONUNBUFFERED=1
 PYTHON_PATH="${PYTHON_PATH:-python3}"
 WORKDIR="$(cd "$(dirname "$0")" && pwd)"
 
-BF16_MODEL="${BF16_MODEL:-/path/to/MERaLiON-2-3B}"         # for run 1
-HF_EAGLE_REPO="kartmannXu/MERaLiON-2-3B-EAGLE-W4A16"       # runs 2+3
+BF16_MODEL="${BF16_MODEL:-/home/jinchao/runtao/LLM_base_model/MERaLiON-2-3B}"
+HF_EAGLE_REPO="kartmannXu/MERaLiON-2-3B-EAGLE-W4A16"
 LOCAL_W4A16="${WORKDIR}/quant_checkpoints/MERaLiON-2-3B-W4A16-RTN"
-DATASET="${DATASET:-/path/to/IMDA_PART1_mono_en_30_ASR}"
+DATASET="${DATASET:-/home/jinchao/runtao/meralion_datasets/ASR/IMDA_PART1_mono_en_30_ASR}"
 NUM_SAMPLES=20
 K=4
 GPU=0
