@@ -236,15 +236,7 @@ if (cfg) {{
     borderDash: [6, 3],
     pointRadius: 0,
     fill: false,
-    datalabels: {{
-      align: "end",
-      anchor: "end",
-      offset: 8,
-      font: {{ size: 13, weight: "bold" }},
-      color: color,
-      formatter: () => cfg.mean.toFixed(2) + "×",
-      display: (ctx) => ctx.dataIndex === Math.floor(cfg.speedups.length / 2),
-    }},
+    datalabels: {{ display: false }},
   }});
   // Std envelope (upper bound)
   datasets.push({{
@@ -286,17 +278,21 @@ new Chart(speedupCtx, {{
       legend: {{
         labels: {{
           filter: (item) => item.text && item.text !== false
-            && !item.text.includes("mean") && !item.text.includes("Baseline"),
+            && !item.text.includes("mean±") && !item.text.includes("Baseline"),
         }}
       }},
       tooltip: {{ enabled: false }},
     }},
     scales: {{
       x: {{
-        display: false,
+        title: {{ display: true, text: "Sample index" }},
+        type: "category",
+        labels: SPEEDUP_DATA.length > 0
+          ? Array.from({{length: SPEEDUP_DATA[0].speedups.length}}, (_, i) => i + 1)
+          : [],
       }},
       y: {{
-        display: false,
+        title: {{ display: true, text: "Latency speedup (×)" }},
         min: 0,
       }},
     }},
