@@ -165,12 +165,10 @@ _HTML = """\
           <tr>
             <th>Configuration</th>
             <th>Avg Latency</th>
-            <th>Speedup vs Original</th>
+            <th>Speedup</th>
             <th>WER</th>
-            <th>&Delta;WER vs Original</th>
             <th>Decode Speed</th>
-            <th>Spec Acc%</th>
-            <th>VRAM/RAM (GB)</th>
+            <th>VRAM (GB)</th>
           </tr>
         </thead>
         <tbody>@@TABLE_ROWS@@</tbody>
@@ -287,17 +285,11 @@ new Chart(speedupCtx, {{
     plugins: {{
       legend: {{
         labels: {{
-          filter: (item) => item.text && item.text !== false,
+          filter: (item) => item.text && item.text !== false
+            && !item.text.includes("mean±") && !item.text.includes("Baseline"),
         }}
       }},
-      tooltip: {{
-        callbacks: {{
-          label: (item) => {{
-            if (item.dataset.label && item.dataset.label.includes("mean±std")) return null;
-            return `${{item.dataset.label}}: ${{item.raw.toFixed(2)}}×`;
-          }}
-        }}
-      }},
+      tooltip: {{ enabled: false }},
     }},
     scales: {{
       x: {{
@@ -387,26 +379,19 @@ def build_html(configs: dict, n_samples: int,
         wer   = data.get("wer", float("nan")) * 100
         ram   = data.get("ram_mb", 0) / 1024
         tps   = data.get("avg_decode_tps", None)
-        acc   = data.get("avg_spec_accept_rate")
         spd   = base_lat / lat if lat > 0 else 0
-        dwer  = wer - base_wer
         row_cls = ' class="best-row"' if i == 0 else ""
         if i == 0:
-            dwer_str = "—"
             spd_str  = "—"
         else:
-            dwer_str = f"{dwer:+.1f}%"
             spd_str  = f"{spd:.2f}×"
-        acc_str = f"{acc*100:.1f}%" if acc is not None else "—"
         table_rows += f"""
         <tr{row_cls}>
           <td><strong>{disp}</strong></td>
           <td>{lat:.2f} s</td>
           <td>{spd_str}</td>
           <td class="acc-cell">{wer:.2f}%</td>
-          <td>{dwer_str}</td>
           <td>{f"{tps:.2f} tok/s" if tps is not None else "—"}</td>
-          <td>{acc_str}</td>
           <td>{ram:.2f} GB</td>
         </tr>"""
 
