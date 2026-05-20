@@ -229,7 +229,7 @@ if (cfg) {{
   // Mean line with speedup label
   datasets.push({{
     type: "line",
-    label: "mean " + cfg.mean.toFixed(2) + "×",
+    label: "mean " + cfg.avg_speedup.toFixed(1) + "×",
     data: Array(cfg.speedups.length).fill(cfg.mean),
     borderColor: color,
     borderWidth: 2.5,
@@ -414,11 +414,14 @@ def build_html(configs: dict, n_samples: int,
         import numpy as _np
         mean_s = float(_np.mean(speedups)) if speedups else 1.0
         std_s  = float(_np.std(speedups))  if speedups else 0.0
+        lat_i  = configs[orig_lbl].get("avg_latency_s", 0)
+        avg_spd = base_lat / lat_i if lat_i > 0 else 1.0
         speedup_data.append({
-            "label":    label_map[orig_lbl],
-            "speedups": speedups,
-            "mean":     mean_s,
-            "std":      std_s,
+            "label":       label_map[orig_lbl],
+            "speedups":    speedups,
+            "mean":        mean_s,
+            "std":         std_s,
+            "avg_speedup": avg_spd,
         })
 
     # ── samples data (embedded audio) ─────────────────────────────────────
