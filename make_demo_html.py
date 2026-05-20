@@ -282,6 +282,7 @@ new Chart(speedupCtx, {{
         }}
       }},
       tooltip: {{ enabled: false }},
+      datalabels: {{ display: false }},
     }},
     scales: {{
       x: {{
