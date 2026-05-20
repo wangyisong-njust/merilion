@@ -286,21 +286,17 @@ new Chart(speedupCtx, {{
       legend: {{
         labels: {{
           filter: (item) => item.text && item.text !== false
-            && !item.text.includes("mean±") && !item.text.includes("Baseline"),
+            && !item.text.includes("mean") && !item.text.includes("Baseline"),
         }}
       }},
       tooltip: {{ enabled: false }},
     }},
     scales: {{
       x: {{
-        title: {{ display: true, text: "Sample index" }},
-        type: "category",
-        labels: SPEEDUP_DATA.length > 0
-          ? Array.from({{length: SPEEDUP_DATA[0].speedups.length}}, (_, i) => i + 1)
-          : [],
+        display: false,
       }},
       y: {{
-        title: {{ display: true, text: "Latency speedup (×)" }},
+        display: false,
         min: 0,
       }},
     }},
