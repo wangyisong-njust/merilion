@@ -51,10 +51,18 @@ def collect_shard(args):
 
     device = args.device
 
-    print(f"[shard {args.shard_id}/{args.num_shards}] loading verifier …")
+    print(f"[shard {args.shard_id}/{args.num_shards}] loading verifier ({args.quant}) …")
     t0 = time.time()
-    model, processor = load_model_gpu(
-        args.model, quant="bf16", flash_attn=True, device=device)
+    if args.quant == "gptq_marlin":
+        if not args.bf16_path:
+            raise SystemExit("--bf16_path required with --quant gptq_marlin")
+        from load_gptq_marlin import load_meralion2_gptq_marlin
+        model, processor = load_meralion2_gptq_marlin(
+            args.model, args.bf16_path, device=device,
+            dtype=torch.float16, kernel=args.gptq_kernel)
+    else:
+        model, processor = load_model_gpu(
+            args.model, quant="bf16", flash_attn=True, device=device)
     model.eval()
     tokenizer = processor.tokenizer
     _dtype = next(p.dtype for p in model.parameters()
@@ -221,6 +229,13 @@ def collect_shard(args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
+    ap.add_argument("--quant", default="bf16",
+                    choices=["bf16", "gptq_marlin"],
+                    help="Verifier quantization: bf16 (default) or gptq_marlin")
+    ap.add_argument("--bf16_path", default=None,
+                    help="BF16 base model path (required with --quant gptq_marlin)")
+    ap.add_argument("--gptq_kernel", default="exllama",
+                    choices=["marlin", "exllama", "exllamav2"])
     # Accept one or more IMDA dataset dirs — samples are round-robin'd
     # across them up to --num_samples total.  Legacy `--dataset` still
     # works (a single path).

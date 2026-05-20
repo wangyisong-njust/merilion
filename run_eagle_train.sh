@@ -138,8 +138,19 @@ else
                 echo "  [skip] $out"; continue
             fi
             echo "  launch shard $i on GPU $gpu → $out"
+            COLLECT_ARGS=(--model "$MODEL" --datasets "${DATASETS[@]}")
+            if [ "${VERIFIER_QUANT:-bf16}" = "gptq_marlin" ]; then
+                : "${GPTQ_MARLIN_MODEL:?GPTQ_MARLIN_MODEL must be set when VERIFIER_QUANT=gptq_marlin}"
+                : "${BF16_MODEL:?BF16_MODEL must be set when VERIFIER_QUANT=gptq_marlin}"
+                COLLECT_ARGS+=(
+                    --quant gptq_marlin
+                    --model "$GPTQ_MARLIN_MODEL"
+                    --bf16_path "$BF16_MODEL"
+                    --gptq_kernel "${GPTQ_KERNEL:-exllama}"
+                )
+            fi
             CUDA_VISIBLE_DEVICES="$gpu" nohup "$PYTHON_PATH" -u "$WORKDIR/collect_medusa_data.py" \
-                --model "$MODEL" --datasets "${DATASETS[@]}" \
+                "${COLLECT_ARGS[@]}" \
                 --num_samples "$NUM_SAMPLES" \
                 --num_samples_per_dataset "$NUM_SAMPLES_PER_DATASET" \
                 --start_idx "$START_IDX" --max_new_tokens "$MAX_NEW_TOKENS_COLLECT" \
