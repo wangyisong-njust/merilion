@@ -194,12 +194,6 @@ _HTML = """\
     <div id="samplesContainer" class="row row-cols-1 row-cols-xl-2 g-3"></div>
   </div>
 
-  <!-- ── Footnotes ──────────────────────────────────────────────────────── -->
-  <div class="card-section footnote">
-    <p class="mb-2"><strong>Configuration notes</strong></p>
-    @@FOOTNOTES@@
-  </div>
-
 </div><!-- /container -->
 
 <script>
@@ -223,7 +217,7 @@ const baselineMean = SPEEDUP_DATA.length > 0 ? SPEEDUP_DATA[0].mean : 1;
 const cfg = SPEEDUP_DATA.length > 1 ? SPEEDUP_DATA[SPEEDUP_DATA.length - 1] : null;
 if (cfg) {{
   const color = COLORS[0];
-  // Per-sample bars
+  // Per-sample bars (no datalabels on individual bars)
   datasets.push({{
     type: "bar",
     label: cfg.label,
@@ -232,6 +226,7 @@ if (cfg) {{
     borderColor: color,
     borderWidth: 1,
     borderRadius: 2,
+    datalabels: {{ display: false }},
   }});
   // Mean line with speedup label
   datasets.push({{
@@ -484,20 +479,6 @@ def build_html(configs: dict, n_samples: int,
             "configs":   cfg_data,
         })
 
-    # ── footnotes ─────────────────────────────────────────────────────────
-    footnote_items = []
-    for i, (orig_lbl, data) in enumerate(configs.items()):
-        disp = label_map[orig_lbl]
-        if disp == "Original Model":
-            continue
-        note = _config_note(
-            data.get("model", orig_lbl),
-            data.get("quant_method", "")
-        )
-        footnote_items.append(f"<li><strong>{disp}</strong> &mdash; {note}</li>")
-    footnotes_html = "<ul style='list-style:none;padding:0;margin:0'>" \
-                     + "".join(footnote_items) + "</ul>"
-
     # ── render ────────────────────────────────────────────────────────────
     # Step 1: unescape {{ / }} in template BEFORE inserting JSON data.
     html = _HTML.replace("{{", "{").replace("}}", "}")
@@ -510,7 +491,6 @@ def build_html(configs: dict, n_samples: int,
         .replace("@@SAMPLES_JSON@@",       json.dumps(samples_js, ensure_ascii=False))
         .replace("@@CONFIG_LABELS_JSON@@", json.dumps(list(label_map.values())))
         .replace("@@SPEEDUP_JSON@@",       json.dumps(speedup_data, ensure_ascii=False))
-        .replace("@@FOOTNOTES@@",          footnotes_html)
     )
     return html
 

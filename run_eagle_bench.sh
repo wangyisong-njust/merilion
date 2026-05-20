@@ -103,6 +103,27 @@ run_if_missing "eagle_bench_w4a16_eagle_K${K}.json" \
 
 # ════════════════════════════════════════════════════════════════════════════
 echo ""
+echo "  Patching audio paths into baseline JSON …"
+AUDIO_DIR="$WORKDIR/demo_audio"
+"$PYTHON_PATH" - "$AUDIO_DIR" "eagle_bench_bf16_nospec.json" "$NUM_SAMPLES" <<'PYEOF'
+import os, json, sys
+audio_dir, json_path, num = sys.argv[1], sys.argv[2], int(sys.argv[3])
+if not os.path.exists(json_path):
+    print(f"  [skip] {json_path} not found"); sys.exit(0)
+with open(json_path) as f:
+    d = json.load(f)
+patched = 0
+for i, s in enumerate(d.get("samples", [])):
+    p = os.path.join(audio_dir, f"sample_{i:03d}.wav")
+    if os.path.exists(p):
+        s["audio_file"] = p; patched += 1
+with open(json_path, "w") as f:
+    json.dump(d, f, indent=2)
+print(f"  Patched {patched} samples with audio_file")
+PYEOF
+
+# ════════════════════════════════════════════════════════════════════════════
+echo ""
 echo "========================================"
 echo "  Summary — speedup vs BF16 no-spec"
 echo "========================================"
