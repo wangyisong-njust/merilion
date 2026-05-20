@@ -128,6 +128,7 @@ _HTML = """\
 <title>@@PAGE_TITLE@@</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   body { background: #f4f6fb; font-family: system-ui, sans-serif; }
   .card-section { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.07);
@@ -212,13 +213,16 @@ const COLORS = ["#4361ee","#f72585","#4cc9f0","#7209b7","#06d6a0",
                 "#e9c46a","#e76f51","#457b9d"];
 
 const speedupCtx = document.getElementById("speedupChart").getContext("2d");
+Chart.register(ChartDataLabels);
 // SPEEDUP_DATA = [{label, speedups: [per-sample speedup vs baseline], mean, std}, ...]
 // First entry (baseline) has speedups = [1,1,...], skip it.
 const datasets = [];
 const baselineMean = SPEEDUP_DATA.length > 0 ? SPEEDUP_DATA[0].mean : 1;
 
-SPEEDUP_DATA.slice(1).forEach((cfg, i) => {{
-  const color = COLORS[i % COLORS.length];
+// Only show the last config (EAGLE) vs baseline in the chart
+const cfg = SPEEDUP_DATA.length > 1 ? SPEEDUP_DATA[SPEEDUP_DATA.length - 1] : null;
+if (cfg) {{
+  const color = COLORS[0];
   // Per-sample bars
   datasets.push({{
     type: "bar",
@@ -229,37 +233,45 @@ SPEEDUP_DATA.slice(1).forEach((cfg, i) => {{
     borderWidth: 1,
     borderRadius: 2,
   }});
-  // Mean line
+  // Mean line with speedup label
   datasets.push({{
     type: "line",
-    label: cfg.label + " (mean)",
+    label: "mean " + cfg.mean.toFixed(2) + "×",
     data: Array(cfg.speedups.length).fill(cfg.mean),
     borderColor: color,
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderDash: [6, 3],
     pointRadius: 0,
     fill: false,
+    datalabels: {{
+      align: "end",
+      anchor: "end",
+      offset: 8,
+      font: {{ size: 13, weight: "bold" }},
+      color: color,
+      formatter: () => cfg.mean.toFixed(2) + "×",
+      display: (ctx) => ctx.dataIndex === Math.floor(cfg.speedups.length / 2),
+    }},
   }});
-  // Std envelope
+  // Std envelope (upper bound)
   datasets.push({{
     type: "line",
-    label: cfg.label + " (mean±std)",
     data: cfg.speedups.map(() => cfg.mean + cfg.std),
     borderColor: "transparent",
     pointRadius: 0,
     fill: "+1",
     backgroundColor: color + "18",
   }});
+  // Std envelope (lower bound)
   datasets.push({{
     type: "line",
-    label: false,
     data: cfg.speedups.map(() => cfg.mean - cfg.std),
     borderColor: "transparent",
     pointRadius: 0,
     fill: false,
     backgroundColor: color + "18",
   }});
-}});
+}}
 
 // Baseline reference line at 1.0×
 datasets.push({{
@@ -316,7 +328,7 @@ SAMPLES.forEach((s, idx) => {{
 
   const audioHtml = s.audio_uri
     ? `<audio controls src="${{s.audio_uri}}"></audio>`
-    : `<p class="text-muted small fst-italic">Audio not available</p>`;
+    : "";
 
   const opts = CONFIG_LABELS.map(lbl =>
     `<option value="${{lbl}}">${{lbl}}</option>`
@@ -360,12 +372,9 @@ def build_html(configs: dict, n_samples: int,
     # ── normalise all configs to the common schema ─────────────────────────
     configs = {lbl: _normalize_data(data) for lbl, data in configs.items()}
 
-    # ── rename configs: first → "Original Model", rest → A, B, C, … ──────
-    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    # ── use original labels directly (no renaming) ────────────────────────
     orig_labels = list(configs.keys())
-    label_map = {}
-    for i, lbl in enumerate(orig_labels):
-        label_map[lbl] = "Original Model" if i == 0 else f"Compression Plan {letters[i - 1]}"
+    label_map = {lbl: lbl for lbl in orig_labels}
 
     base_data = next(iter(configs.values()))
     base_lat  = base_data.get("avg_latency_s", 1.0)

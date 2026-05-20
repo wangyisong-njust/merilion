@@ -13,6 +13,7 @@
 #     → if missing, falls back to --hf_repo --no_eagle (derives from HF)
 # ============================================================
 export PYTHONUNBUFFERED=1
+source setup_cuda_includes.sh
 
 PYTHON_PATH="${PYTHON_PATH:-python3}"
 WORKDIR="$(cd "$(dirname "$0")" && pwd)"
@@ -147,6 +148,7 @@ echo "Building HTML demo …"
     --title "MERaLiON-2-3B — EAGLE Speculative Decoding + W4A16" \
     --subtitle "${NUM_SAMPLES} samples &middot; IMDA PART1 ASR &middot; A100 GPU" \
     --configs \
-        "W4A16 no-EAGLE:eagle_bench_w4a16_nospec.json" \
-        "W4A16 + EAGLE K=${K}:eagle_bench_w4a16_eagle_K${K}.json" \
+        "BF16 Baseline:eagle_bench_bf16_nospec.json" \
+        "W4A16:eagle_bench_w4a16_nospec.json" \
+        "W4A16 + EAGLE:eagle_bench_w4a16_eagle_K${K}.json" \
     --output demo_eagle.html
