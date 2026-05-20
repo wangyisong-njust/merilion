@@ -142,11 +142,11 @@ for label, path, is_spec in rows:
 PYEOF
 
 echo ""
-echo "Build HTML demo:"
-echo "  python3 make_demo_html.py \\"
-echo "    --title 'MERaLiON-2-3B — EAGLE W4A16 (1.9× speedup)' \\"
-echo "    --configs \\"
-echo "      'BF16 baseline:eagle_bench_bf16_nospec.json' \\"
-echo "      'W4A16 no-EAGLE:eagle_bench_w4a16_nospec.json' \\"
-echo "      'W4A16+EAGLE K=${K}:eagle_bench_w4a16_eagle_K${K}.json' \\"
-echo "    --output demo_eagle.html"
+echo "Building HTML demo …"
+"$PYTHON_PATH" "$WORKDIR/make_demo_html.py" \
+    --title "MERaLiON-2-3B — EAGLE Speculative Decoding + W4A16" \
+    --subtitle "${NUM_SAMPLES} samples &middot; IMDA PART1 ASR &middot; A100 GPU" \
+    --configs \
+        "W4A16 no-EAGLE:eagle_bench_w4a16_nospec.json" \
+        "W4A16 + EAGLE K=${K}:eagle_bench_w4a16_eagle_K${K}.json" \
+    --output demo_eagle.html

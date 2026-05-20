@@ -128,7 +128,6 @@ _HTML = """\
 <title>@@PAGE_TITLE@@</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   body { background: #f4f6fb; font-family: system-ui, sans-serif; }
   .card-section { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.07);
@@ -141,7 +140,7 @@ _HTML = """\
   .pred-box { background: #eef2ff; border-left: 3px solid #4c6ef5;
               padding: 7px 12px; border-radius: 4px; font-size:.9em; min-height: 2.6em; }
   .lat-tag  { font-size: .78em; color: #6c757d; margin-top: 6px; }
-  #paretoChart { max-height: 420px; }
+  #speedupChart { max-height: 420px; }
   thead th { background: #212529; color: #fff; white-space: nowrap; }
   .table td, .table th { vertical-align: middle; }
   .acc-cell { font-weight: 600; }
@@ -179,12 +178,12 @@ _HTML = """\
     <p class="text-muted small mt-2 mb-0">WER computed on normalised text (lowercase, no punctuation).</p>
   </div>
 
-  <!-- ── Pareto Chart ───────────────────────────────────────────────────── -->
+  <!-- ── Per-Sample Speedup Chart ─────────────────────────────────────────── -->
   <div class="card-section">
-    <h4 class="mb-1">Pareto: Speedup vs WER</h4>
-    <p class="text-muted small mb-3">Upper-left is better (higher speedup, lower WER). The dashed line
-       connects the Pareto frontier where no other option beats it on <em>both</em> axes.</p>
-    <canvas id="paretoChart"></canvas>
+    <h4 class="mb-1">Per-Sample Latency Speedup</h4>
+    <p class="text-muted small mb-3">Each bar is one sample's speedup relative to the baseline (first config).
+       Shaded band = mean ± 1 std across samples.</p>
+    <canvas id="speedupChart"></canvas>
   </div>
 
   <!-- ── Audio Samples ──────────────────────────────────────────────────── -->
@@ -206,65 +205,105 @@ _HTML = """\
 /* ── data ──────────────────────────────────────────────────────────────── */
 const SAMPLES       = @@SAMPLES_JSON@@;
 const CONFIG_LABELS = @@CONFIG_LABELS_JSON@@;
-const CHART_PTS     = @@CHART_JSON@@;
-const PARETO_LINE   = @@PARETO_JSON@@;
+const SPEEDUP_DATA  = @@SPEEDUP_JSON@@;
 
-/* ── Pareto chart ──────────────────────────────────────────────────────── */
-Chart.register(ChartDataLabels);
+/* ── Per-sample speedup chart ──────────────────────────────────────────── */
 const COLORS = ["#4361ee","#f72585","#4cc9f0","#7209b7","#06d6a0",
                 "#e9c46a","#e76f51","#457b9d"];
 
-const paretoCtx = document.getElementById("paretoChart").getContext("2d");
-new Chart(paretoCtx, {{
-  type: "scatter",
-  data: {{
-    datasets: [
-      /* Pareto frontier line (no labels) */
-      {{
-        type: "line",
-        label: "Pareto frontier",
-        data: PARETO_LINE,
-        borderColor: "#adb5bd",
-        borderDash: [5,4],
-        borderWidth: 1.5,
-        pointRadius: 0,
-        fill: false,
-        datalabels: {{ display: false }},
-      }},
-      /* Individual config points */
-      ...CHART_PTS.map((pt, i) => ({{
-        label: pt.label,
-        data: [{{ x: pt.speedup, y: pt.wer }}],
-        backgroundColor: COLORS[i % COLORS.length],
-        borderColor:     COLORS[i % COLORS.length],
-        pointRadius: 9,
-        pointHoverRadius: 12,
-        datalabels: {{
-          align: "top", offset: 6,
-          font: {{ size: 11, weight: "600" }},
-          color: COLORS[i % COLORS.length],
-          formatter: () => pt.label,
-        }},
-      }})),
-    ],
-  }},
+const speedupCtx = document.getElementById("speedupChart").getContext("2d");
+// SPEEDUP_DATA = [{label, speedups: [per-sample speedup vs baseline], mean, std}, ...]
+// First entry (baseline) has speedups = [1,1,...], skip it.
+const datasets = [];
+const baselineMean = SPEEDUP_DATA.length > 0 ? SPEEDUP_DATA[0].mean : 1;
+
+SPEEDUP_DATA.slice(1).forEach((cfg, i) => {{
+  const color = COLORS[i % COLORS.length];
+  // Per-sample bars
+  datasets.push({{
+    type: "bar",
+    label: cfg.label,
+    data: cfg.speedups,
+    backgroundColor: color + "88",
+    borderColor: color,
+    borderWidth: 1,
+    borderRadius: 2,
+  }});
+  // Mean line
+  datasets.push({{
+    type: "line",
+    label: cfg.label + " (mean)",
+    data: Array(cfg.speedups.length).fill(cfg.mean),
+    borderColor: color,
+    borderWidth: 2,
+    borderDash: [6, 3],
+    pointRadius: 0,
+    fill: false,
+  }});
+  // Std envelope
+  datasets.push({{
+    type: "line",
+    label: cfg.label + " (mean±std)",
+    data: cfg.speedups.map(() => cfg.mean + cfg.std),
+    borderColor: "transparent",
+    pointRadius: 0,
+    fill: "+1",
+    backgroundColor: color + "18",
+  }});
+  datasets.push({{
+    type: "line",
+    label: false,
+    data: cfg.speedups.map(() => cfg.mean - cfg.std),
+    borderColor: "transparent",
+    pointRadius: 0,
+    fill: false,
+    backgroundColor: color + "18",
+  }});
+}});
+
+// Baseline reference line at 1.0×
+datasets.push({{
+  type: "line",
+  label: "Baseline (1.0×)",
+  data: Array(SPEEDUP_DATA.length > 0 ? SPEEDUP_DATA[0].speedups.length : 20).fill(1.0),
+  borderColor: "#adb5bd",
+  borderWidth: 1.5,
+  borderDash: [3, 3],
+  pointRadius: 0,
+  fill: false,
+}});
+
+new Chart(speedupCtx, {{
+  data: {{ datasets }},
   options: {{
+    responsive: true,
     plugins: {{
-      legend: {{ display: false }},
+      legend: {{
+        labels: {{
+          filter: (item) => item.text && item.text !== false,
+        }}
+      }},
       tooltip: {{
         callbacks: {{
           label: (item) => {{
-            const pt = CHART_PTS[item.datasetIndex - 1];
-            if (!pt) return "";
-            return `${{pt.label}} — Speedup: ${{pt.speedup.toFixed(2)}}×  WER: ${{pt.wer.toFixed(1)}}%`;
-          }},
-        }},
+            if (item.dataset.label && item.dataset.label.includes("mean±std")) return null;
+            return `${{item.dataset.label}}: ${{item.raw.toFixed(2)}}×`;
+          }}
+        }}
       }},
     }},
-    layout: {{ padding: {{ top: 28 }} }},
     scales: {{
-      x: {{ title: {{ display: true, text: "Speedup (×)" }}, min: 0 }},
-      y: {{ title: {{ display: true, text: "WER (%)" }}, min: 0 }},
+      x: {{
+        title: {{ display: true, text: "Sample index" }},
+        type: "category",
+        labels: SPEEDUP_DATA.length > 0
+          ? Array.from({{length: SPEEDUP_DATA[0].speedups.length}}, (_, i) => i + 1)
+          : [],
+      }},
+      y: {{
+        title: {{ display: true, text: "Latency speedup (×)" }},
+        min: 0,
+      }},
     }},
   }},
 }});
@@ -314,24 +353,6 @@ SAMPLES.forEach((s, idx) => {{
 
 
 # ── build ─────────────────────────────────────────────────────────────────
-
-def _pareto_frontier(points):
-    """Pareto frontier for (speedup higher=better, wer lower=better).
-
-    A point is non-dominated if no other point has both higher speedup
-    AND lower (or equal) WER.
-    """
-    non_dom = []
-    for p in points:
-        dominated = any(
-            q["speedup"] >= p["speedup"] and q["wer"] <= p["wer"]
-            and (q["speedup"] > p["speedup"] or q["wer"] < p["wer"])
-            for q in points if q is not p
-        )
-        if not dominated:
-            non_dom.append(p)
-    return sorted(non_dom, key=lambda p: p["speedup"])
-
 
 def build_html(configs: dict, n_samples: int,
                title: str = "MERaLiON-2 Benchmark Demo",
@@ -385,15 +406,38 @@ def build_html(configs: dict, n_samples: int,
           <td>{ram:.2f} GB</td>
         </tr>"""
 
-    # ── chart data ────────────────────────────────────────────────────────
-    chart_pts = [
-        {"label":   label_map[lbl],
-         "speedup": base_lat / data.get("avg_latency_s", 1),
-         "wer":     data.get("wer", 0) * 100}
-        for lbl, data in configs.items()
-    ]
-    pareto      = _pareto_frontier(chart_pts)
-    pareto_line = [{"x": p["speedup"], "y": p["wer"]} for p in pareto]
+    # ── chart data: per-sample speedup with mean/std ──────────────────────
+    # Collect per-sample latencies for each config
+    per_sample_lats = {}
+    for orig_lbl, data in configs.items():
+        lats = data.get("latencies", None)
+        if lats is None:
+            # Fallback: extract from samples
+            lats = [s.get("latency_s", 0.0) for s in data.get("samples", [])]
+        per_sample_lats[orig_lbl] = lats
+
+    # Baseline latencies (first config)
+    base_lbl = orig_labels[0]
+    base_lats = per_sample_lats.get(base_lbl, [])
+    n_chart = min(len(base_lats), max(len(v) for v in per_sample_lats.values())) if per_sample_lats else 0
+
+    speedup_data = []
+    for i, orig_lbl in enumerate(orig_labels):
+        lats = per_sample_lats.get(orig_lbl, [])
+        speedups = []
+        for j in range(min(n_chart, len(lats), len(base_lats))):
+            bl = base_lats[j] if j < len(base_lats) else 1.0
+            sl = lats[j] if j < len(lats) else 1.0
+            speedups.append(bl / sl if sl > 0 else 1.0)
+        import numpy as _np
+        mean_s = float(_np.mean(speedups)) if speedups else 1.0
+        std_s  = float(_np.std(speedups))  if speedups else 0.0
+        speedup_data.append({
+            "label":    label_map[orig_lbl],
+            "speedups": speedups,
+            "mean":     mean_s,
+            "std":      std_s,
+        })
 
     # ── samples data (embedded audio) ─────────────────────────────────────
     ref_data = next(
@@ -456,8 +500,7 @@ def build_html(configs: dict, n_samples: int,
         .replace("@@TABLE_ROWS@@",         table_rows)
         .replace("@@SAMPLES_JSON@@",       json.dumps(samples_js, ensure_ascii=False))
         .replace("@@CONFIG_LABELS_JSON@@", json.dumps(list(label_map.values())))
-        .replace("@@CHART_JSON@@",         json.dumps(chart_pts, ensure_ascii=False))
-        .replace("@@PARETO_JSON@@",        json.dumps(pareto_line))
+        .replace("@@SPEEDUP_JSON@@",       json.dumps(speedup_data, ensure_ascii=False))
         .replace("@@FOOTNOTES@@",          footnotes_html)
     )
     return html
